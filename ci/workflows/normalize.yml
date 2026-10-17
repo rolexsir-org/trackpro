@@ -1,0 +1,54 @@
+name: Normalize (format + codegen)
+
+# Manually dispatched maintenance job: runs the drift code generator and
+# dart format, and commits the result back to the branch it was dispatched on.
+# Exists because formatting/codegen must come from the real toolchain, not be
+# hand-edited. It never touches anything else and never force-pushes.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  normalize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Resolve dependencies (refresh lock if the SDK requires it)
+        run: |
+          flutter --version
+          flutter pub get || flutter pub upgrade
+
+      - name: Regenerate drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Format hand-written sources
+        run: git ls-files '*.dart' ':!:*.g.dart' | xargs dart format
+
+      - name: Commit and push if anything changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing to normalize."
+          else
+            git commit -m "chore: dart format + regenerate drift code (toolchain-run via CI)"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
