@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Track Pro launcher foreground: a progress ring at three-quarters with a
+     logged "dot" — the app's core visual (the tracker ring), in white on the
+     brand blue background. Safe zone: central 66dp of the 108dp canvas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Track (faint full circle) -->
+    <path
+        android:pathData="M54,33 a21,21 0 1,1 -0.01,0"
+        android:strokeColor="#66FFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- Progress arc: from 12 o'clock, 270° sweep -->
+    <path
+        android:pathData="M54,33 A21,21 0 1,1 33,54"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <!-- Center dot -->
+    <path
+        android:pathData="M54,50.5 a3.5,3.5 0 1,1 -0.01,0"
+        android:fillColor="#FFFFFFFF" />
+</vector>
