@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Merge these into android/app/src/main/res/values/strings.xml.
+  `track_widget_description` shows in the Android widget picker — it is a
+  marketing surface, so it sells the whole app in one line.
+-->
+<resources>
+    <string name="app_name">Track Pro</string>
+    <string name="track_widget_description">Today's water, sleep and steps — plus your streak.</string>
+</resources>

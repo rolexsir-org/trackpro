@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Manifest additions for Track Pro's native seams.
+
+  HOW TO APPLY
+  ============
+  Preferred:  bash android_overlay/apply_overlay.sh   (copies the Kotlin/XML files
+              and prints the exact lines to add to your generated manifest)
+  Manual:     merge the entries below into android/app/src/main/AndroidManifest.xml.
+              They are additive; do not replace the Flutter-generated activity.
+
+  TIMEOUT CAVEAT: this file has never been merged into a real generated project in
+  this environment (no Flutter SDK here). Treat it as a reviewed patch, not as a
+  verified build input: see RELEASE_CHECKLIST.md item R-04.
+
+  Every entry exists because a feature the app implements needs it:
+  - POST_NOTIFICATIONS ....... Android 13+ runtime permission for reminders
+  - RECEIVE_BOOT_COMPLETED ... re-arms scheduled reminders after a reboot
+  - VIBRATE .................. the haptic vocabulary
+  - health.READ_* ............ Health Connect reads (steps / sleep / weight only)
+  - ACTIVITY_RECOGNITION ..... step counting on Android 13 and below
+  - com.android.vending.BILLING  Play Billing
+  - PACKAGE_USAGE_STATS ...... Focus Lock: see the "Focus Lock additions" note below
+  - SYSTEM_ALERT_WINDOW ...... Focus Lock: see the same note
+  - FOREGROUND_SERVICE, FOREGROUND_SERVICE_SPECIAL_USE .. Focus Lock detector
+
+  DELIBERATELY ABSENT
+  ===================
+  - SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM: Track Pro schedules reminders inexactly
+    (`AndroidScheduleMode.inexactAllowWhileIdle`), which needs no alarm
+    permission and avoids a Play policy declaration. If you ever set
+    `NotificationService(exactScheduling: true)`, add SCHEDULE_EXACT_ALARM *and*
+    complete Play Console → App content → Exact alarms, or the release is rejected.
+  - INTERNET: it is declared by the Flutter engine manifest merge. Track Pro itself
+    makes exactly one kind of outbound call (purchase-token verification).
+  - READ_HEALTH_DATA_IN_BACKGROUND: removed. Nothing in the app needs it: sync runs
+    on foreground, so requesting it would be a permission we cannot justify to a
+    reviewer or to the user.
+  - location, body sensors, contacts, camera, microphone: never requested.
+  - BIND_ACCESSIBILITY_SERVICE: never. An accessibility service can read and control
+    every screen and every field on the device; Track Pro does not need that power to
+    cover a list of apps the user chose, and will not ask for it.
+  - BIND_VPN_SERVICE: never. A local VPN can filter traffic device-wide; it also puts
+    Track Pro in the position of seeing the user's traffic. Not needed, not requested.
+  - BIND_DEVICE_ADMIN / device-owner / lock task (kiosk) mode: never. Those can make a
+    phone genuinely unusable, which is not something a habit app should be able to do.
+  - USE_FULL_SCREEN_INTENT: not requested. Raising the covering panel from the
+    background is possible through the user-granted SYSTEM_ALERT_WINDOW, which is a
+    permission the user gives deliberately and can revoke, rather than a
+    full-screen-intent exemption that Play restricts to calls and alarms.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="com.android.vending.BILLING" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Health Connect (Android 14+, and the Health Connect APK on 13 and below) -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+
+    <uses-permission
+        android:name="android.permission.ACTIVITY_RECOGNITION"
+        tools:node="replace" />
+
+    <!--
+      FOCUS LOCK ADDITIONS
+      ====================
+      Four entries, each with the reason it exists. Read this block before removing
+      one: the app's Dart-side code degrades correctly when a permission is missing
+      (sessions run as timers and say so), but the *reason* each one exists is that a
+      session silently does less than the user asked for without it.
+
+      PACKAGE_USAGE_STATS — "usage access". AppOps-protected: the user grants it from
+        Settings → Special app access → Usage access, and no runtime dialog can grant
+        it. This is what lets the detector tell *which* app came to the front. Track Pro
+        reads the foreground package name and the timestamp, compares them against the
+        user's own list, and stores nothing but integers. Without it: no app can be
+        covered, in any mode.
+
+      SYSTEM_ALERT_WINDOW — "display over other apps". AppOps-protected, granted from
+        Settings per app. Two jobs: drawing the covering panel, and — because Android's
+        background-activity-launch restrictions allow it — being permitted to raise
+        that panel at all when the session is not in the foreground. Without it the
+        detector must not claim to be covering anything, and FocusEnforcement reports
+        `unavailable` rather than `armed`.
+
+      FOREGROUND_SERVICE — required by Android for any long-running background work.
+        The session detector is exactly that, and a detector Android is free to kill
+        is a detector that would make the app's status line a lie.
+
+      FOREGROUND_SERVICE_SPECIAL_USE — the honest service type (API 34+). This work is
+        not media, not location, not a call and not a data sync; it is a user-visible,
+        user-started session. Play Console → App content → Foreground service types
+        requires a written justification for `specialUse`, and the manifest property
+        below must name the subtype. Rejection there is a release blocker; see
+        docs/FOCUS_LOCK.md → Play Console declarations.
+    -->
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        tools:replace="android:allowBackup,android:fullBackupContent">
+        <!--
+          Backup is off on purpose. Tracker data is health data: leaving it in
+          Android's default cloud backup would copy it to the user's Google Drive
+          without them ever choosing that, and would then restore a half-stale
+          copy onto a new device. Export (Settings → Export data) is the explicit,
+          user-controlled path, and it is always free.
+        -->
+
+        <!-- Scheduled reminders: flutter_local_notifications re-arms these on boot. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+
+        <!-- Home-screen widget (Glance). The class lives in com.track.app, so the
+             relative name is `.TrackWidgetReceiver` — an earlier revision of this
+             file said `.widget.TrackWidgetReceiver`, which is a
+             ClassNotFoundException at widget-add time. -->
+        <receiver
+            android:name=".TrackWidgetReceiver"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/track_widget_info" />
+        </receiver>
+
+        <!--
+          Health Connect permission rationale. Health Connect requires the app to
+          host an activity that explains, per data type, why it is read; users see
+          it from inside the permission sheet. Pointing the alias at MainActivity
+          keeps the explanation inside the app rather than in a second screen that
+          has to be kept in sync.
+        -->
+        <!--
+          Focus Lock. `exported="false"` on both: nothing outside the app may start
+          them, so no other app can launch a covering panel and no other app can pretend
+          to end a session. `stopWithTask="false"` on the service is deliberate: a user
+          who swipes the app away on the Recents screen has not asked for the session to
+          end, and silently ending it would be a different kind of dishonesty.
+        -->
+        <service
+            android:name=".FocusSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="focus_session_detector" />
+        </service>
+
+        <activity
+            android:name=".FocusBlockOverlay"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+
+    <!-- Health Connect is a separate system app on Android 13 and below: without
+         this query the plugin cannot tell "not installed" from "not granted". -->
+    <queries>
+        <package android:name="com.google.android.apps.healthdata" />
+        <!-- Play Billing's own package, so in_app_purchase can report
+             "store unavailable" instead of throwing. -->
+        <package android:name="com.android.vending" />
+    </queries>
+</manifest>

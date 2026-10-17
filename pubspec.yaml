@@ -1,0 +1,89 @@
+name: track
+description: "Track Pro — one app for everything you track daily (water, mood, expenses, sleep, habits, calories, steps, cycle, screen time, weight)."
+publish_to: 'none'
+version: 1.0.0+12
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # --- state ---
+  provider: ^6.1.5
+
+  # --- storage: Drift (SQLite). One entries log + a daily rollup table.
+  # drift_flutter already depends on sqlite3_flutter_libs (the native SQLite that
+  # ships inside the APK) and path_provider, so they are declared once, not twice.
+  drift: ^2.35.2
+  drift_flutter: ^0.3.1
+
+  # --- settings / small KV state (theme, onboarding, widget snapshot) ---
+  shared_preferences: ^2.5.6
+
+  # --- health / steps / sleep / weight (Health Connect on Android) ---
+  health: ^13.3.2
+
+  # --- notifications: 9pm check-in, streak saver, weekly report ---
+  flutter_local_notifications: ^22.3.2
+  timezone: ^0.11.2
+  flutter_timezone: ^5.1.1
+
+  # --- external links: manage subscription, terms, privacy (Play requires an
+  # in-app path to cancel, and the paywall must be able to open it) ---
+  url_launcher: ^6.3.2
+
+  # --- monetisation: Google Play Billing ---
+  # in_app_purchase is the federated entry point; the _android implementation is
+  # pinned explicitly because we read GooglePlayProductDetails / offer tokens and
+  # GooglePlayPurchaseParam directly (subscriptions WILL fail without an offer
+  # token). Keep both in step with MONETIZATION.md.
+  in_app_purchase: ^3.3.1
+  in_app_purchase_android: ^0.5.4
+
+  # --- misc ---
+  # package_info_plus feeds the version row in Settings. There is no intl entry:
+  # every date and number the app shows is formatted by lib/util/format.dart, and
+  # nothing imports the package.
+  package_info_plus: ^10.2.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.35.1
+  build_runner: ^2.16.2
+
+flutter:
+  uses-material-design: true
+
+  # Inter is bundled (SIL OFL 1.1 — see assets/fonts/Inter-LICENSE.txt).
+  # SF Pro is Apple-licensed and cannot ship in an APK; the theme keeps the
+  # stack 'SFProDisplay → Inter → Roboto', so if you hold an Apple font licence
+  # just drop the .otf files in and uncomment the family below.
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    # - family: SFProDisplay
+    #   fonts:
+    #     - asset: assets/fonts/SFProDisplay-Regular.otf
+    #     - asset: assets/fonts/SFProDisplay-Medium.otf
+    #       weight: 500
+    #     - asset: assets/fonts/SFProDisplay-Semibold.otf
+    #       weight: 600
+    #     - asset: assets/fonts/SFProDisplay-Bold.otf
+    #       weight: 700
+
+  assets:
+    - assets/fonts/Inter-LICENSE.txt

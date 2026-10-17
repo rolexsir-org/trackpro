@@ -1,0 +1,122 @@
+// =============================================================================
+// Copy these blocks into android/app/build.gradle.kts (or build.gradle).
+// They are what the native seams and the plugin set actually need.
+// =============================================================================
+//
+// 1) PLUGINS — the Compose compiler is required by Glance (the widget), even
+//    though the rest of the app is Flutter. Glance compiles Compose down to
+//    RemoteViews; it is the only reason Kotlin/Compose appears at all.
+//
+//    plugins {
+//        id("com.android.application")
+//        id("kotlin-android")
+//        id("dev.flutter.flutter-gradle-plugin")
+//        id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+//    }
+//
+// 2) COMPOSE + LANGUAGE FEATURES
+//
+//    android {
+//        compileSdk = 36                       // health 13 and glance 1.1 need 35+
+//        defaultConfig {
+//            // 26, not 23. Health Connect's own client, the Compose runtime Glance
+//            // pulls in, and java.time desugaring all assume API 26+; a lower
+//            // minSdk compiles and then crashes on old devices. API 26 (2017) is
+//            // ~99% of live Android devices in 2026, so this costs nothing real.
+//            minSdk = 26
+//            targetSdk = 36
+//        }
+//        buildFeatures { compose = true }
+//        // AGP 8.5+ deprecates kotlinOptions; prefer:
+//        //   kotlin { compilerOptions { jvmTarget = JvmTarget.JVM_17 } }
+//        kotlinOptions { jvmTarget = "17" }
+//        compileOptions {
+//            sourceCompatibility = JavaVersion.VERSION_17
+//            targetCompatibility = JavaVersion.VERSION_17
+//            isCoreLibraryDesugaringEnabled = true   // flutter_local_notifications requires this
+//        }
+//    }
+//
+// 3) DEPENDENCIES
+//
+//    NOTE ON BILLING: `in_app_purchase_android` brings the Play Billing Library
+//    in as a transitive dependency (currently 7.x), so there is nothing to add
+//    for purchases. Only pin it explicitly if you must match a Play policy
+//    deadline:
+//
+//        implementation("com.android.billingclient:billing-ktx:7.1.1")
+//
+//    Keep Billing Library >= 7: Play requires it for new releases, and the
+//    in_app_purchase_android 0.5.x line already ships it. Check the Play Console
+//    billing-library page after every dependency bump — it is a hard release gate.
+//
+//    dependencies {
+//        // Home-screen widget (Glance draws the three rings)
+//        implementation("androidx.glance:glance-appwidget:1.1.0")
+//        implementation("androidx.glance:glance-material3:1.1.0")
+//        implementation("androidx.compose.ui:ui-graphics:1.7.6")
+//
+//        // Health Connect: read permissions + the system-app fallback on 13-
+//        implementation("androidx.health.connect:connect-client:1.1.0")
+//
+//        // flutter_local_notifications needs desugaring on API < 26
+//        coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+//
+//        implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7") // lifecycleScope for widget refresh
+//
+//        // Wear OS: pushes the same snapshot to a paired watch (see android_overlay/wear/)
+//        implementation("com.google.android.gms:play-services-wearable:18.2.0")
+//
+//        // Focus Lock's native seam (android_overlay/…/Focus*.kt). No new SDKs: the
+//        // detector is UsageStatsManager + a foreground service, both platform APIs.
+//        // androidx.core is what supplies ServiceCompat.startForeground (the API 34
+//        // service-type call), NotificationCompat and NotificationManagerCompat — Glance
+//        // and Compose already put it on the classpath, but naming it keeps the focus
+//        // seam from breaking if the widget is ever removed.
+//        implementation("androidx.core:core-ktx:1.13.1")
+//    }
+//
+// 3b) FOCUS LOCK, WHAT IS DELIBERATELY NOT HERE
+//
+//    No accessibility service, no VpnService, no DevicePolicyManager / device-owner
+//    path, no lock-task (kiosk) mode, no hidden-API access, no root. Each of those
+//    would let Track cover apps more reliably — and each of them also gives Track the
+//    ability to read or control far more of the device than this feature needs. The
+//    feature is worth less than the trust it would cost, so the seam is limited to
+//    usage events, a foreground service, and a panel the user granted the right to
+//    draw. See docs/FOCUS_LOCK.md → "What Android still limits".
+
+// =============================================================================
+// 4) ANDROID STUDIO / GRADLE PROPS — keep the build fast and small
+//    android/gradle.properties:
+//
+//    android.enableJetifier=false
+//    android.useAndroidX=true
+//    org.gradle.jvmargs=-Xmx4G
+//    org.gradle.parallel=true
+//    org.gradle.caching=true
+//
+// 5) RELEASE SIGNING / SHRINKING — the widget and notification receivers must
+//    survive R8. The plugin ships its own consumer rules, but Glance's runtime
+//    reflection means you should keep these:
+//
+//    android {
+//        buildTypes {
+//            release {
+//                isMinifyEnabled = true
+//                isShrinkResources = true
+//                proguardFiles(
+//                    getDefaultProguardFile("proguard-android-optimize.txt"),
+//                    "proguard-rules.pro",
+//                )
+//            }
+//        }
+//    }
+//
+//    android/app/proguard-rules.pro:
+//
+//    The file in this overlay (app/proguard-rules.pro) is the maintained copy.
+//    Two of these matter more than they look:
+//      - the Glance widget receiver is instantiated by the *system* from the
+//        manifest, so R8 cannot see the reference and will strip it;
+//      - the notification receivers likewise.

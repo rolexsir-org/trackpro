@@ -1,0 +1,25 @@
+# Drift code generation.
+#
+#   dart run build_runner build --delete-conflicting-outputs
+#
+# Generates:
+#   lib/data/db/database.g.dart        (Drift table/schema code)
+#   lib/data/db/database.drift.dart    (schema snapshots, lets you diff versions)
+#
+# Run it once after `flutter pub get`, and again whenever a table changes.
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # "modular": emit queries as a separate class (better for large schemas)
+          store_date_time_values_as_text: false
+          named_parameters: true
+      drift_dev|preparing_builder:
+        generate_for:
+          include:
+            - lib/data/db/database.dart
+      drift_dev|drift_dev:
+        generate_for:
+          include:
+            - lib/data/db/database.dart

@@ -1,0 +1,21 @@
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  exclude:
+    - "**/*.g.dart"
+    - "**/*.drift.dart"
+    - build/**
+    - linux/**
+  language:
+    strict-casts: true
+    strict-raw-types: true
+  errors:
+    # Drift generates a lot of code; keep its warnings out of the app's budget.
+    unused_element: warning
+
+linter:
+  rules:
+    - prefer_single_quotes
+    - unawaited_futures
+    - avoid_print
+    - require_trailing_commas
