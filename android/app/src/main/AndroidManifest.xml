@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Track Pro Android host manifest.
+
+  This is the Flutter launcher host merged with the entries from
+  android_overlay/app/src/main/AndroidManifest.xml (the overlay file documents
+  the reason every permission exists and which ones are deliberately absent —
+  read it before adding or removing anything here).
+
+  DELIBERATELY ABSENT (see the overlay manifest for the full rationale):
+  - SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM (reminders are scheduled inexactly)
+  - INTERNET (declared by the Flutter engine's own manifest merge)
+  - READ_HEALTH_DATA_IN_BACKGROUND, location, body sensors, contacts, camera,
+    microphone, accessibility, VPN, device admin, full-screen intents.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="com.android.vending.BILLING" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+    <!-- Health Connect (Android 14+, and the Health Connect APK on 13 and below).
+         Read-only, three data types; background read deliberately not requested. -->
+    <uses-permission android:name="android.permission.health.READ_STEPS" />
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+
+    <uses-permission
+        android:name="android.permission.ACTIVITY_RECOGNITION"
+        tools:node="replace" />
+
+    <!-- Focus Lock seam: usage access + overlay panel + the detector service.
+         Each is explained at length in android_overlay/.../AndroidManifest.xml. -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application
+        android:name="${applicationName}"
+        android:label="@string/app_name"
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true"
+        android:allowBackup="false"
+        android:fullBackupContent="false"
+        tools:replace="android:allowBackup,android:fullBackupContent">
+        <!--
+          Backup is off on purpose. Tracker data is health data: leaving it in
+          Android's default cloud backup would copy it to the user's Google Drive
+          without them ever choosing that. Export (Settings → Export data) is the
+          explicit, user-controlled path.
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:taskAffinity=""
+            android:theme="@style/LaunchTheme"
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+            android:hardwareAccelerated="true"
+            android:windowSoftInputMode="adjustResize">
+            <!-- The Android process keeps LaunchTheme until Flutter paints its
+                 first frame, then switches to NormalTheme. -->
+            <meta-data
+                android:name="io.flutter.embedding.android.NormalTheme"
+                android:resource="@style/NormalTheme" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Health Connect permission rationale, Android 13 and below. -->
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Health Connect permission rationale, Android 14+. Pointing the alias
+             at MainActivity keeps the explanation inside the app. -->
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".MainActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Scheduled reminders: flutter_local_notifications re-arms these on boot. -->
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name="com.dexterous.flutterlocalnotifications.ScheduledNotificationReceiver"
+            android:exported="false" />
+
+        <!-- Home-screen widget (Glance). The class lives in com.track.app, so the
+             relative name is `.TrackWidgetReceiver`. -->
+        <receiver
+            android:name=".TrackWidgetReceiver"
+            android:exported="false"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/track_widget_info" />
+        </receiver>
+
+        <!--
+          Focus Lock. `exported="false"` on both: nothing outside the app may
+          start them. `stopWithTask="false"`: swiping the app away on Recents is
+          not a request to end the session.
+        -->
+        <service
+            android:name=".FocusSessionService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse"
+            android:stopWithTask="false">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="focus_session_detector" />
+        </service>
+
+        <activity
+            android:name=".FocusBlockOverlay"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <!-- Don't delete the meta-data below.
+             This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+    </application>
+
+    <queries>
+        <!-- Health Connect is a separate system app on Android 13 and below: without
+             this query the plugin cannot tell "not installed" from "not granted". -->
+        <package android:name="com.google.android.apps.healthdata" />
+        <!-- Play Billing's own package, so in_app_purchase can report
+             "store unavailable" instead of throwing. -->
+        <package android:name="com.android.vending" />
+        <!-- url_launcher: legal pages, manage-subscription link, support e-mail. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+            <data android:scheme="mailto" />
+        </intent>
+        <!-- Flutter text-selection toolbar "process text" integration. -->
+        <intent>
+            <action android:name="android.intent.action.PROCESS_TEXT" />
+            <data android:mimeType="text/plain" />
+        </intent>
+    </queries>
+</manifest>

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Track Pro</string>
+    <!-- Shows in the Android widget picker — it is a marketing surface. -->
+    <string name="track_widget_description">Today\'s water, sleep and steps — plus your streak.</string>
+</resources>

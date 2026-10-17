@@ -1,5 +1,11 @@
 include: package:flutter_lints/flutter.yaml
 
+# The codebase is written to a 120-column budget (see the long doc comments in
+# lib/). This keeps `dart format` from reflowing every file to 80 columns and
+# makes `dart format --set-exit-if-changed .` a meaningful CI gate.
+formatter:
+  page_width: 120
+
 analyzer:
   exclude:
     - "**/*.g.dart"

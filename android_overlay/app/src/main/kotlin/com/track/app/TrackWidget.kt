@@ -1,24 +1,23 @@
 package com.track.app
 
 import android.content.Context
-import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.RectF
+import android.graphics.Shader
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.glance.Canvas
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
+import androidx.glance.Image
+import androidx.glance.ImageProvider
 import androidx.glance.action.actionStartActivity
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -47,6 +46,7 @@ import androidx.glance.state.PreferencesGlanceStateDefinition
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.unit.ColorProvider
 import org.json.JSONObject
 
 /**
@@ -63,13 +63,18 @@ import org.json.JSONObject
  * database connection, migration path and memory budget — and the snapshot is
  * ~600 bytes instead of a 40 MB plugin boot.
  *
+ * Rendering note: Glance has no Canvas composable (it compiles down to
+ * RemoteViews), so the arcs are drawn into a small Bitmap with android.graphics
+ * and shown through [Image]. An earlier revision of this file imported
+ * `androidx.glance.Canvas`, which does not exist — it could never have compiled.
+ *
  * Every tap opens MainActivity: the widget is a *door* into the app, which is
  * the whole point of shipping one.
  */
 class TrackWidget : GlanceAppWidget() {
 
     override val sizeMode: SizeMode = SizeMode.Responsive(
-        setOf(DpSize(160.dp, 110.dp), DpSize(250.dp, 110.dp), DpSize(250.dp, 220.dp))
+        setOf(DpSize(160.dp, 110.dp), DpSize(250.dp, 110.dp), DpSize(250.dp, 220.dp)),
     )
 
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
@@ -79,14 +84,14 @@ class TrackWidget : GlanceAppWidget() {
         // so system-triggered re-renders (resize, theme change) are free.
         val snapshot = readSnapshot(context)
         updateAppWidgetState(context, id) { prefs ->
-            val next = prefs.toMutablePreferences()
-            next[SNAPSHOT_KEY] = snapshot.orEmpty()
-            next
+            prefs[SNAPSHOT_KEY] = snapshot.orEmpty()
         }
 
         provideContent {
             val state = currentState<Preferences>()
-            val payload = state[SNAPSHOT_KEY]?.takeIf { it.isNotBlank() }?.let { runCatching { JSONObject(it) }.getOrNull() }
+            val payload = state[SNAPSHOT_KEY]
+                ?.takeIf { it.isNotBlank() }
+                ?.let { runCatching { JSONObject(it) }.getOrNull() }
             WidgetContent(payload, context)
         }
     }
@@ -102,10 +107,10 @@ class TrackWidget : GlanceAppWidget() {
                 modifier = GlanceModifier
                     .fillMaxSize()
                     .appWidgetBackground()
-                    .background(Color(0xFFF2F2F7))
+                    .background(ColorProvider(Color(0xFFF2F2F7)))
                     .cornerRadius(24.dp)
                     .padding(16.dp)
-                    .clickable(actionStartActivity(Intent(context, MainActivity::class.java))),
+                    .clickable(actionStartActivity<MainActivity>()),
             ) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
@@ -130,12 +135,13 @@ class TrackWidget : GlanceAppWidget() {
                         for (i in 0 until rings.length()) {
                             val ring = rings.getJSONObject(i)
                             Ring(
+                                context = context,
                                 pct = ring.optDouble("pct", 0.0).toFloat(),
                                 value = ring.optString("value"),
                                 label = ring.optString("name"),
                                 emoji = ring.optString("emoji"),
-                                color = Color(ring.optInt("color")),
-                                color2 = Color(ring.optInt("color2")),
+                                colorArgb = ring.optInt("color"),
+                                color2Argb = ring.optInt("color2"),
                             )
                             if (i < rings.length() - 1) Spacer(GlanceModifier.width(14.dp))
                         }
@@ -153,57 +159,75 @@ class TrackWidget : GlanceAppWidget() {
     /** One ring: emoji + value centred in a gradient arc, tracker name below. */
     @Composable
     private fun Ring(
+        context: Context,
         pct: Float,
         value: String,
         label: String,
         emoji: String,
-        color: Color,
-        color2: Color,
+        colorArgb: Int,
+        color2Argb: Int,
     ) {
         val clamped = pct.coerceIn(0f, 1f)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = GlanceModifier.size(58.dp), contentAlignment = Alignment.Center) {
-                Canvas(modifier = GlanceModifier.size(58.dp)) {
-                    val stroke = 6f
-                    val arcSize = Size(size.width - stroke, size.height - stroke)
-                    val topLeft = Offset(stroke / 2f, stroke / 2f)
-
-                    drawArc(
-                        color = Color(0x1F3C3C43),
-                        startAngle = 0f,
-                        sweepAngle = 360f,
-                        useCenter = false,
-                        topLeft = topLeft,
-                        size = arcSize,
-                        style = Stroke(width = stroke),
-                    )
-                    if (clamped > 0f) {
-                        drawArc(
-                            brush = Brush.linearGradient(
-                                colors = listOf(color, color2),
-                                start = Offset.Zero,
-                                end = Offset(size.width, size.height),
-                            ),
-                            startAngle = -90f,
-                            sweepAngle = 360f * clamped,
-                            useCenter = false,
-                            topLeft = topLeft,
-                            size = arcSize,
-                            style = Stroke(width = stroke, cap = StrokeCap.Round),
-                        )
-                    }
-                }
+                Image(
+                    provider = ImageProvider(ringBitmap(context, clamped, colorArgb, color2Argb)),
+                    contentDescription = null,
+                    modifier = GlanceModifier.size(58.dp),
+                )
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(text = emoji, style = TextStyle(fontSize = 11.sp))
                     Text(
                         text = value,
-                        style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Bold, color = color),
+                        style = TextStyle(
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(Color(colorArgb)),
+                        ),
                     )
                 }
             }
             Spacer(GlanceModifier.height(5.dp))
             Text(text = label, style = TextStyle(fontSize = 10.sp))
         }
+    }
+
+    /** Draws the track circle + gradient progress arc into a bitmap. */
+    private fun ringBitmap(
+        context: Context,
+        pct: Float,
+        colorArgb: Int,
+        color2Argb: Int,
+        sizeDp: Float = 58f,
+        strokeDp: Float = 6f,
+    ): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val px = (sizeDp * density).toInt().coerceAtLeast(2)
+        val stroke = strokeDp * density
+        val bitmap = Bitmap.createBitmap(px, px, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val rect = RectF(stroke / 2f, stroke / 2f, px - stroke / 2f, px - stroke / 2f)
+
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = stroke
+            strokeCap = Paint.Cap.ROUND
+        }
+
+        // Faint full track.
+        paint.color = 0x1F3C3C43
+        canvas.drawArc(rect, 0f, 360f, false, paint)
+
+        // Gradient progress arc from 12 o'clock.
+        if (pct > 0f) {
+            paint.shader = LinearGradient(
+                0f, 0f, px.toFloat(), px.toFloat(),
+                colorArgb, color2Argb, Shader.TileMode.CLAMP,
+            )
+            canvas.drawArc(rect, -90f, 360f * pct, false, paint)
+            paint.shader = null
+        }
+        return bitmap
     }
 
     companion object {
