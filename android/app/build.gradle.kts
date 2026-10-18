@@ -35,10 +35,6 @@ android {
         isCoreLibraryDesugaringEnabled = true
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
     buildFeatures {
         compose = true
     }
@@ -88,6 +84,15 @@ android {
                 "proguard-rules.pro",
             )
         }
+    }
+}
+
+// Kotlin 2.2 raises the old `android { kotlinOptions { jvmTarget } }` DSL to an
+// error, so the JVM target is set through `compilerOptions` instead — the form
+// Flutter's own app template ships. It must stay JVM_17: AGP 8.11 requires Java 17.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
