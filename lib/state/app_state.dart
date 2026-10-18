@@ -23,6 +23,7 @@ import '../services/haptics.dart';
 import '../services/focus_platform.dart';
 import '../services/health_service.dart';
 import '../services/notification_service.dart';
+import '../services/screen_time_service.dart';
 import '../services/widget_bridge.dart';
 import '../util/day_key.dart';
 import '../util/format.dart';
@@ -36,6 +37,7 @@ class AppState extends ChangeNotifier {
     required this.commitmentRepo,
     this.focusRepo,
     this.health,
+    this.screenTime,
     this.notifications,
     this.widgetBridge,
     this.billing,
@@ -55,6 +57,11 @@ class AppState extends ChangeNotifier {
   FocusRepository? focusRepo;
 
   final HealthService? health;
+
+  /// Usage Access screen-time readings. Nullable like [health]: a test host or a
+  /// non-Android build constructs the state without it, and the Screen time
+  /// tracker then behaves exactly as it always did — manual entry only.
+  final ScreenTimeService? screenTime;
   final NotificationService? notifications;
   final WidgetBridge? widgetBridge;
 
@@ -99,6 +106,24 @@ class AppState extends ChangeNotifier {
   /// between them would put the wrong instruction on screen.
   HealthPermissionState healthPermission = HealthPermissionState.unknown;
 
+  /// Android Usage Access standing for the Screen time tracker's auto-fill.
+  /// Same rule as [healthPermission]: re-read from the OS on every resume, never
+  /// remembered as truth — a grant revoked in system settings must stop showing
+  /// "auto-filled" the moment the app comes back.
+  ScreenTimePermissionState screenTimePermission = ScreenTimePermissionState.unknown;
+
+  /// When the usage-stats auto-fill last wrote tracker rows. Null until the
+  /// first successful sync; the Screen time detail view shows it so "chart
+  /// filled" and "chart stale" are distinguishable.
+  DateTime? screenTimeLastSync;
+
+  /// Today's per-app split, straight from the platform. Empty when there is no
+  /// grant or no reading — never fabricated.
+  List<ScreenTimeAppUsage> screenTimeApps = <ScreenTimeAppUsage>[];
+
+  /// True while a sync is in flight, so the UI can spin instead of lying.
+  bool screenTimeSyncing = false;
+
   /// The last write that failed, if any.
   ///
   /// This exists because the alternative — the previous behaviour — was to swallow the
@@ -115,6 +140,14 @@ class AppState extends ChangeNotifier {
   /// device and an unconnected one — and the reason those places cannot say "permission
   /// needed" to a free user, or "connected" after a revocation.
   bool get healthConnected => healthPermission == HealthPermissionState.granted;
+
+  /// Whether Android is filling the Screen time tracker automatically right now.
+  bool get screenTimeConnected => screenTimePermission == ScreenTimePermissionState.granted;
+
+  /// True when the build has any usage-stats capability at all (Android + the
+  /// native channel). False on Linux desktop and in tests, where the UI must
+  /// not offer a grant flow that cannot exist.
+  bool get screenTimeAvailable => screenTime != null;
 
   /// Clears the banner. The data has already been re-read from the store by then, so
   /// dismissing this hides a message, not a problem.
@@ -922,6 +955,30 @@ class AppState extends ChangeNotifier {
     // and the enforcement service may have been stopped by the OS. Recovering here
     // is what keeps the countdown and the honesty banner truthful after a return.
     if (focusRepo != null) await recoverFocus();
+
+    // Health Connect revocation is a first-class resume event: the Settings row
+    // and the tracker tiles must stop saying "connected" the moment the grant is
+    // gone, and a re-grant should quietly resume filling the series. (This was
+    // the standing gap in docs/PRODUCTION_READINESS.md §11 item 6.) The refresh
+    // notifies listeners, so every consumer re-reads `healthConnected` — there
+    // is nothing else to do on revocation, and nothing to retry behind the
+    // user's back.
+    await refreshHealthPermission();
+
+    // Usage Access for the Screen time tracker: same rule, same moment. A grant
+    // made in system settings starts auto-filling without a trip back to a
+    // settings screen inside the app; a revocation stops it.
+    final wasScreenConnected = screenTimeConnected;
+    final screenNow = await refreshScreenTimePermission();
+    if (screenNow == ScreenTimePermissionState.granted) {
+      await syncScreenTime();
+    } else if (wasScreenConnected && screenTimeApps.isNotEmpty) {
+      // The split shown is the last one the platform reported; clear it rather
+      // than keep presenting today's apps under a revoked grant.
+      screenTimeApps = <ScreenTimeAppUsage>[];
+      notifyListeners();
+    }
+
     final b = billing;
     if (b == null) return;
     b.reevaluate();
@@ -1031,6 +1088,15 @@ class AppState extends ChangeNotifier {
     healthPermission = HealthPermissionState.values.firstWhere(
       (v) => v.name == (await repo.dao.getSetting('health.permission') ?? ''),
       orElse: () => HealthPermissionState.unknown,
+    );
+
+    // Same contract as Health Connect's standing: the stored answer is a hint
+    // for the first frame only, and `refreshScreenTimePermission()` replaces it
+    // with the OS's answer on the first resume.
+    screenTimeLastSync = DateTime.tryParse(await repo.dao.getSetting('screenTime.lastSync') ?? '');
+    screenTimePermission = ScreenTimePermissionState.values.firstWhere(
+      (v) => v.name == (await repo.dao.getSetting('screenTime.permission') ?? ''),
+      orElse: () => ScreenTimePermissionState.unknown,
     );
 
     final height = double.tryParse(await repo.dao.getSetting('profile.heightCm') ?? '');
@@ -1819,6 +1885,65 @@ class AppState extends ChangeNotifier {
     await repo.dao.setSetting('health.permission', healthPermission.name);
     notifyListeners();
     return healthPermission;
+  }
+
+  /// Re-asks Android where Usage access stands. Called on every foreground: the
+  /// user can grant or revoke it in system settings at any moment, and a
+  /// remembered answer would be a lie on screen either way.
+  Future<ScreenTimePermissionState> refreshScreenTimePermission() async {
+    final svc = screenTime;
+    if (svc == null) {
+      screenTimePermission = ScreenTimePermissionState.unavailable;
+    } else {
+      screenTimePermission = await svc.permissionState();
+    }
+    await repo.dao.setSetting('screenTime.permission', screenTimePermission.name);
+    notifyListeners();
+    return screenTimePermission;
+  }
+
+  /// Usage Access pull: the Screen time tracker's auto-fill.
+  ///
+  /// Free in every tier, deliberately. It reads the user's own device, it costs
+  /// nothing to serve, and the friction is already a scary system grant —
+  /// putting a paywall on top of "Usage access" would price the honest path.
+  /// What it writes are ordinary tracker rows with `source: 'usage'`, so a
+  /// value the user typed for that day always wins (the same precedence Health
+  /// Connect rows obey), and "delete all data" removes them like any other row.
+  ///
+  /// Returns the number of days written, `0` when there was nothing to write,
+  /// and `-1` when the grant is missing — so a caller can tell "no data" from
+  /// "no permission" without reading state back.
+  Future<int> syncScreenTime() async {
+    final svc = screenTime;
+    if (svc == null) {
+      screenTimePermission = ScreenTimePermissionState.unavailable;
+      return 0;
+    }
+    if (screenTimeSyncing) return 0; // one pull at a time
+    screenTimeSyncing = true;
+    try {
+      final standing = await svc.permissionState();
+      screenTimePermission = standing;
+      if (standing != ScreenTimePermissionState.granted) {
+        await repo.dao.setSetting('screenTime.permission', standing.name);
+        notifyListeners();
+        return -1;
+      }
+      final minutes = await svc.dailyMinutes(days: ScreenTimeService.defaultLookbackDays);
+      final written = await repo.mergeHealthSeries('screen', minutes, source: 'usage');
+      screenTimeApps = await svc.todayByApp(limit: 6);
+      screenTimeLastSync = DateTime.now();
+      await repo.dao.setSetting('screenTime.permission', standing.name);
+      await repo.dao.setSetting('screenTime.lastSync', screenTimeLastSync!.toIso8601String());
+      await _reloadFromDb();
+      await _refreshAggregates();
+      notifyListeners();
+      unawaited(_writeWidgetSnapshot());
+      return written;
+    } finally {
+      screenTimeSyncing = false;
+    }
   }
 
   Future<int> syncHealth({bool askPermission = false}) async {

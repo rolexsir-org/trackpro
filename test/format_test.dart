@@ -130,4 +130,13 @@ void main() {
     expect(greetingFor(DateTime(2026, 10, 15, 19)), 'Good evening');
     expect(greetingFor(DateTime(2026, 10, 15, 23)), 'Good night');
   });
+
+  test('fmtRelativeTime uses clock deltas within a day and calendar keys across midnight', () {
+    final now = DateTime(2026, 10, 18, 14, 0, 0);
+    expect(fmtRelativeTime(DateTime(2026, 10, 18, 13, 59, 30), now: now), 'just now');
+    expect(fmtRelativeTime(DateTime(2026, 10, 18, 13, 45, 0), now: now), '15m ago');
+    expect(fmtRelativeTime(DateTime(2026, 10, 18, 11, 0, 0), now: now), '3h ago');
+    expect(fmtRelativeTime(DateTime(2026, 10, 17, 23, 50, 0), now: now), 'yesterday');
+    expect(fmtRelativeTime(DateTime(2026, 10, 10, 9, 0, 0), now: now), '10 Oct');
+  });
 }

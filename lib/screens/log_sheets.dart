@@ -840,6 +840,8 @@ String _sourceWords(String source) {
   switch (source) {
     case 'health':
       return 'synced from Health';
+    case 'usage':
+      return 'read from Android Usage Access';
     case 'widget':
       return 'from the widget';
     case 'import':
@@ -879,7 +881,11 @@ Future<void> openDaySheet(
   await showGlassSheet<void>(
     context,
     title: '$when · ${t.emoji} ${t.name}',
-    subtitle: '${source == 'health' ? 'Health Connect entry' : 'Your entry'}, ${_sourceWords(source)}',
+    subtitle: '${switch (source) {
+      'health' => 'Health Connect entry',
+      'usage' => 'Android Usage Access entry',
+      _ => 'Your entry',
+    }}, ${_sourceWords(source)}',
     accent: t.accent,
     body: Column(
       crossAxisAlignment: CrossAxisAlignment.start,

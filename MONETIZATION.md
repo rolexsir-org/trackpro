@@ -190,10 +190,10 @@ release builds**, so it cannot be shipped by accident; `HttpPurchaseVerifier`
 returns "unreachable" when `TRACK_VERIFY_URL` is not set, which means an
 unconfigured build simply cannot grant Pro.
 
-The server implementation lives in `../billing_server` (Node 20, zero runtime
+The server implementation lives in `billing_server/` (Node 20, zero runtime
 dependencies, 60 tests): `POST /billing/verify`, `POST /rtdn` for Pub/Sub
 notifications, a file-backed store, and the deployment, monitoring and incident
-runbooks. Read `../billing_server/OPERATIONS.md` before touching the client contract.
+runbooks. Read `billing_server/OPERATIONS.md` before touching the client contract.
 
 ---
 
@@ -318,8 +318,10 @@ Play's subscription policy requires these, and they are all already in the build
   line directly under the CTA.
 - **Trial terms stated before purchase** — "Free for 7 days, then ₹2,499/year.
   Auto-renews until cancelled."
-- **Terms + Privacy links** on the paywall (you must still host them; the code
-  points at `track.app/terms` and `track.app/privacy`).
+- **Terms + Privacy links** on the paywall and in Settings (`TRACK_TERMS_URL` and
+  `TRACK_PRIVACY_URL` via `--dart-define`; when omitted in a development or
+  unconfigured build, tapping either link opens the bundled in-app disclosure
+  sheet `showLegalSheet` rather than a dead placeholder URL).
 - **Data safety form** — declare that tracker data stays on-device, Health
   Connect data is read-only and never transmitted, and the only network call is
   the purchase-token verification.

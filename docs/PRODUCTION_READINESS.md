@@ -229,7 +229,10 @@ permanent platform limits, permission copy, Play Console declarations, rollback 
 5. **The design system is half applied.** The new screens use
    `lib/config/design_system.dart`; the measurement detail views, log sheets and
    paywall still read `TrackTheme`. Two palettes coexist until that migration lands.
-6. **Health Connect revocation is not detected on resume** (carried over).
+6. ~~Health Connect revocation is not detected on resume~~ **Closed (2026-10-18).**
+   `AppState.onResumed()` now calls `refreshHealthPermission()` and
+   `refreshScreenTimePermission()`, updating stored permission standing and
+   clearing stale per-app screen-time breakdowns immediately on revocation.
 7. **Widgets, notifications, Wear and the Android overlay have never run on a
    device.** The highest-risk area.
 8. **No crash/ANR monitoring** and no field diagnostics; a production incident would

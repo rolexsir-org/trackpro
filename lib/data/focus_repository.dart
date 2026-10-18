@@ -234,14 +234,18 @@ class FocusRepository {
       );
       final native = started ? await enforcer.state() : FocusNativeState.idle;
       session = session.copyWith(
-        enforcement: FocusEngine.enforcementFor(
-          blockingRequested: true,
-          serviceAlive: started && native.running,
-          permissionLostMidSession: false,
-          overlayGranted: native.overlay,
-          usageAccessGranted: native.usageAccess,
-          detectionEvents: native.detectionEvents,
-        ),
+        // A start that the platform refused was never running — it is `unavailable`,
+        // not `lost` (which means enforcement stopped mid-session).
+        enforcement: started
+            ? FocusEngine.enforcementFor(
+                blockingRequested: true,
+                serviceAlive: native.running,
+                permissionLostMidSession: false,
+                overlayGranted: native.overlay,
+                usageAccessGranted: native.usageAccess,
+                detectionEvents: native.detectionEvents,
+              )
+            : FocusEnforcement.unavailable,
         blockedAttempts: native.blockedAttempts,
         overlayShows: native.overlayShows,
         detectionEvents: native.detectionEvents,
@@ -274,33 +278,31 @@ class FocusRepository {
       monotonicAvailable: monotonic != null,
     );
 
-    // A restart, a revocation or a stopped service ends the session before any
-    // time arithmetic matters: Track Pro no longer knows what is happening.
+    // A reboot ends the session before any time arithmetic matters: Track Pro no
+    // longer knows what happened while the phone was off.
     if (recovery.rebooted) {
       return finish(live, reason: FocusEndReason.deviceRestarted);
     }
 
     final native = await enforcer.state();
     final blockingRequested = live.enforcement.intendsToBlock;
-    if (blockingRequested && !native.running) {
-      // Either the service was stopped by the system or by the user, or it never
-      // started. Either way the selected apps are not being covered now.
-      if (recovery.expired) {
-        return finish(live, reason: FocusEndReason.timer, native: native, focusMs: live.plannedMs);
-      }
-      return finish(live, reason: FocusEndReason.serviceLost, native: native);
-    }
 
-    final revoked = blockingRequested && (!native.usageAccess || !native.overlay);
-    if (revoked) {
-      if (recovery.expired) {
-        return finish(live, reason: FocusEndReason.timer, native: native, focusMs: live.plannedMs);
-      }
-      return finish(live, reason: FocusEndReason.permissionRevoked, native: native);
-    }
-
+    // While time remains, a stopped service or a revoked permission degrades the
+    // live session's enforcement (`lost` or `unavailable`) rather than killing the
+    // timer underneath the user — the session screen shows the honesty banner and
+    // the user can finish the timer or end by hand. When the planned time is behind
+    // us (`recovery.expired`), a session whose enforcement service died mid-run ends
+    // as `serviceLost` (`interrupted`), while a timer expiry is graded by `finish`.
     if (recovery.expired) {
-      return finish(live, reason: FocusEndReason.timer, native: native, focusMs: live.plannedMs);
+      if (live.enforcement == FocusEnforcement.lost) {
+        return finish(live, reason: FocusEndReason.serviceLost, native: native, focusMs: live.plannedMs);
+      }
+      return finish(
+        live,
+        reason: FocusEndReason.timer,
+        native: native.running ? native : null,
+        focusMs: live.plannedMs,
+      );
     }
 
     final enforcement = FocusEngine.enforcementFor(
@@ -451,6 +453,7 @@ class FocusRepository {
       enforcement: enforcement,
       reason: reason,
       timingVerified: session.timingVerified && recovery.monotonicTrusted,
+      pausedMs: paused,
     );
 
     final ended = session.copyWith(

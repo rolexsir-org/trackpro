@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/models.dart';
+import 'day_key.dart';
 
 /// Formats a raw metric value for display, per metric kind.
 String fmtValue(Tracker t, double v) {
@@ -260,3 +261,24 @@ Color alpha(Color c, double a) => c.withOpacity(a.clamp(0.0, 1.0));
 double lerp(double a, double b, double t) => a + (b - a) * t;
 
 double jitter(math.Random r, double base, double spread) => base + (r.nextDouble() * 2 - 1) * spread;
+
+/// "just now" / "5m ago" / "3h ago" / "yesterday" / "7 Mar" — for "last synced"
+/// labels, where an exact timestamp is noise and silence is ambiguous.
+///
+/// [now] is injectable so the rules are testable without a fake clock. Elapsed
+/// time below a day is measured on the clock; the day boundary itself is
+/// calendar-based (`day_key.dart`'s rule), so "yesterday" survives a DST shift.
+String fmtRelativeTime(DateTime then, {DateTime? now}) {
+  final ref = now ?? DateTime.now();
+  if (!then.isAfter(ref)) {
+    final seconds = ref.difference(then).inSeconds;
+    if (seconds < 60) return 'just now';
+    final minutes = seconds ~/ 60;
+    if (minutes < 60) return '${minutes}m ago';
+    final hours = minutes ~/ 60;
+    if (hours < 24 && dayKey(then) == dayKey(ref)) return '${hours}h ago';
+  }
+  final days = shiftDayKey(dayKey(ref), -1);
+  if (dayKey(then) == days) return 'yesterday';
+  return shortDate(then);
+}

@@ -19,6 +19,7 @@ import 'services/focus_platform.dart';
 import 'services/health_service.dart';
 import 'services/notification_service.dart';
 import 'services/pro_analytics.dart';
+import 'services/screen_time_service.dart';
 import 'services/widget_bridge.dart';
 import 'state/app_state.dart';
 
@@ -51,9 +52,10 @@ Future<void> main() async {
     enforcer: MethodChannelFocusEnforcer(),
   );
 
-  // --- services that make steps/sleep zero-effort and keep the habit loop ----
+  // --- services that make steps/sleep/screen time zero-effort and keep the habit loop
   final notifications = NotificationService();
   final health = HealthService();
+  final screenTime = ScreenTimeService();
   final widgetBridge = WidgetBridge();
 
   // --- monetisation: Play Billing + the funnel it feeds ----------------------
@@ -91,6 +93,7 @@ Future<void> main() async {
     commitmentRepo: commitmentRepo,
     focusRepo: focusRepo,
     health: health,
+    screenTime: screenTime,
     notifications: notifications,
     widgetBridge: widgetBridge,
     billing: billing,
@@ -155,15 +158,27 @@ Future<void> main() async {
     // Health Connect sync: silent, read-only, and it never overwrites anything
     // the user typed. Steps/Sleep/Weight wake up populated instead of blank.
     try {
+      await state.refreshHealthPermission();
       // Only merges what the user has already granted; the permission sheet is
       // opened from Settings > Health Connect, deliberately. Pro-only: free users
       // see the gate rather than a silent no-op.
-      if (state.canUseHealthSync && await health.isAvailable() && await health.hasPermissions()) {
+      if (state.canUseHealthSync && state.healthConnected) {
         await state.syncHealth();
         await notifications.syncStreakSaver(state);
       }
     } catch (_) {
       // No Health Connect, no problem.
+    }
+
+    // Usage Access screen-time sync: same silent, read-only pull for users who
+    // granted Usage Access from the Screen time detail screen or Focus Lock.
+    try {
+      await state.refreshScreenTimePermission();
+      if (state.screenTimeConnected) {
+        await state.syncScreenTime();
+      }
+    } catch (_) {
+      // No Usage Access or unsupported platform — manual logging stays unchanged.
     }
   });
 }

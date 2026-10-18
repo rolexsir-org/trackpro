@@ -190,9 +190,15 @@ class EntryRepository {
     return true;
   }
 
-  /// Health Connect merge. Precedence manual > health > demo, enforced per
-  /// (tracker, day) so a sync never clobbers something the user typed, and a
-  /// re-run never double-counts (the same day upserts onto the same row).
+  /// Health Connect / Usage Access merge. Precedence manual > usage > health >
+  /// demo, enforced per (tracker, day) so a sync never clobbers something the
+  /// user typed, and a re-run never double-counts (the same day upserts onto the
+  /// same (tracker, day, source) row).
+  ///
+  /// [source] names the origin to store: `'health'` for Health Connect pulls,
+  /// `'usage'` for Android Usage Access screen-time pulls. Both are "the device
+  /// told us"; only the label differs, and the label is what lets the UI say
+  /// where a value came from.
   Future<int> mergeHealthSeries(String trackerId, Map<int, double> byDay, {String source = 'health'}) async {
     var written = 0;
     final today = DateTime.now();
@@ -509,9 +515,9 @@ class EntryRepository {
   /// log" is never confused with "logged zero".
   /// Source precedence, highest first. The export resolves a (tracker, day) that
   /// has more than one row the same way the app does, instead of letting whichever
-  /// row the database happened to return last win: a conflicting health reading
-  /// must never overwrite what the user typed, in the file they take away.
-  static const Map<String, int> sourceRank = {'manual': 3, 'health': 2, 'demo': 1};
+  /// row the database happened to return last win: a conflicting health or usage
+  /// reading must never overwrite what the user typed, in the file they take away.
+  static const Map<String, int> sourceRank = {'manual': 4, 'usage': 3, 'health': 2, 'demo': 1};
 
   Future<String> exportCsv() async {
     final trackers = await dao.allTrackers();

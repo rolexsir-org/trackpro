@@ -62,6 +62,7 @@ class MainActivity : FlutterFragmentActivity() {
         }
 
         FocusChannel.register(flutterEngine.dartExecutor.binaryMessenger, this)
+        ScreenTimeChannel.register(flutterEngine.dartExecutor.binaryMessenger, this)
     }
 
     /**

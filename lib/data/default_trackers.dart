@@ -69,8 +69,9 @@ class DefaultTrackers {
             id: 'screen', name: 'Screen time', emoji: '📱',
             accent: const Color(0xFFAF52DE), accent2: const Color(0xFF5E5CE6),
             kind: MetricKind.minutes, goal: 240, step: 15, unit: 'min',
-            blurb: 'Daily limit you set yourself',
-            insight: 'Android does not let an app read your screen time without a system grant — log it or skip it.'),
+            blurb: 'Read from Android or logged by hand',
+            insight: 'Grant Usage Access to fill screen time automatically, or log a daily total — '
+                'typed entries always win.'),
         Tracker(
             id: 'weight', name: 'Weight', emoji: '⚖️',
             accent: const Color(0xFF5E5CE6), accent2: const Color(0xFF0A84FF),

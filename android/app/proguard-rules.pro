@@ -40,6 +40,7 @@
 -keep class com.track.app.FocusBlockOverlay { *; }
 -keep class com.track.app.FocusStore { *; }
 -keep class com.track.app.FocusChannel { *; }
+-keep class com.track.app.ScreenTimeChannel { *; }
 
 # The notification action and the service start are delivered as Intents whose
 # target action strings are part of the contract with the manifest.

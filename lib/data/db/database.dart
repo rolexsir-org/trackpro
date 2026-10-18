@@ -85,7 +85,8 @@ class DailyEntries extends Table {
   DateTimeColumn get updatedAt => dateTime()();
   RealColumn get value => real()();
 
-  /// manual | health | widget | demo | import — user data always wins over sync.
+  /// manual | health | usage | widget | demo | import — user data always wins over
+  /// sync (`usage` is the Android Usage Access screen-time auto-fill).
   TextColumn get source => text().withDefault(const Constant('manual'))();
   TextColumn get meta => text().nullable()();
 
@@ -987,6 +988,7 @@ class SourceCount {
   String get label => switch (source) {
         'manual' => 'Typed by you',
         'health' => 'From Health Connect',
+        'usage' => 'From Android Usage Access',
         'widget' => 'From the home-screen widget',
         'import' => 'Restored from a backup',
         'demo' => 'Sample data (not yours)',
