@@ -63,9 +63,12 @@ class AppEnvironment {
   /// Startup configuration errors. Non-empty means the build is misconfigured.
   ///
   /// Deliberately not an `assert`: asserts vanish in release, which is exactly
-  /// when these matter. The result is surfaced in Settings → Diagnostics and to
-  /// the Play release checklist, and [assertNotMisconfigured] turns it into a
-  /// hard failure in CI.
+  /// when these matter. Three consumers, and it is worth knowing which is which:
+  /// `main.dart` logs the list on a release start, Settings → Diagnostics shows it
+  /// to whoever is looking, and [assertNotMisconfigured] is the entry point the
+  /// release tooling calls. Nothing here can be checked after the fact, because
+  /// the values are compiled in — which is why `.github/workflows/ci.yml` asserts
+  /// the flags *before* the release build rather than inspecting the artifact.
   static List<String> validate() {
     final problems = <String>[];
     if (kReleaseMode && !hasVerifyBackend) {
@@ -82,7 +85,15 @@ class AppEnvironment {
     return problems;
   }
 
-  /// CI / release-script entry point: throw rather than ship a bad build.
+  /// Release-tooling entry point: throw rather than ship a bad build.
+  ///
+  /// Callers: `test/app_environment_test.dart` pins the contract (and P-12 of
+  /// `tools/release_gate.py` fails if that caller disappears), and the CI release
+  /// job guards the same flags with a shell check. No *runtime* path calls it, on
+  /// purpose: killing the app on a user's phone because the person who built it
+  /// omitted a flag is worse than the failure `validate()` describes — Pro stays
+  /// locked and everything else keeps working. A free build with no backend is a
+  /// supported configuration, so `main()` logs and continues.
   static void assertNotMisconfigured() {
     final problems = validate();
     if (problems.isNotEmpty) {

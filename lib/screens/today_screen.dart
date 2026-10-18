@@ -88,7 +88,20 @@ class TodayScreen extends StatelessWidget {
               HeroTrackerCard(
                 tracker: hero,
                 values: state.historyOf(hero.id),
-                onStep: (d) => context.read<AppState>().logAdd(hero.id, d),
+                // The refusal is surfaced rather than dropped: the card's own `onStep`
+                // returns void, so a swipe that changed nothing used to be
+                // indistinguishable from one that worked — the ring simply did not move
+                // and the haptic warning was the only signal there was.
+                onStep: (d) {
+                  final before = state.today(hero.id);
+                  if (state.logAdd(hero.id, d)) return;
+                  showTrackToast(
+                    context,
+                    before <= 0
+                        ? 'Nothing to remove — nothing is logged for ${hero.name} today.'
+                        : 'That change was refused. Today stays as it is.',
+                  );
+                },
                 onTap: () => openDetail(context, hero),
                 onLongPress: () => _quickActions(context, hero),
               ),

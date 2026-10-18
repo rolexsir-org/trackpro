@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:track/data/db/database.dart';
 import 'package:track/data/entry_repository.dart';
 import 'package:track/data/value_validation.dart';
+import 'package:track/util/day_key.dart';
 
 /// Storage-layer tests, driven through the real repository against a real
 /// in-memory SQLite database.
@@ -173,7 +174,7 @@ void main() {
     test('a broken wearable reading never reaches the database', () async {
       final written = await repo.mergeHealthSeries('steps', {
         dayKey(DateTime.now()): double.nan,
-        dayKey(DateTime.now().subtract(const Duration(days: 1))): -500,
+        dayKeyFromToday(1): -500,
       });
       expect(written, 0);
       expect(await repo.entryCount(), 0);
@@ -194,7 +195,7 @@ void main() {
 
     test('a health reading never overwrites a manual entry', () async {
       final today = dayKey(DateTime.now());
-      final yesterday = dayKey(DateTime.now().subtract(const Duration(days: 1)));
+      final yesterday = dayKeyFromToday(1);
 
       await repo.setDaily('steps', 12345, source: 'manual');
       final written = await repo.mergeHealthSeries('steps', {today: 9999, yesterday: 8000});

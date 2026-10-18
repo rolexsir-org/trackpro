@@ -138,7 +138,10 @@ class DetailScreen extends StatelessWidget {
                                 Expanded(
                                   child: Center(
                                     child: Text(
-                                      weekdayShort(DateTime.now().subtract(Duration(days: 6 - i))),
+                                      // Shifted by day component, not by 24-hour blocks: on the day
+                                      // after a spring-forward transition the elapsed-time version
+                                      // is a whole day off, and every bar label under it moves.
+                                      weekdayShort(dateOfDayKey(dayKeyFromToday(6 - i))),
                                       style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
                                     ),
                                   ),
@@ -225,7 +228,7 @@ class DetailScreen extends StatelessWidget {
       case 'water':
         return [
           const SectionLabel('When you drink'),
-          _RhythmList(state: state, tracker: t, buckets: 6, bucketHours: 3),
+          _RhythmList(state: state, tracker: t, revision: state.today(t.id)),
         ];
 
       case 'mood':
@@ -646,7 +649,10 @@ class DetailScreen extends StatelessWidget {
   /// past days, positive are predicted ones.
   static String _dayLabel(int seriesIndex, {bool withYear = false}) {
     final offset = seriesIndex - (EntryRepository.cacheDays - 1);
-    final date = DateTime.now().add(Duration(days: offset));
+    // Same rule as everywhere else that counts days: calendar arithmetic on the day key.
+    // `DateTime.now().add(Duration(days:))` reads off a wall-clock *time*, so a predicted
+    // date can land a day early or late in a timezone that shifted hours during the range.
+    final date = dateOfDayKey(shiftDayKey(todayKey(), offset));
     final label = '${date.day} ${_months[date.month - 1]}';
     return withYear || date.year != DateTime.now().year ? '$label ${date.year}' : label;
   }
@@ -746,17 +752,49 @@ class _NoData extends StatelessWidget {
 ///
 /// Reads through `AppState`'s cached buckets rather than firing a query during
 /// layout, and renders an empty state when the buckets are all zero.
-class _RhythmList extends StatelessWidget {
-  const _RhythmList({required this.state, required this.tracker, required this.buckets, required this.bucketHours});
+///
+/// The state is *loaded* here, once, because nothing else does: `_rhythms` used to
+/// be a map the app state declared, documented and never wrote, so this panel could
+/// only ever show its empty state. A widget-level load (rather than filling every
+/// tracker's buckets inside `_refreshAggregates`) costs one bounded query, only for
+/// the screen that is open.
+class _RhythmList extends StatefulWidget {
+  const _RhythmList({required this.state, required this.tracker, required this.revision});
 
   final AppState state;
   final Tracker tracker;
-  final int buckets;
-  final int bucketHours;
+
+  /// Today's value for this tracker — not drawn, only compared. The sheet that
+  /// logs a drink does not hand this widget a new tracker, so `didUpdateWidget`
+  /// needs something that actually moves, or the bars would freeze at whatever the
+  /// first frame found.
+  final double revision;
+
+  @override
+  State<_RhythmList> createState() => _RhythmListState();
+}
+
+class _RhythmListState extends State<_RhythmList> {
+  @override
+  void initState() {
+    super.initState();
+    // Fire-and-forget by design: `refreshRhythm` notifies `AppState` when the rows
+    // are in, which rebuilds this screen. Awaiting it here would mean waiting on a
+    // database read inside a lifecycle callback that cannot be async.
+    _load();
+  }
+
+  @override
+  void didUpdateWidget(_RhythmList oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tracker.id != widget.tracker.id || oldWidget.revision != widget.revision) _load();
+  }
+
+  Future<void> _load() => widget.state.refreshRhythm(widget.tracker.id);
 
   @override
   Widget build(BuildContext context) {
-    final rhythm = state.rhythmFor(tracker.id);
+    final rhythm = widget.state.rhythmFor(widget.tracker.id);
     if (rhythm == null || !rhythm.hasData) {
       return const _NoData(
         emoji: '💧',
@@ -764,14 +802,16 @@ class _RhythmList extends StatelessWidget {
         body: 'Each entry is timestamped, so once you log a few the app can show when in the day you drink.',
       );
     }
-    final maxValue = rhythm.values.reduce((a, b) => a > b ? a : b);
+    // `reduce` on an empty list throws; the series is never empty in practice, but a
+    // bucket helper that decided otherwise would take the whole detail screen down.
+    final maxValue = rhythm.values.isEmpty ? 0.0 : rhythm.values.reduce((a, b) => a > b ? a : b);
     return GlassList(children: [
       for (var i = 0; i < rhythm.values.length; i++)
         _Bar(
           label: rhythm.labels[i],
           value: rhythm.values[i].round(),
           max: maxValue <= 0 ? 1 : maxValue.round(),
-          color: tracker.accent,
+          color: widget.tracker.accent,
         ),
     ]);
   }

@@ -24,7 +24,17 @@ flutter analyze
 flutter test
 ```
 
-All four must pass. If `database.g.dart` changed after codegen, commit it.
+All four must pass. Then the toolchain-free gates, which catch the defect class a
+compiler cannot see and which run on any machine with `python3`:
+
+```bash
+python3 tools/release_gate.py     # 51 structural checks
+python3 tools/gate_probe.py       # breaks each of them on purpose; requires the gate to fire
+python3 tools/{import,member,symbol_clash,test_api,static}_audit.py
+```
+
+`bash tools/run_gates.sh` runs the whole sequence in this order and stops at the first
+failure. If `database.g.dart` changed after codegen, commit it.
 
 ## 2. One-time: create and protect the upload keystore
 
@@ -139,9 +149,11 @@ Play requires a strictly increasing `versionCode` for every upload.
 
 ## 8. CI
 
-`.github/workflows/ci.yml` runs the same gates (format, codegen freshness,
-analyze, test) plus release APK/AAB builds on every push, and uploads the
-artifacts. CI has **no signing secrets** — its release artifacts are
+The workflows live in `ci/workflows/` until somebody with `workflows` permission
+moves them to `.github/workflows/` — see `ci/README.md`, which is the activation
+procedure. Once activated, `ci.yml` runs the same gates (format, codegen
+freshness, analyze, test, the Python gates above) plus release APK/AAB builds on
+every push, and uploads the artifacts. CI has **no signing secrets** — its release artifacts are
 debug-signed on purpose; the Play upload is built locally per this document.
 `.github/workflows/normalize.yml` (manual dispatch) runs `dart format` +
 drift codegen with the real toolchain and commits the result.

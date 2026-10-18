@@ -6,7 +6,22 @@ name: CI
 # Signing: release builds in CI are deliberately UNSIGNED-for-Play (they fall
 # back to the debug key, see android/app/build.gradle.kts). No keystore or
 # password ever enters CI. The Play upload artifact is built locally with
-# android/key.properties per docs/RELEASE.md.
+# android/key.properties per docs/RELEASE.md §2.
+#
+# What this workflow can and cannot prove, stated where a reader will see it:
+#
+#  * The Flutter gates are the authority on types, behaviour and linkage. The
+#    Python gates are text/structure audits — strong on the defect class this repo
+#    actually hit (a cache field nobody wrote, a duplicate class in one file, a wipe
+#    that misses a table), and blind to types by design. Both run here, so neither
+#    claim is being made loosely.
+#  * `gate probe` is the check on the checks: it breaks each rule in
+#    `tools/release_gate.py` on purpose and requires the gate to fire. A gate whose
+#    probes do not fire is theatre — and this repo's gate went missing once with
+#    nothing noticing, which is the whole argument for that step existing.
+#  * The artifacts are debug-signed by design, so `apksigner verify` here proves
+#    *identity*, not uploadability. The cert check below is what catches a
+#    key.properties mistake before a user does.
 
 on:
   push:
@@ -18,7 +33,7 @@ concurrency:
 
 jobs:
   quality:
-    name: Format, analyze, test, release build
+    name: Format, analyze, test, audit gates, release build
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -29,6 +44,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      # `channel: stable` rather than a pinned patch version: `pubspec.lock` requires
+      # Flutter >= 3.44 / Dart >= 3.12, and pinning a specific point release makes the
+      # job red the day that build is removed from the action's index — a failure that
+      # looks like the code is broken. The "Toolchain versions" step below is what makes
+      # a too-old runner diagnosable instead.
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -39,10 +59,18 @@ jobs:
           flutter --version
           dart --version
           java -version
+          # No version comparison here on purpose. `pubspec.lock` carries the floor
+          # (`sdks: flutter: ">=3.44.0"`), `flutter pub get` enforces it, and the next
+          # step is that call — so a too-old runner fails on the step that already owns
+          # the question instead of on a re-implementation of it. docs/RELEASE.md §7 has
+          # the matching troubleshooting row ("pub get fails: requires Flutter >= 3.44").
 
       - name: flutter pub get
         run: flutter pub get
 
+      # Codegen freshness runs BEFORE format and before analyze, because every one of
+      # those reads `database.g.dart`: a stale generated file produces analyzer errors
+      # that send a reader to the wrong file entirely.
       - name: Code generation is up to date (drift)
         run: |
           dart run build_runner build --delete-conflicting-outputs
@@ -60,10 +88,67 @@ jobs:
         run: flutter analyze
 
       - name: flutter test
-        run: flutter test
+        run: flutter test --reporter expanded
+
+      # ---------------------------------------------------------------------------
+      # The toolchain-free gates. Cheap, and they are the only ones that also run on
+      # a checkout nobody has installed Flutter in — which is how `tools/run_gates.sh`
+      # is used during review. `python3` is present on ubuntu-latest.
+      # ---------------------------------------------------------------------------
+      - name: release gate (structural)
+        run: python3 tools/release_gate.py
+
+      - name: gate probe (are the gate's checks real?)
+        run: python3 tools/gate_probe.py
+
+      - name: import / member / symbol / test-api audits
+        run: |
+          python3 tools/import_audit.py
+          python3 tools/member_audit.py
+          python3 tools/symbol_clash_audit.py
+          python3 tools/test_api_audit.py
+          python3 tools/static_audit.py
+
+      # The store build is only meaningful with the verification backend and the hosted
+      # policy pages compiled in. They arrive as secrets so that a fork's CI still
+      # builds (no secrets -> the build happens with Pro permanently locked, which is
+      # the honest fallback, and the warning below is what says so). A missing
+      # `TRACK_VERIFY_URL` cannot be detected after compilation, which is why this
+      # guard is here rather than in the artifact check.
+      - name: assert the release defines that change behaviour
+        env:
+          TRACK_VERIFY_URL: ${{ secrets.TRACK_VERIFY_URL }}
+          TRACK_TERMS_URL: ${{ secrets.TRACK_TERMS_URL }}
+          TRACK_PRIVACY_URL: ${{ secrets.TRACK_PRIVACY_URL }}
+        run: |
+          for v in TRACK_VERIFY_URL TRACK_TERMS_URL TRACK_PRIVACY_URL; do
+            if [ -z "${!v:-}" ]; then
+              echo "::warning::$v is not set — this artifact can never grant Pro (fine for CI, fatal for Play)"
+            fi
+          done
+          for v in TRACK_VERIFY_URL TRACK_TERMS_URL TRACK_PRIVACY_URL; do
+            u="${!v:-}"
+            case "$u" in
+              https://*) ;;
+              '') ;;
+              *) echo "::error::$v must be an https:// URL, got: $u"; exit 1 ;;
+            esac
+          done
 
       - name: flutter build apk --release
-        run: flutter build apk --release
+        env:
+          TRACK_VERIFY_URL: ${{ secrets.TRACK_VERIFY_URL }}
+          TRACK_TERMS_URL: ${{ secrets.TRACK_TERMS_URL }}
+          TRACK_PRIVACY_URL: ${{ secrets.TRACK_PRIVACY_URL }}
+          TRACK_SUPPORT_EMAIL: ${{ secrets.TRACK_SUPPORT_EMAIL }}
+        run: |
+          defines=""
+          [ -n "$TRACK_VERIFY_URL" ]    && defines="$defines --dart-define=TRACK_VERIFY_URL=$TRACK_VERIFY_URL"
+          [ -n "$TRACK_TERMS_URL" ]     && defines="$defines --dart-define=TRACK_TERMS_URL=$TRACK_TERMS_URL"
+          [ -n "$TRACK_PRIVACY_URL" ]   && defines="$defines --dart-define=TRACK_PRIVACY_URL=$TRACK_PRIVACY_URL"
+          [ -n "$TRACK_SUPPORT_EMAIL" ] && defines="$defines --dart-define=TRACK_SUPPORT_EMAIL=$TRACK_SUPPORT_EMAIL"
+          # shellcheck disable=SC2086
+          flutter build apk --release $defines
 
       - name: flutter build appbundle --release
         run: flutter build appbundle --release
@@ -79,6 +164,27 @@ jobs:
           unzip -l build/app/outputs/flutter-apk/app-release.apk | grep -E "lib/(arm64-v8a|armeabi-v7a|x86_64)/" | head
           # AAB signing cert (debug fallback in CI is expected; Play upload uses the local keystore).
           keytool -printcert -jarfile build/app/outputs/bundle/release/app-release.aab | head -20 || true
+
+      # The keep-rule regression check that is possible from outside a running device.
+      # R8 removes a class that only the manifest references, the build succeeds, and the
+      # feature is simply gone at runtime — so `android/app/proguard-rules.pro` is
+      # load-bearing and belongs in CI, not only in review. `.ViewPermissionUsageActivity`
+      # is an activity-alias for MainActivity and is correctly absent from the DEX.
+      - name: system-instantiated classes survived R8
+        run: |
+          set -e
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          mkdir -p /tmp/dex
+          unzip -o -q "$apk" 'classes*.dex' -d /tmp/dex
+          strings /tmp/dex/classes*.dex > /tmp/dex/strings.txt
+          for cls in MainActivity TrackWidgetReceiver FocusSessionService FocusBlockOverlay; do
+            if ! grep -q "Lcom/track/app/$cls;" /tmp/dex/strings.txt; then
+              echo "::error::com.track.app.$cls is named in AndroidManifest.xml but was stripped"
+              echo "   from the release DEX — restore its -keep rule in android/app/proguard-rules.pro"
+              exit 1
+            fi
+            echo "present in release DEX: com.track.app.$cls"
+          done
 
       - name: Upload release APK
         uses: actions/upload-artifact@v4

@@ -579,7 +579,8 @@ class FocusRepository {
     List<String> packages = const <String>[],
     bool enabled = true,
   }) async {
-    final existing = id == null ? null : _schedules.where((s) => s.id == id).firstOrNull;
+    final existingMatches = id == null ? const <FocusSchedule>[] : _schedules.where((s) => s.id == id);
+    final existing = existingMatches.isEmpty ? null : existingMatches.first;
     final deviceProtected = await enforcer.protectedPackages();
     final sanitized = FocusEngine.sanitizeBlockList(packages, deviceProtected: deviceProtected);
     final schedule = FocusSchedule(

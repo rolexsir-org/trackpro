@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:track/data/db/database.dart';
 import 'package:track/data/default_trackers.dart';
+import 'package:track/util/day_key.dart';
 import 'package:track/util/format.dart';
 
 /// Synthetic history for **tests and development previews only**.
@@ -49,7 +50,10 @@ class DemoFixtures {
   List<double> _series(String id) {
     final out = <double>[];
     for (var i = days - 1; i >= 0; i--) {
-      final dow = DateTime.now().subtract(Duration(days: i)).weekday % 7;
+      // Calendar arithmetic: the elapsed-time version can put two of these slots on the
+      // same local day across a DST transition, which makes a fixture flaky in a timezone
+      // the author does not live in. Same rule as `lib/util/day_key.dart`.
+      final dow = weekdayOfDayKey(dayKeyFromToday(i)) % 7;
       final weekend = dow == 0 || dow == 6;
       final double v;
       switch (id) {
@@ -100,7 +104,7 @@ class DemoFixtures {
         t.id,
         <int, double>{
           for (var i = 0; i < values.length; i++)
-            dayKey(DateTime.now().subtract(Duration(days: values.length - 1 - i))): values[i],
+            dayKeyFromToday(values.length - 1 - i): values[i],
         },
         source: source,
       );

@@ -8,6 +8,13 @@
 # JDK 17 and the Android SDK (flutter doctor -v must be clean for Android).
 # Every gate prints PASS or FAIL and the script exits non-zero on the first
 # failure, so partial output is always trustworthy.
+#
+# The two Python gates run FIRST, on purpose: they need no toolchain, so a checkout
+# with no Flutter installed still gets the structural half of the evidence — and both
+# of them must run for the audit trail in docs/TEST_RESULTS.md to say anything true.
+# `gate_probe` is the check on the checks: it breaks each rule in `release_gate` on
+# purpose and requires the gate to fire, so a rule that has quietly stopped reading
+# anything (which is how this repo's gate went missing once) cannot pass here.
 set -uo pipefail
 
 BUILD=0
@@ -70,6 +77,9 @@ artifact_check() {
   echo "      (fine for a smoke build; NOT uploadable to Play — see docs/RELEASE.md §2)."
 }
 
+gate "release gate (structural)"        python3 tools/release_gate.py
+gate "gate probe (checks on the checks)" python3 tools/gate_probe.py
+gate "import / member audits"           bash -c 'python3 tools/import_audit.py && python3 tools/member_audit.py && python3 tools/test_api_audit.py'
 gate "flutter doctor (android toolchain)" flutter doctor -v
 gate "flutter pub get"                    flutter pub get
 gate "drift codegen fresh"                codegen_fresh

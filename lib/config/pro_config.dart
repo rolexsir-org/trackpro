@@ -108,20 +108,29 @@ class ProConfig {
   static const String annualBasePlanId = 'annual-auto';
   static const String monthlyBasePlanId = 'monthly-auto';
 
+  /// The base-plan ids Play reports on some surfaces (and on RTDN), mapped to the
+  /// product they belong to. They must match `android`-side Play Console
+  /// configuration exactly — see `docs/PLAY_CHECKLIST.md`.
+  static const Map<String, PlanKind> basePlanAliases = <String, PlanKind>{
+    monthlyBasePlanId: PlanKind.monthly,
+    annualBasePlanId: PlanKind.annual,
+  };
+
+  /// Resolves a Play product id (or a configured base-plan id) to its plan.
+  ///
+  /// **Exact matching, deliberately.** This used to fall back to substring
+  /// guessing (`productId.contains('forever')`, `'monthly'`, …), so any foreign
+  /// sku that happened to contain one of those words resolved to a Track Pro plan
+  /// — and `Entitlement.provisional` and `LocalOnlyVerifier` both key off this
+  /// function. An id that is not ours must resolve to `null`, which is what makes
+  /// "unknown product grants nothing" true rather than a hope.
   static ProPlan? planForProduct(String productId) {
     for (final p in plans) {
       if (p.id == productId) return p;
     }
-    // Play also reports the base plan id on some surfaces (and on RTDN);
-    // treat those as the same entitlement so a renewal never reads as "free".
-    if (productId.contains('monthly')) return plans.firstWhere((p) => p.kind == PlanKind.monthly);
-    if (productId.contains('annual') || productId.contains('yearly')) {
-      return plans.firstWhere((p) => p.kind == PlanKind.annual);
-    }
-    if (productId.contains('lifetime') || productId.contains('forever')) {
-      return plans.firstWhere((p) => p.kind == PlanKind.lifetime);
-    }
-    return null;
+    final alias = basePlanAliases[productId];
+    if (alias == null) return null;
+    return plans.firstWhere((p) => p.kind == alias);
   }
 
   /// Benefit list for the paywall. Order matters: the least controversial first,
@@ -164,8 +173,11 @@ class ProConfig {
     if (raw == null) return 'Billed yearly · cancel anytime';
     final perMonth = raw / 12;
     final symbol = plan.currencySymbol ?? '';
-    final decimals = perMonth < 100 ? 0 : 0;
-    return '≈ $symbol${perMonth.toStringAsFixed(decimals)}/month, billed yearly';
+    // No decimal places: this line exists to make the annual look like a whole
+    // number of months, and "≈ ₹208.25/month" argues with itself. (An earlier
+    // revision had `perMonth < 100 ? 0 : 0` here — a ternary whose two branches
+    // were the same number, i.e. dead code posing as a rounding rule.)
+    return '≈ $symbol${perMonth.toStringAsFixed(0)}/month, billed yearly';
   }
 
   // ------------------------------------------------------------------ policy
@@ -296,11 +308,18 @@ class ProPlan {
     return 'Continue · $displayPrice$displayPeriod';
   }
 
+  /// What the purchase will do, in time order, including how to get out of it.
+  ///
+  /// The cancel clause is not decoration: Play requires a trial to state how to
+  /// avoid the first charge, and `test/billing_test.dart` pins that this string
+  /// says so. Copy that promises a trial without saying it can be cancelled is
+  /// the shape of a refund dispute.
   String trialTimeline() {
     if (!hasTrial) {
       return kind == PlanKind.lifetime ? 'No subscription. No renewal.' : 'Billed $displayPrice$displayPeriod';
     }
-    return 'Free today · reminder on day ${trialDays - 3} · $displayPrice$displayPeriod from day $trialDays';
+    return 'Free today · cancel anytime before day $trialDays · reminder on day ${trialDays - 3} · '
+        '$displayPrice$displayPeriod from day $trialDays';
   }
 
   ProPlan copyWith({
@@ -473,12 +492,16 @@ class Entitlement {
   }
 
   /// Human name of the active plan, for Settings.
+  ///
+  /// Carries the product name ("Track Pro Annual", not "Pro Annual"): Settings
+  /// renders this as the plan headline with no surrounding title, and a bare
+  /// "Pro" reads like a status rather than the plan someone is paying for.
   String get planTitle {
     final plan = planId == null ? null : ProConfig.planForProduct(planId!);
-    if (plan == null) return 'Pro';
-    if (isLifetime) return 'Pro Lifetime';
-    if (inTrial) return 'Pro trial';
-    return 'Pro ${plan.title}';
+    if (plan == null) return 'Track Pro';
+    if (isLifetime) return 'Track Pro Lifetime';
+    if (inTrial) return 'Track Pro trial';
+    return 'Track Pro ${plan.title}';
   }
 
   /// One line, always visible in Settings and on the paywall footer, and always

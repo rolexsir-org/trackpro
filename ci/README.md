@@ -15,5 +15,20 @@ To activate CI, do ONE of:
    commit and push with your own credentials.
 
 The first push containing `.github/workflows/ci.yml` triggers the full gate
-run (format, codegen freshness, analyze, test, release APK+AAB + artifact
-verification) automatically.
+run automatically: codegen freshness, `dart format`, `flutter analyze`,
+`flutter test`, the Python audit gates (`release_gate`, `gate_probe`, and the
+five `tools/*_audit.py` scanners), then the release APK + AAB with artifact
+identity/signing checks and a check that the manifest-instantiated classes
+survived R8.
+
+Two notes for whoever activates this:
+
+* `ci.yml` reads four optional secrets — `TRACK_VERIFY_URL`, `TRACK_TERMS_URL`,
+  `TRACK_PRIVACY_URL`, `TRACK_SUPPORT_EMAIL` — and passes them as
+  `--dart-define` to the APK build. Without them the build still succeeds with
+  Pro permanently locked, which is the honest fallback for a fork; a Play
+  artifact built without `TRACK_VERIFY_URL` is not shippable, and the job says
+  so as a warning rather than failing, because the workflow is also the CI of
+  this repository and must stay runnable without anyone's store configuration.
+* `normalize.yml` commits with `[skip ci]`. Keep that marker: without it a
+  formatting-only bot push re-runs the whole 60-minute pipeline on itself.

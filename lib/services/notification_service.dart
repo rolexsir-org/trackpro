@@ -413,8 +413,17 @@ class NotificationService {
   tz.TZDateTime _nextInstanceOf(int weekday, int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);
     var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
-    while (scheduled.weekday != weekday || scheduled.isBefore(now)) {
-      scheduled = scheduled.add(const Duration(days: 1));
+    // Eight steps is the most a weekday can be away, and the bound is also the
+    // documentation: an unbounded `while` on a date predicate is how a scheduler ends up
+    // spinning on a device whose timezone database says something surprising.
+    for (var step = 0; step < 8 && (scheduled.weekday != weekday || scheduled.isBefore(now)); step++) {
+      // Component arithmetic (`day + 1`), not `add(Duration(days: 1))`. A fixed 24-hour
+      // step advances *elapsed* time, so across a transition that makes the local day 23
+      // or 25 hours long the reminder lands an hour early or late — and because every
+      // following week is computed from that one, it stays wrong forever. Advancing the
+      // day component keeps the wall-clock time you asked for, which is precisely why
+      // `TZDateTime` exists rather than `DateTime` being passed straight through.
+      scheduled = tz.TZDateTime(tz.local, scheduled.year, scheduled.month, scheduled.day + 1, hour, minute);
     }
     return scheduled;
   }

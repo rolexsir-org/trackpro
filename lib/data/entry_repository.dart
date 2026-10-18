@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 
 import '../config/app_environment.dart';
+import '../util/day_key.dart';
 import 'cycle_stats.dart';
 import 'db/database.dart';
 import 'default_trackers.dart';
@@ -159,6 +160,13 @@ class EntryRepository {
   }
 
   /// Increment that also belongs in the event feed (a cup, a snack, a payment).
+  /// One increment in the event feed **and** the day's new rollup, in one
+  /// transaction, so the feed and the ring cannot disagree.
+  ///
+  /// [delta] may be negative — it is the change that was actually applied, which is
+  /// how "remove a cup" is expressible at all. The bound that matters is on
+  /// [newDailyTotal], because that is the number every average, streak and ring is
+  /// computed from; a non-finite delta is still refused outright.
   Future<bool> addEvent(
     String trackerId,
     double delta,
@@ -167,10 +175,16 @@ class EntryRepository {
     String? meta,
   }) async {
     final safeTotal = ValueValidation.sanitize(trackerId, newDailyTotal);
-    final safeDelta = ValueValidation.sanitize(trackerId, delta);
-    if (safeTotal == null || safeDelta == null) return false;
+    if (safeTotal == null || !delta.isFinite) return false;
     final now = DateTime.now();
-    await dao.logEvent(trackerId: trackerId, newDailyTotal: safeTotal, delta: safeDelta, source: source, meta: meta, at: now);
+    await dao.logEvent(
+      trackerId: trackerId,
+      newDailyTotal: safeTotal,
+      delta: delta,
+      source: source,
+      meta: meta,
+      at: now,
+    );
     _patch(trackerId, _todaySlot(), safeTotal);
     _lastHydrate = now;
     return true;
@@ -202,7 +216,7 @@ class EntryRepository {
       }
       await dao.upsertDaily(trackerId: trackerId, day: e.key, value: safe, source: source, at: today);
       written++;
-      final slot = cacheDays - 1 - today.difference(_dateOf(e.key)).inDays;
+      final slot = _slotForDay(e.key);
       if (slot >= 0 && slot < cacheDays) _patch(trackerId, slot, safe);
     }
     if (written > 0) _lastHydrate = DateTime.now();
@@ -254,16 +268,19 @@ class EntryRepository {
   /// when they undo a mistake.
   Future<int> clearDay(String trackerId, int day) async {
     final removed = await db.transaction(() async {
-      final daily = await dao.deleteDailyFor(trackerId, day, source: 'manual');
+      // Every source, not just the manual one: see
+      // [TrackDao.deleteDailyForAllSources] for the day that used to survive this.
+      final daily = await dao.deleteDailyForAllSources(trackerId, day);
       final events = await dao.deleteEventsForDay(trackerId, day);
       return daily + events;
     });
     if (removed > 0) {
-      _patchDay(trackerId, day, 0);
-      _lastHydrate = DateTime.now();
-      // The cache slot is a projection of the row, not the row itself: after a delete
-      // the slot is cleared so the ring and the streaks read the absence.
+      // The cache slot is a projection of the rows, not a row itself: after a delete
+      // the slot is cleared so the ring, the streak and the average read the absence.
+      // (One write, formerly two — a `_patchDay(…, 0)` immediately followed by
+      // `_clearSlot(…)` that set the same slot to the same zero.)
       _clearSlot(trackerId, day);
+      _lastHydrate = DateTime.now();
     }
     return removed;
   }
@@ -272,22 +289,25 @@ class EntryRepository {
   /// inside the window. Outside the window there is nothing cached to correct, and the
   /// next `hydrate` picks the row up.
   void _patchDay(String trackerId, int day, double value) {
-    final slot = cacheDays - 1 - _daysBetween(_dateOf(day), _dateOf(dayKey(DateTime.now())));
+    final slot = _slotForDay(day);
     if (slot >= 0 && slot < cacheDays) _patch(trackerId, slot, value);
   }
 
   void _clearSlot(String trackerId, int day) {
     final series = _cache[trackerId];
     if (series == null) return;
-    final slot = cacheDays - 1 - _daysBetween(_dateOf(day), _dateOf(dayKey(DateTime.now())));
+    final slot = _slotForDay(day);
     if (slot >= 0 && slot < cacheDays) series[slot] = 0;
   }
 
-  static int _daysBetween(DateTime a, DateTime b) {
-    final x = DateTime(a.year, a.month, a.day);
-    final y = DateTime(b.year, b.month, b.day);
-    return y.difference(x).inDays;
-  }
+  /// The cache slot for a calendar day: the last slot is today, and each earlier
+  /// local day steps back by one.
+  ///
+  /// `daysBetweenKeys` is calendar arithmetic on purpose (see `util/day_key.dart`):
+  /// a millisecond-based day count is off by one on a 23- or 25-hour day, which
+  /// would patch yesterday's slot with today's value — a ring that looks updated
+  /// and a chart claiming a day the user never logged.
+  int _slotForDay(int day) => cacheDays - 1 - daysBetweenKeys(day, todayKey());
 
   Future<void> persistTracker(Tracker t, int sort) => dao.upsertTracker(_trackerRow(t, sort: sort));
 
@@ -337,24 +357,29 @@ class EntryRepository {
   }
 
   // ------------------------------------------------------------------- reads
-  Future<double> average(String trackerId, int days) => dao.averageOfLast(trackerId, days);
+  /// The expense categories the app can colour, and their colours.
+  ///
+  /// One source of truth: the chart reads its colours from here and the write path
+  /// validates its category against it, so a typo can never create a grey, unlabelled
+  /// slice that nobody can explain. (`'Food & dining'` is kept for rows written by
+  /// older builds; new ones use `'Food'`.)
+  static const Map<String, int> categoryPalette = <String, int>{
+    'Food': 0xFFFF9500,
+    'Food & dining': 0xFFFF9500,
+    'Groceries': 0xFF34C759,
+    'Transport': 0xFF007AFF,
+    'Shopping': 0xFFAF52DE,
+    'Bills': 0xFF5856D6,
+    'Fun': 0xFFFF2D55,
+    'Health': 0xFF00C7BE,
+    'Other': 0xFF8E8E93,
+  };
 
   Future<List<CategoryTotal>> categoryTotals({int days = 7}) async {
-    const palette = <String, int>{
-      'Food': 0xFFFF9500,
-      'Food & dining': 0xFFFF9500,
-      'Groceries': 0xFF34C759,
-      'Transport': 0xFF007AFF,
-      'Shopping': 0xFFAF52DE,
-      'Bills': 0xFF5856D6,
-      'Fun': 0xFFFF2D55,
-      'Health': 0xFF00C7BE,
-      'Other': 0xFF8E8E93,
-    };
     final sums = await dao.categoryTotals(days: days);
     return [
       for (final s in sums)
-        if (s.total > 0) CategoryTotal(s.category, s.total, Color(palette[s.category] ?? 0xFF34C759)),
+        if (s.total > 0) CategoryTotal(s.category, s.total, Color(categoryPalette[s.category] ?? 0xFF34C759)),
     ];
   }
 
@@ -388,16 +413,26 @@ class EntryRepository {
 
   /// Per-day activity rhythm from real events only. An empty result means the
   /// UI must say "not enough entries", not draw a fake curve.
-  Future<RhythmBuckets> rhythm(String trackerId, {int buckets = 6, int bucketHours = 3, DateTime? day}) async {
+  ///
+  /// The bucket width is **derived from [buckets]** so the bars always tile a whole
+  /// day. The signature used to take `buckets` and `bucketHours` separately, and the
+  /// one call site asked for 6 × 3 h = 18 hours: every event after 18:00 was clamped
+  /// into a bar labelled "6pm–9pm" that actually held 6pm–midnight, so the busiest
+  /// part of the day for water, calories and screen time was drawn at half its true
+  /// width and the evening label lied about what it covered.
+  Future<RhythmBuckets> rhythm(String trackerId, {int buckets = 8, DateTime? day}) async {
     final target = day ?? DateTime.now();
     final events = await dao.eventsForDay(trackerId, dayKey(target));
-    final sums = List<double>.filled(buckets, 0);
+    final width = buckets <= 0 ? 24 : (24 ~/ buckets).clamp(1, 24);
+    final sums = List<double>.filled(buckets <= 0 ? 1 : buckets, 0);
     for (final e in events) {
-      final slot = (e.ts.hour ~/ bucketHours).clamp(0, buckets - 1);
+      final slot = (e.ts.hour ~/ width).clamp(0, sums.length - 1);
       sums[slot] += e.value;
     }
     final labels = [
-      for (var i = 0; i < buckets; i++) _hourLabel(i * bucketHours, (i + 1) * bucketHours),
+      // The last bar runs to midnight whatever the divisor is, so its label never
+      // claims a narrower window than it holds.
+      for (var i = 0; i < sums.length; i++) _hourLabel(i * width, i == sums.length - 1 ? 24 : (i + 1) * width),
     ];
     return RhythmBuckets(labels: labels, values: sums, eventCount: events.length);
   }
@@ -405,22 +440,12 @@ class EntryRepository {
   /// Cycle statistics from logged flow days in the projection.
   CycleStats cycleStats() => CycleStats.fromSeries(_cache['period'] ?? const <double>[]);
 
-  /// Streak from a SQL-qualified day list: count the unbroken prefix ending today.
-  Future<int> streakOf(String trackerId, {double ratio = .7}) async {
-    final days = await dao.qualifiedDaysDesc(trackerId, ratio);
-    final today = dayKey(DateTime.now());
-    var expected = today;
-    var n = 0;
-    for (final d in days) {
-      if (d == expected) {
-        n++;
-        expected = _prevDay(expected);
-      } else if (d < expected) {
-        break;
-      }
-    }
-    return n;
-  }
+  // `streakOf` used to live here as a second, SQL-side implementation of the
+  // 70%-of-goal streak, and it disagreed with the one every screen actually uses
+  // (`format.dart`'s `streakOf(Tracker, List<double>)`, which also counts a run that
+  // ends yesterday). Nothing called it. Two rules for one number is how a chip and a
+  // chart end up telling different stories, so the duplicate is gone: `AppState.streak`
+  // is the single definition, and `qualifiedDaysDesc()` remains for SQL-only callers.
 
   Future<int> trackedDays() => dao.trackedDayCount();
 
@@ -467,7 +492,7 @@ class EntryRepository {
             'goal': t.goal,
             'unit': t.unit,
             'history': {
-              for (final r in rows.where((r) => r.trackerId == t.id)) isoDay(r.day): r.value,
+              for (final r in rows.where((r) => r.trackerId == t.id)) isoDayKey(r.day): r.value,
             },
           }
       ],
@@ -508,7 +533,7 @@ class EntryRepository {
     final lines = [
       for (final d in days)
         [
-          isoDay(d),
+          isoDayKey(d),
           ...trackers.map((t) {
             final v = byTracker[t.id]?[d];
             return v == null ? '.' : v.toString();
@@ -562,8 +587,10 @@ class EntryRepository {
 
   static String _hourLabel(int from, int to) {
     String h(int x) {
-      final suffix = x < 12 ? 'am' : 'pm';
-      final hour = x % 12 == 0 ? 12 : x % 12;
+      // 24 is a legal `to` (midnight, end of the last bucket) and must read 12am.
+      final y = x % 24;
+      final suffix = y < 12 ? 'am' : 'pm';
+      final hour = y % 12 == 0 ? 12 : y % 12;
       return '$hour$suffix';
     }
 
@@ -611,9 +638,3 @@ List<int>? decodeHabitMeta(String? meta) {
 
 String encodeHabitMeta(List<int> done) => jsonEncode({'done': done});
 
-DateTime _dateOf(int day) => DateTime(day ~/ 10000, (day ~/ 100) % 100, day % 100);
-
-int _prevDay(int day) => dayKey(_dateOf(day).subtract(const Duration(days: 1)));
-
-String isoDay(int day) =>
-    '${day ~/ 10000}-${((day ~/ 100) % 100).toString().padLeft(2, '0')}-${(day % 100).toString().padLeft(2, '0')}';

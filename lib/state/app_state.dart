@@ -198,6 +198,20 @@ class AppState extends ChangeNotifier {
 
   Tracker byId(String id) => trackers.firstWhere((t) => t.id == id);
 
+  /// The catalogue entry for [id], or null when there is none.
+  ///
+  /// Every write path resolves the tracker through this **before** it touches the
+  /// in-memory projection. `byId` throws on an unknown id, and a throw halfway
+  /// through a write is the worst of both worlds: the cache has already been
+  /// painted with a value that was never stored, and a series was created for a
+  /// tracker that does not exist.
+  Tracker? trackerOrNull(String id) {
+    for (final t in trackers) {
+      if (t.id == id) return t;
+    }
+    return null;
+  }
+
   /// The value to show for "today" on a tracker: the last slot of the loaded
   /// series, or zero when the tracker has no series in memory. Zero means "nothing
   /// logged", which is exactly what the rings already render; the previous
@@ -265,8 +279,14 @@ class AppState extends ChangeNotifier {
     return prev.isEmpty ? h.last : prev.reduce((a, b) => a > b ? a : b);
   }
 
-  /// Same 70%-of-goal rule as `qualifiedDaysDesc()` in SQL, but computed on the
-  /// projection so streak chips never flicker while a query is in flight.
+  /// The one streak rule in the app: consecutive days at or above 70 % of the
+  /// tracker's goal, counted backwards from today over the loaded projection
+  /// (`util/format.dart`'s `streakOf`). It reads the projection rather than running
+  /// a query so a chip never flickers mid-write.
+  ///
+  /// There used to be a second, SQL-side implementation of the same idea on
+  /// `EntryRepository`; it treated a run ending yesterday as broken while this one
+  /// does not, and nothing called it. One number, one rule.
   int streak(String id) => streakOf(byId(id), historyOf(id));
 
   /// The longest streak currently running across the visible trackers, computed
@@ -298,6 +318,24 @@ class AppState extends ChangeNotifier {
   /// Today's activity buckets for one tracker, or null if none were computed.
   RhythmBuckets? rhythmFor(String trackerId) => _rhythms[trackerId];
 
+  /// Loads today's rhythm buckets for one tracker into the projection.
+  ///
+  /// `_rhythms` used to be declared, documented ("refreshed with the aggregates")
+  /// and read by the detail screen — and never written by anything. The query behind
+  /// it ([EntryRepository.rhythm]) had no caller at all, so the "when in the day do
+  /// you drink" panel fell through to its empty state for every user, forever, no
+  /// matter how much they logged.
+  ///
+  /// It is filled **on demand, for the screen that is open**, rather than in
+  /// `_refreshAggregates`: that runs after every write and would turn one tap into
+  /// N event-table queries for N trackers, most of them not on screen.
+  Future<void> refreshRhythm(String trackerId) async {
+    final buckets = await repo.rhythm(trackerId);
+    if (_disposed) return; // the notifier is dead; nobody is left to tell
+    _rhythms[trackerId] = buckets;
+    notifyListeners();
+  }
+
   /// Completion rate for one habit over the last [days] days.
   ///
   /// Denominator is the number of days the checklist was actually used — not the
@@ -307,7 +345,10 @@ class AppState extends ChangeNotifier {
     var used = 0;
     var hit = 0;
     for (var back = 0; back < days; back++) {
-      final key = dayKey(DateTime.now().subtract(Duration(days: back)));
+      // Calendar stepping via `dayKeyFromToday`, not `DateTime.now().subtract(
+      // Duration(days:))`: the latter is elapsed time, and on a 23- or 25-hour day
+      // it reads the same key twice or skips one, silently rewriting that day's rate.
+      final key = dayKeyFromToday(back);
       final day = completions[key];
       if (day == null) continue;
       used++;
@@ -578,7 +619,7 @@ class AppState extends ChangeNotifier {
     focusProfiles = repo.profiles;
     focusSchedules = repo.schedules;
     focusStats = await repo.stats(todayKey: repo.todayKey);
-    focusTodayMinutes = repo.minutesOn(dayKey(DateTime.now()));
+    focusTodayMinutes = repo.minutesOn(todayKey());
 
     // Keep the countdown mirrors truthful even when nobody is ticking yet: the first
     // frame after a cold start, or after returning from the background, must not show
@@ -704,7 +745,12 @@ class AppState extends ChangeNotifier {
   Future<void> deleteFocusSchedule(String id) async {
     final repo = focusRepo;
     if (repo == null) return;
-    final schedule = repo.schedules.where((s) => s.id == id).firstOrNull;
+    // No `firstOrNull`: that extension lives in `package:collection`, which this
+    // app does not depend on directly, so importing it would fail the
+    // `depend_on_referenced_packages` lint (and, before this fix, would not
+    // compile at all).
+    final matches = repo.schedules.where((s) => s.id == id);
+    final schedule = matches.isEmpty ? null : matches.first;
     if (schedule != null) await notifications?.cancelFocusSchedule(schedule.notificationId);
     await repo.deleteSchedule(id);
     await refreshFocusState();
@@ -814,6 +860,20 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The subscription on [BillingService.updates], kept so it can be cancelled.
+  /// `dart:async` is imported for exactly this plus `unawaited`.
+  StreamSubscription<Entitlement>? _billingUpdates;
+
+  /// True once the billing layer has been wired. Guarding this makes
+  /// [bindBilling] idempotent, which it was not: `load()` and
+  /// `reconcileEntitlement()` both call it, so every purchase event ran
+  /// `applyEntitlement` **twice** — two settings writes, two widget snapshots, two
+  /// aggregate refreshes — and `_onBillingChanged` was registered twice on the same
+  /// [ChangeNotifier], which calls each listener once per registration.
+  bool _billingBound = false;
+
+  bool _disposed = false;
+
   Future<void> _recordPurchaseIfAny(Entitlement ent) async {
     if (ent.purchaseToken == null) return;
     await repo.dao.recordPurchase(
@@ -833,9 +893,11 @@ class AppState extends ChangeNotifier {
   /// push them into the UI + persistence.
   void bindBilling() {
     final b = billing;
-    if (b == null) return;
+    if (b == null || _billingBound) return;
+    _billingBound = true;
     b.addListener(_onBillingChanged);
-    b.updates.listen((ent) async {
+    _billingUpdates = b.updates.listen((ent) async {
+      if (_disposed) return;
       await applyEntitlement(ent);
       await _recordPurchaseIfAny(ent);
     });
@@ -931,7 +993,7 @@ class AppState extends ChangeNotifier {
       // Allow the run to start yesterday, which is how a streak should feel.
       var offset = h.done ? 0 : 1;
       for (var back = offset; back < 400; back++) {
-        final key = dayKey(DateTime.now().subtract(Duration(days: back)));
+        final key = dayKeyFromToday(back);
         final doneThatDay = (completions[key] ?? const <int>[]).contains(i);
         if (doneThatDay) {
           streak++;
@@ -1348,7 +1410,16 @@ class AppState extends ChangeNotifier {
 
   /// Public entry point for the post-launch wiring: schedules exactly the set the
   /// user asked for, at the tier they are entitled to.
-  Future<void> syncReminders() => _syncNotifications();
+  ///
+  /// That set includes the scheduled focus sessions. They are armed through
+  /// [syncFocusSchedules], and they were not armed *here* — so anything that called
+  /// `syncReminders` before the notification service was ready (which, until
+  /// `main()` was reordered, was every cold start) re-armed the three general
+  /// reminders and quietly skipped every session reminder the user had configured.
+  Future<void> syncReminders() async {
+    await _syncNotifications();
+    await syncFocusSchedules();
+  }
 
   /// Called on foreground: a permission can be revoked in system settings and a
   /// time zone can change while the app is in the background, and both silently
@@ -1409,6 +1480,15 @@ class AppState extends ChangeNotifier {
   /// beyond the plausible range). Nothing is written and nothing is shown as
   /// saved — the caller surfaces that instead of silently dropping it.
   bool log(String id, double value, {String? meta}) {
+    // Order matters: refuse an id the catalogue does not know *before* creating a
+    // series for it. `log('not-a-tracker', 1)` used to paint a phantom row into the
+    // projection and then throw inside `byId`, so the caller got neither a value nor
+    // an error — just a chart with a tracker that cannot exist.
+    final tracker = trackerOrNull(id);
+    if (tracker == null) {
+      Haptics.warning();
+      return false;
+    }
     final safe = ValueValidation.sanitize(id, value);
     if (safe == null) {
       Haptics.warning();
@@ -1418,23 +1498,53 @@ class AppState extends ChangeNotifier {
     series[series.length - 1] = safe;
     Haptics.commit();
     notifyListeners();
-    unawaited(_persist(() => repo.setDaily(id, safe, meta: meta), label: byId(id).name));
+    unawaited(_persist(() => repo.setDaily(id, safe, meta: meta), label: tracker.name));
     return true;
   }
 
+  /// Moves today's total by [delta] — which may be **negative**.
+  ///
+  /// Three separate defects used to live in these lines:
+  ///
+  ///  1. The delta was validated with [ValueValidation.sanitize], whose contract is
+  ///     "a value that can be stored", and which therefore refuses every negative. The
+  ///     hero card's swipe-left is "one serving back" (`tracker_card.dart` passes
+  ///     `-step`), so the removal gesture did nothing but warn — an affordance the UI
+  ///     offered and the state layer silently rejected. What must be refused is a
+  ///     *result* below zero, not a negative delta.
+  ///  2. The event row recorded the requested delta while the rollup recorded the
+  ///     clamped total, so a write clamped by the tracker's ceiling left a feed entry
+  ///     describing a change the day's number does not contain.
+  ///  3. An unknown tracker id threw out of `byId` after the cache had been painted.
+  ///
+  /// Returns false when nothing was applied, so a caller never confirms a change that
+  /// did not happen.
   bool logAdd(String id, double delta, {String? meta}) {
+    final tracker = trackerOrNull(id);
+    if (tracker == null || !delta.isFinite) {
+      Haptics.warning();
+      return false;
+    }
     final series = _writableSeries(id);
-    final total = series.last + delta;
-    final safeTotal = ValueValidation.sanitize(id, total);
-    final safeDelta = ValueValidation.sanitize(id, delta);
-    if (safeTotal == null || safeDelta == null) {
+    final previous = series.last;
+    final safeTotal = ValueValidation.sanitize(id, previous + delta);
+    if (safeTotal == null) {
+      // Refused: NaN, or a removal that would take the day below zero.
+      Haptics.warning();
+      return false;
+    }
+    final applied = safeTotal - previous;
+    if (applied == 0) {
+      // The day is already where the request would put it (already empty, or already
+      // at the tracker's ceiling). Reporting that as a success would confirm a write
+      // that does not exist, so it is reported as what it is: nothing happened.
       Haptics.warning();
       return false;
     }
     series[series.length - 1] = safeTotal;
     Haptics.commit();
     notifyListeners();
-    unawaited(_persist(() => repo.addEvent(id, safeDelta, safeTotal, meta: meta), label: byId(id).name));
+    unawaited(_persist(() => repo.addEvent(id, applied, safeTotal, meta: meta), label: tracker.name));
     return true;
   }
 
@@ -1574,17 +1684,55 @@ class AppState extends ChangeNotifier {
     }, label: 'Habits'));
   }
 
-  void addExpense(double amount, String category) {
+  /// Adds one expense to today's running total.
+  ///
+  /// Returns false when the amount was refused — and this is the only mutator in the
+  /// app that used to skip validation entirely. `log` and `logAdd` both run every
+  /// value through [ValueValidation]; this path wrote the raw number into the cache
+  /// and into SQLite, so a `NaN`, a negative (which the rollup then *subtracted*)
+  /// or a 10-digit typo landed in the database and re-scaled every average, ring and
+  /// "vs week avg" label built from it. The sheet also reported success from its own
+  /// `amount > 0` check instead of from this return value, so a clamped write was
+  /// still confirmed as logged.
+  bool addExpense(double amount, String category) {
+    final tracker = trackerOrNull('expenses');
+    if (tracker == null) {
+      Haptics.warning();
+      return false;
+    }
+    final safeAmount = ValueValidation.sanitize('expenses', amount);
+    if (safeAmount == null || safeAmount <= 0) {
+      Haptics.warning();
+      return false;
+    }
     final series = _writableSeries('expenses');
-    final total = series.last + amount;
-    series[series.length - 1] = total;
-    transactions.insert(0, Transaction('$category expense', category, amount, 'Just now'));
+    final safeTotal = ValueValidation.sanitize('expenses', series.last + safeAmount);
+    if (safeTotal == null) {
+      Haptics.warning();
+      return false;
+    }
+    // Normalise against the palette the category chart colours from, so an
+    // unexpected spelling cannot create an unlabelled slice in `categories`.
+    final clean = category.trim();
+    final bucket = EntryRepository.categoryPalette.containsKey(clean) ? clean : 'Other';
+    final title = '$bucket expense';
+    series[series.length - 1] = safeTotal;
+    transactions.insert(0, Transaction(title, bucket, safeAmount, 'Just now'));
     Haptics.commit();
     notifyListeners();
     unawaited(_persist(() async {
-      await repo.addEvent('expenses', amount, total, meta: jsonEncode({'category': category, 'title': '$category expense'}));
+      await repo.addEvent(
+        'expenses',
+        safeAmount,
+        safeTotal,
+        meta: jsonEncode({'category': bucket, 'title': title}),
+      );
       categories = await repo.categoryTotals(days: 7);
-    }, label: 'Expense'));
+    }, label: tracker.name)); // `tracker` is already promoted by the early return above
+    //
+    // (It used to read `tracker!`, which the analyzer rejects under this repo's lint set as an
+    // unnecessary null assertion on a non-nullable local.)
+    return true;
   }
 
   /// Returns whether the goal reached the database. The sheet that sets it waits for
@@ -1865,6 +2013,24 @@ class AppState extends ChangeNotifier {
 
   Future<void> _writeWidgetSnapshot() =>
       widgetBridge?.writeSnapshot(this) ?? Future<void>.value();
+
+  /// Detaches this object from the layers that outlive it.
+  ///
+  /// `AppState` is created in `main()` and handed to `ChangeNotifierProvider.value`,
+  /// which does not dispose its value — so in the app this is a formality that keeps
+  /// the ownership story honest, and in tests it is the difference between a clean
+  /// run and a "A ChangeNotifier was used after being disposed" failure from a
+  /// purchase event that landed after `tearDown`.
+  @override
+  void dispose() {
+    _disposed = true;
+    _billingBound = false;
+    final sub = _billingUpdates;
+    _billingUpdates = null;
+    if (sub != null) unawaited(sub.cancel());
+    billing?.removeListener(_onBillingChanged);
+    super.dispose();
+  }
 
   List<String>? _decodeList(String? raw) {
     if (raw == null) return null;

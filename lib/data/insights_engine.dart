@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import '../models/models.dart';
+import '../util/day_key.dart';
 import 'cycle_stats.dart';
 
 /// A computed statement about the user's own data.
@@ -370,7 +371,7 @@ class InsightsEngine {
 
   /// Slot index → weekday. `i == length - 1` is today, so the mapping stays
   /// correct regardless of what day the app happens to run on.
-  static int _weekdayOfSlot(int i, int length) => DateTime.now().subtract(Duration(days: length - 1 - i)).weekday % 7;
+  static int _weekdayOfSlot(int i, int length) => weekdayOfDayKey(dayKeyFromToday(length - 1 - i)) % 7;
 }
 
 /// Milestones are a function of real accumulated data — never a fixed list with
