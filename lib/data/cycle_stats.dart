@@ -40,7 +40,15 @@ class CycleStats {
   final double periodLengthAvg;
 
   /// True when there is enough history for a prediction to mean anything.
-  bool get hasPrediction => starts.length >= 2;
+  ///
+  /// Two logged starts is the minimum, not the answer: the gap between them also has
+  /// to be one of the gaps `fromSeries` accepted (15–60 days). Without that second
+  /// condition, a double-logged weekend followed by a forgotten month yields two
+  /// starts, no usable gap, `shortestLength == 0` — and [nextWindow] then predicts a
+  /// period starting **on the last logged day**. A health prediction invented out of
+  /// nothing is the one thing this file must never do, so an unusable sample
+  /// predicts nothing at all and says so.
+  bool get hasPrediction => starts.length >= 2 && shortestLength > 0;
 
   /// True when the user has logged at least one period.
   bool get hasAnyData => starts.isNotEmpty;
@@ -55,6 +63,10 @@ class CycleStats {
 
   /// Predicted start of the next period as a day-index range (inclusive).
   /// Null when [hasPrediction] is false.
+  ///
+  /// Both bounds come from the user's own shortest and longest accepted cycle. They
+  /// are never padded with a population average, and a window this narrow is the
+  /// honest shape of the data behind it.
   (int, int)? get nextWindow {
     if (!hasPrediction || lastStart == null) return null;
     final lo = lastStart! + shortestLength;
@@ -144,7 +156,9 @@ class CycleStats {
   String get summary {
     if (!hasAnyData) return 'No period logged yet — log your first day to start the pattern.';
     if (!hasPrediction) {
-      return 'First day logged. Prediction appears after the next cycle starts.';
+      return starts.length < 2
+          ? 'First day logged. Prediction appears after the next cycle starts.'
+          : 'The logged gaps fall outside a usable range (15–60 days) — a prediction here would be a guess.';
     }
     if (isIrregular) {
       return 'Your logged cycles vary by $variability days — a prediction here would be a guess.';

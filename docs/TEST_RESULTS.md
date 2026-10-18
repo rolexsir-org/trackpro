@@ -389,3 +389,68 @@ passing for the wrong reason (H-2).
 every device behaviour: **BLOCKED** on this host (§4). The new suite is unrun, so its
 existence is not evidence that the fixed behaviour is correct — only that the intended
 behaviour is written down and executable on a machine that has the SDK.
+
+
+---
+
+## 8. Second in-place pass — 2026-10-17 (`/home/user/trackpro`)
+
+Same honest vocabulary. This pass ran in **this** checkout, which is a different tree
+from the `track_flutter/` sibling the sections above were written in.
+
+### 8.1 Executed here, and what came back
+
+| Gate | Command | Result |
+|---|---|---|
+| Release gate | `python3 tools/release_gate.py` | **exit 0** — `clean — 51 checks, 0 problems` |
+| Gate probes | `python3 tools/gate_probe.py` | **exit 0** — 52/52 fired, `the tree is clean again` after restore |
+| Import / dependency audit | `python3 tools/import_audit.py` | **exit 0** — every relative import resolves, every package import declared (21 deps) |
+| Member audit | `python3 tools/member_audit.py` | **exit 0** — 813 qualified references across 16 files, all resolved (text-level) |
+| Test-API audit | `python3 tools/test_api_audit.py` | **exit 0** — 576 member references across 17 test files resolve against `lib/` |
+| Symbol-clash audit | `python3 tools/symbol_clash_audit.py` | **exit 0** — 68 files, no name visible from two sources at once |
+| Static audit | `python3 tools/static_audit.py` | 25 lines reported, all in the documented false-positive set (`database.g.dart` generated members + drift internals) |
+| Workflow YAML parse | `python3 -c "import yaml; …"` | both `ci/workflows/*.yml` parse; every step has `uses:`/`run:` |
+| `tools/run_gates.sh` syntax | `bash -n` | parses |
+
+The probe run is the most interesting line above, because it audits the auditor: four
+checks in the freshly re-authored gate **could never have fired** (three were matching
+over text whose string literals had been blanked out; one asserted a Gradle pattern that
+cannot cross a Maven coordinate). Fixing them was only possible because a probe made the
+silence visible. Details: `docs/PRODUCT_COHERENCE_REPORT.md` §10.1.
+
+### 8.2 What is referenced above and is NOT in this workspace
+
+The header of this file points at `../TEST_EVIDENCE.txt` and
+`bash tools/collect_evidence.sh`, and §1.1 reports a 60-test Node suite from
+`billing_server/`. In this checkout:
+
+* `tools/collect_evidence.sh` — **absent** (it was authored in the sibling
+  `track_flutter/` tree; the file never landed in this repo).
+* `/home/user/TEST_EVIDENCE.txt` — **absent**; only files inside the repository are
+  captured by this workspace.
+* `billing_server/` — **absent**. §1.1's 60/60 result therefore cannot be reproduced or
+  re-verified here; it is inherited from the earlier pass, not re-executed. Node itself
+  is available (`v22.22.3`), so the claim is checkable by anyone who has that directory.
+
+Reporting that gap is the point of this section: §1 through §7 describe an environment
+this agent does not have, and the honest status of their Flutter-side claims is unchanged
+(§3: written, not executed).
+
+### 8.3 Added test coverage in this pass
+
+Four new Dart test files and one correction, all **written, not executed** (§3 applies):
+
+| File | Type | What it pins |
+|---|---|---|
+| `test/day_key_test.dart` | pure | day keys are date components; `next`/`previous` invert across month, year and leap boundaries; `daysBetweenKeys` returns 1 across a 23-hour day; the Monday week anchor; a window of N days spans N−1 gaps |
+| `test/cycle_stats_test.dart` | pure | `hasPrediction` requires a *usable* sample; a 300-day gap predicts nothing and says which reason it is; a run of flow days is one start; implausible run lengths do not set the period average; irregularity is the user's own spread |
+| `test/day_writes_test.dart` | in-memory SQLite | `clearDay` removes every source's rollup and event rows (health-only day included), is a no-op on an empty day; `logAdd` accepts a negative delta, refuses one that would go below zero, reports "nothing happened" when already at the ceiling, and persists the *applied* change; `addExpense` refuses `NaN`/0/negative and buckets an unknown category into `Other`; `dayKeysEndingToday`/`dayKeyWindowStart` agree with each other and with `series()`'s gap-fill |
+| `test/app_environment_test.dart` | pure | the `--dart-define` surface: presence flag agrees with the URL, no placeholder defaults compiled in, the verification timeout has a floor, `validate()` is release-only, and `assertNotMisconfigured()` has a caller |
+| `test/billing_test.dart` | corrected | `ProPlan` has no `productId` field (the suite could not compile — every test file in the package failed to build because of it); `displayPeriod` is the concatenated `'/year'`; three "should be active" fixtures now carry the `verified`/`verifiedAt` the fail-closed rule they document requires, so each tests its own rule instead of passing on the wrong one |
+
+### 8.4 Still not proven
+
+Everything in §3 and §4 remains true, plus: the four new test files have never been run,
+so they are compile-unverified. `dart format` was not run (no formatter here), so the new
+files are hand-formatted to the repo's pinned 120-column budget — if the CI format gate
+disagrees, the fix is `bash`-level (`dart format`) and not a review question.

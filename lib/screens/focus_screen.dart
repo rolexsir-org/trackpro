@@ -573,9 +573,14 @@ class _HoldToEndState extends State<_HoldToEnd> {
 /// ---------------------------------------------------------------------------
 Future<void> showFocusSummary(BuildContext context, String sessionId, {bool popOnClose = false}) async {
   final app = context.read<AppState>();
+  // Captured before the await. Reaching for `context` on the other side of a modal
+  // sheet is the classic "`Navigator.of()` called on a defunct element" crash, and it
+  // is also what `use_build_context_synchronously` fails CI on: the screen that
+  // opened this summary can be gone by the time the user taps Done.
+  final navigator = Navigator.of(context);
   final summary = app.summaryFor(sessionId);
   if (summary == null) {
-    if (popOnClose && context.mounted) Navigator.of(context).maybePop();
+    if (popOnClose && context.mounted) navigator.maybePop();
     return;
   }
 
@@ -590,8 +595,8 @@ Future<void> showFocusSummary(BuildContext context, String sessionId, {bool popO
       TrackFilledButton(
         label: 'Done',
         onTap: () {
-          Navigator.of(context).pop();
-          if (popOnClose) Navigator.of(context).maybePop();
+          navigator.pop();
+          if (popOnClose) navigator.maybePop();
         },
       ),
     ],

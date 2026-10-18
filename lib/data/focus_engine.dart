@@ -382,7 +382,7 @@ class FocusEngine {
     var completed = 0, degraded = 0, interrupted = 0, cancelled = 0;
     var minutes7 = 0, minutesTotal = 0;
     // "Last 7 days" includes today, so it starts at midnight six days ago.
-    final weekFloor = dateOfDayKey(todayKey).subtract(const Duration(days: 6)).millisecondsSinceEpoch;
+    final weekFloor = dateOfDayKey(shiftDayKey(todayKey, -6)).millisecondsSinceEpoch;
 
     final starts = <int>[];
     for (final s in ended) {

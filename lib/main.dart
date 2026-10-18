@@ -107,13 +107,24 @@ Future<void> main() async {
   // `EntryRepository.bootstrap()` now takes no seeder at all, so the production
   // start-up path has nothing to inject and nothing to forget. Synthetic rows
   // exist only as fixtures under `test/`.
-  await state.load();
+  // Order matters, and this used to be the other way round. Loading the state is
+  // what re-arms reminders — `recoverFocus()`, `syncFocusSchedules()` and the
+  // tier/preference sync all call into `NotificationService`, and every one of its
+  // methods returns early until `init()` has run. With `init()` last, a cold start
+  // armed the three general reminders from the post-frame callback below but left
+  // the user's *scheduled focus sessions* unarmed until they happened to edit one:
+  // silently no reminder after every reboot, update, or reinstall.
   await notifications.init();
+  await state.load();
 
-  // A release build that is misconfigured (demo data compiled in, no verification
-  // backend, non-HTTPS legal URLs) is a build-time problem, but the app should be
-  // able to tell you so rather than silently misbehaving. `AppEnvironment.validate()`
-  // is also enforced by `tools/release_gate.py`, which fails the build.
+  // A release build that is misconfigured (no verification backend, non-HTTPS
+  // policy URLs) is a build-time problem, and the app's job here is only to not be
+  // silent about it: the list is logged, and Settings → Diagnostics shows the same
+  // list to whoever is looking. What this is NOT is a hard failure — a build with
+  // no `TRACK_VERIFY_URL` is a legitimate free build, and crashing on a user's
+  // phone for the operator's omission would be the worse bug. The gate that does
+  // fail a build is `tools/release_gate.py` (structure/consistency rules, no
+  // knowledge of these flags) plus the CI release job's guard on the defines.
   if (kReleaseMode) {
     final problems = AppEnvironment.validate();
     if (problems.isNotEmpty) {

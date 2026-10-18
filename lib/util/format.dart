@@ -14,7 +14,11 @@ String fmtValue(Tracker t, double v) {
     case MetricKind.hours:
       return '${_trim(v)} h';
     case MetricKind.minutes:
-      final h = v ~/ 60, m = v.round() % 60;
+      // Round once, then split. Splitting an unrounded `v ~/ 60` against a rounded
+      // `v.round() % 60` disagreed with itself: 59.5 minutes was "0 hours" and
+      // "60 % 60 = 0 minutes", so half an hour of screen time rendered as `0m`.
+      final total = v.round();
+      final h = total ~/ 60, m = total % 60;
       return h > 0 ? '${h}h ${m}m' : '${m}m';
     case MetricKind.weight:
       return '${v.toStringAsFixed(1)} kg';
@@ -37,7 +41,8 @@ String fmtCompact(Tracker t, double v) {
     case MetricKind.money:
       return '₹${(v / 1000).toStringAsFixed(1)}k';
     case MetricKind.minutes:
-      final h = v ~/ 60, m = v.round() % 60;
+      final total = v.round();
+      final h = total ~/ 60, m = total % 60;
       return m == 0 ? '${h}h' : '${h}h${m.toString().padLeft(2, '0')}';
     case MetricKind.cycle:
       return 'D${v.round()}';
@@ -60,7 +65,7 @@ String fmtGoalShort(Tracker t) {
     case MetricKind.money:
       return 'of ₹${(t.goal / 1000).toStringAsFixed(1)}k';
     case MetricKind.minutes:
-      return '${t.goal ~/ 60}h limit';
+      return '${t.goal.round() ~/ 60}h limit';
     case MetricKind.cycle:
       return '28-day cycle';
     case MetricKind.weight:
@@ -81,7 +86,7 @@ String fmtGoalLong(Tracker t) {
     case MetricKind.hours:
       return '${_trim(t.goal)} h';
     case MetricKind.minutes:
-      return '${t.goal ~/ 60}h limit';
+      return '${t.goal.round() ~/ 60}h limit';
     case MetricKind.weight:
       return '${t.goal.toStringAsFixed(0)} kg goal';
     case MetricKind.cycle:
@@ -191,7 +196,13 @@ double activityScore(List<Tracker> trackers, Map<String, List<double>> data, int
     if (t.id == 'expenses' || t.id == 'screen') {
       hits += v <= t.goal ? 1 : .35;
     } else if (t.id == 'period' || t.id == 'weight') {
-      hits += 1;
+      // A cycle-day marker and a weigh-in are facts about a day, not a fraction of a
+      // target, so the only question is whether anything was recorded. Both used to
+      // add a whole point **unconditionally**, which meant an install that merely
+      // *owns* these two trackers scored every blank day at 2/N: the "daily
+      // activity" chart could never reach zero, and a day where the user logged
+      // nothing at all looked partly productive.
+      hits += v > 0 ? 1 : 0;
     } else {
       hits += ringPct(t, v).clamp(0.0, 1.0);
     }

@@ -589,8 +589,12 @@ class BillingService extends ChangeNotifier {
 
   /// Opens Play's subscription centre — the only place a user can cancel, and
   /// required to be reachable from inside the app (Play policy).
+  ///
+  /// Defaults to this service's own [packageName]: a literal here used to drift
+  /// from the applicationId in `android/app/build.gradle.kts`, and a manage link
+  /// pointed at the wrong package is a cancel flow that silently leads nowhere.
   String manageUrl({String? packageName}) {
-    final pkg = packageName ?? 'com.track.app';
+    final pkg = packageName ?? this.packageName;
     final sku = _entitlement.productId ?? ProConfig.plans.first.id;
     return 'https://play.google.com/store/account/subscriptions?sku=$sku&package=$pkg';
   }
@@ -609,20 +613,15 @@ class BillingService extends ChangeNotifier {
 /// ---------------------------------------------------------------------------
 /// Verification seam.
 /// ---------------------------------------------------------------------------
-/// The real implementation POSTs to your backend, which calls
+/// [PurchaseVerifier] is the single contract that can turn a Play purchase into
+/// Pro; [HttpPurchaseVerifier] implements it against a backend that calls
 /// `purchases.subscriptionsv2.get` (subscriptions) or `purchases.products.get`
 /// (one-time) with a service account. See MONETIZATION.md for the exact flow,
 /// RTDN handling and the acknowledgement rules.
-abstract class PurchaseVerifier {
-  const PurchaseVerifier();
-
-  Future<VerifyResult> verify({
-    required String productId,
-    required String purchaseToken,
-    required String signature,
-  });
-}
-
+///
+/// Note the parameter is `packageName`, not a client-side signature: the client
+/// holds no key that could prove a purchase, which is precisely why the verdict
+/// has to come from a server.
 class VerifyResult {
   const VerifyResult({
     required this.valid,
@@ -734,7 +733,6 @@ class HttpPurchaseVerifier extends PurchaseVerifier {
   HttpPurchaseVerifier({
     required this.endpoint,
     this.bearerTokenProvider,
-    this.packageName = 'com.track.app',
     this.timeout = const Duration(seconds: 10),
     HttpClient? client,
   }) : _client = client ?? HttpClient();
@@ -748,7 +746,6 @@ class HttpPurchaseVerifier extends PurchaseVerifier {
   /// rotated API key fetched at runtime). Never a secret compiled into the APK.
   final Future<String?> Function()? bearerTokenProvider;
 
-  final String packageName;
   final Duration timeout;
   final HttpClient _client;
 

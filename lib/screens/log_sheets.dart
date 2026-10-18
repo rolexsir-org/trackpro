@@ -205,11 +205,10 @@ Future<void> openLogSheet(BuildContext context, Tracker t) async {
             context: context,
             label: 'Add to today',
             color: t.accent,
-            write: () {
-              final amount = value.value;
-              state.addExpense(amount, 'Other');
-              return amount > 0;
-            },
+            // The sheet's answer is the *write's* answer. It used to be its own
+            // `amount > 0` test, which confirmed a success that had been refused or
+            // clamped by the state layer.
+            write: () => state.addExpense(value.value, 'Other'),
             success: 'Expense logged · ₹${value.value.round()}',
           ),
           TrackTintedButton(label: 'Cancel', onTap: () => Navigator.of(context).pop()),

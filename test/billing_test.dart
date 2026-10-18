@@ -160,6 +160,12 @@ void main() {
         autoRenew: false,
         expiresAt: DateTime.now().subtract(const Duration(days: 9000)),
         source: 'play',
+        // `verified: true` is not decoration. Every "expect(active, isTrue)" in this
+        // file has to satisfy the fail-closed rule the group above pins — an
+        // entitlement the server has not confirmed is worth nothing — and this test
+        // was written before that rule landed, so it asserted a grant from a
+        // client-side claim alone. Exactly the thing that must never come back.
+        verified: true,
       );
       // A lifetime grant ignores whatever expiry was cached alongside it.
       expect(ent.isLifetime, isTrue);
@@ -168,34 +174,40 @@ void main() {
   });
 
   group('entitlement — expiry and the offline grace window', () {
+    // All three cases below now carry `verified: true` plus a fresh `verifiedAt`.
+    // Without them the entitlement is inactive for a *different* reason (no server
+    // confirmation, or a stale check), the "inside the grace window" case failed, and
+    // the two `isFalse` cases passed for the wrong reason — a test that cannot tell
+    // which rule fired is not pinning the rule it names.
+    Entitlement subscription({required DateTime expiresAt}) => Entitlement(
+          isPro: true,
+          planId: 'track_pro_annual',
+          expiresAt: expiresAt,
+          source: 'cache',
+          verified: true,
+          verifiedAt: DateTime.now(),
+        );
+
     test('a subscription inside the grace window is still active', () {
-      final ent = Entitlement(
-        isPro: true,
-        planId: 'track_pro_annual',
-        expiresAt: DateTime.now().subtract(const Duration(hours: 6)),
-        source: 'cache',
-      );
-      expect(ent.active, isTrue);
+      expect(subscription(expiresAt: DateTime.now().subtract(const Duration(hours: 6))).active, isTrue);
     });
 
     test('a subscription past expiry + grace is not active', () {
-      final ent = Entitlement(
-        isPro: true,
-        planId: 'track_pro_annual',
+      final ent = subscription(
         expiresAt: DateTime.now().subtract(Entitlement.offlineGrace).subtract(const Duration(hours: 1)),
-        source: 'cache',
       );
       expect(ent.active, isFalse);
     });
 
     test('the grace window is bounded at 3 days', () {
       expect(Entitlement.offlineGrace, const Duration(days: 3));
-      final justOutside = Entitlement(
-        isPro: true,
-        planId: 'track_pro_monthly',
-        expiresAt: DateTime.now().subtract(const Duration(days: 3, minutes: 1)),
-        source: 'cache',
+      // One minute either side of the same boundary, so the constant is what is
+      // being tested and not the sample.
+      final justInside = subscription(
+        expiresAt: DateTime.now().subtract(const Duration(days: 2, hours: 23, minutes: 59)),
       );
+      final justOutside = subscription(expiresAt: DateTime.now().subtract(const Duration(days: 3, minutes: 1)));
+      expect(justInside.active, isTrue);
       expect(justOutside.active, isFalse);
     });
   });
@@ -383,7 +395,10 @@ void main() {
 
   group('catalogue — the Play Console contract', () {
     test('the product ids are exactly the ones created in Play Console', () {
-      final ids = ProConfig.plans.map((p) => p.productId).toList();
+      // `ProPlan.id` *is* the Play product id — there is no separate `productId`
+      // field, and this line used to name one, which failed to compile the whole
+      // suite (`flutter test` could not build a single test file because of it).
+      final ids = ProConfig.plans.map((p) => p.id).toList();
       expect(ids, containsAll(<String>['track_pro_monthly', 'track_pro_annual', 'track_pro_lifetime']));
     });
 
@@ -435,7 +450,10 @@ void main() {
       );
       // Play's localized, per-cohort price is the only one we ever show.
       expect(priced.displayPrice, '\$34.99');
-      expect(priced.displayPeriod, 'per year');
+      // `displayPeriod` is appended with no separator ('$displayPrice$displayPeriod'
+      // in ctaFor), so it is the compact '/year' form — 'per year' rendered as
+      // "$34.99per year". The assertion was stale, the implementation is right.
+      expect(priced.displayPeriod, '/year');
       // …and an unpriced plan falls back without ever rendering an empty string.
       expect(annual.displayPrice, ProConfig.fallbackAnnual);
       expect(annual.displayPeriod, '/year');

@@ -508,6 +508,17 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
             ..where((d) => d.trackerId.equals(trackerId) & d.day.equals(day) & d.source.equals(source)))
           .go();
 
+  /// Removes **every** source's rollup for one (tracker, day).
+  ///
+  /// This is what "clear this day" has to mean. A day whose only row came from
+  /// Health Connect (steps, sleep, weight) has no `source = 'manual'` row, so
+  /// deleting by source found nothing to remove: the sheet reported that nothing was
+  /// stored while the row stayed in the database and repainted itself on the next
+  /// hydrate. The user's own delete wins over the origin of the row; a later sync
+  /// can refill the day, which is exactly what a sync is for.
+  Future<int> deleteDailyForAllSources(String trackerId, int day) =>
+      (delete(dailyEntries)..where((d) => d.trackerId.equals(trackerId) & d.day.equals(day))).go();
+
   Future<void> insertEvent({
     required String trackerId,
     required double value,
@@ -536,7 +547,17 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
     });
   }
 
-  Future<void> replaceSeries(String trackerId, Map<int, double> dayToValue, {String source = 'demo', String? meta}) async {
+  /// Replaces one tracker's whole rollup series. **Test and fixture support only**: no
+  /// path in `lib/` calls it, and `source` is required rather than defaulted to `'demo'`
+  /// so that nothing added later can write sample-labelled rows by omission. The `demo`
+  /// *reading* side (the purge, the counts, the provenance label) has to stay — real
+  /// installs out there still carry those rows — but the writing side should not.
+  Future<void> replaceSeries(
+    String trackerId,
+    Map<int, double> dayToValue, {
+    required String source,
+    String? meta,
+  }) async {
     await transaction(() async {
       await (delete(dailyEntries)..where((d) => d.trackerId.equals(trackerId))).go();
       await batch((b) => b.insertAll(
@@ -565,54 +586,45 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   }
 
   // --------------------------------------------------------------------- reads
+  /// The [days] day keys ending today, oldest first.
+  ///
+  /// Built by stepping the **date components**, not by subtracting a `Duration`
+  /// from `DateTime.now()`: a day that is 23 or 25 hours long (a DST transition, or
+  /// a flight across zones) shifts millisecond arithmetic by a day, which silently
+  /// moves every value in every chart one slot sideways. Stepping components also
+  /// pins the window to one "today": the previous version re-read `DateTime.now()`
+  /// inside the loop, so a query that happened to cross midnight shifted its own
+  /// slots halfway through building the list.
+  static List<int> dayKeysEndingToday(int days) {
+    if (days <= 0) return const <int>[];
+    return [for (var i = days - 1; i >= 0; i--) dayKeyFromToday(i)];
+  }
+
+  /// The left edge of a `days`-long window ending today, without building the window.
+  ///
+  /// Two of the aggregate queries below only need the first day, and `series()` needs
+  /// every one of them; both must derive it the same way or the chart and the tile
+  /// disagree about where "the last 30 days" starts.
+  static int dayKeyWindowStart(int days) => dayKeyFromToday(days - 1 < 0 ? 0 : days - 1);
+
   /// The chart query: last [days] days for one tracker, ascending, gap-filled
   /// with zeros so a broken streak shows as a real hole rather than a jump.
   Future<List<double>> series(String trackerId, {int days = 28, String? source}) async {
-    final from = dayKey(DateTime.now().subtract(Duration(days: days - 1)));
+    final keys = dayKeysEndingToday(days);
     final q = select(dailyEntries)
-      ..where((d) => d.trackerId.equals(trackerId) & d.day.isBiggerOrEqualValue(from));
+      ..where((d) => d.trackerId.equals(trackerId) & d.day.isBiggerOrEqualValue(keys.isEmpty ? 0 : keys.first));
     if (source != null) q.where((d) => d.source.equals(source));
     q.orderBy([(d) => OrderingTerm(expression: d.day)]);
     final rows = await q.get();
 
     final byDay = {for (final r in rows) r.day: r.value};
-    return [
-      for (var i = days - 1; i >= 0; i--)
-        byDay[dayKey(DateTime.now().subtract(Duration(days: i)))] ?? 0.0,
-    ];
-  }
-
-  /// Live version of [series] — screens can subscribe instead of polling.
-  Stream<List<double>> watchSeries(String trackerId, {int days = 28}) {
-    final from = dayKey(DateTime.now().subtract(Duration(days: days - 1)));
-    return (select(dailyEntries)
-          ..where((d) => d.trackerId.equals(trackerId) & d.day.isBiggerOrEqualValue(from))
-          ..orderBy([(d) => OrderingTerm(expression: d.day)]))
-        .watch()
-        .map((rows) {
-      final byDay = {for (final r in rows) r.day: r.value};
-      return [
-        for (var i = days - 1; i >= 0; i--)
-          byDay[dayKey(DateTime.now().subtract(Duration(days: i)))] ?? 0.0,
-      ];
-    });
-  }
-
-  /// SQL aggregate: average over the trailing window (used by Insights tiles).
-  Future<double> averageOfLast(String trackerId, int days) async {
-    final from = dayKey(DateTime.now().subtract(Duration(days: days - 1)));
-    final avg = dailyEntries.value.avg();
-    final row = await (selectOnly(dailyEntries)
-          ..addColumns([avg])
-          ..where(dailyEntries.trackerId.equals(trackerId) & dailyEntries.day.isBiggerOrEqualValue(from)))
-        .getSingle();
-    return row.read(avg) ?? 0;
+    return [for (final k in keys) byDay[k] ?? 0.0];
   }
 
   /// SQL aggregate: spend grouped by the category stored in `meta` JSON.
   /// This is the "expenses by category" chart, answered without touching Dart.
   Future<List<CategorySum>> categoryTotals({int days = 7}) async {
-    final from = dayKey(DateTime.now().subtract(Duration(days: days - 1)));
+    final from = dayKeyWindowStart(days);
     final total = events.value.sum();
     final q = selectOnly(events)
       ..addColumns([events.meta, total])
@@ -649,20 +661,6 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
     final ecount = events.id.count();
     final evs = await (selectOnly(events)..addColumns([ecount])).getSingle();
     return (dailies.read(count) ?? 0) + (evs.read(ecount) ?? 0);
-  }
-
-  /// SQL aggregate for streaks: days where the value reached [ratio] of the
-  /// goal, newest first. Dart then just counts the unbroken prefix — no
-  /// full-table scan in the UI thread.
-  Future<List<int>> qualifiedDaysDesc(String trackerId, double ratio) async {
-    final rows = await customSelect(
-      'SELECT day FROM daily_entries '
-      'WHERE tracker_id = ?1 AND value >= (SELECT goal * ?2 FROM tracker_rows WHERE id = ?1) '
-      'ORDER BY day DESC',
-      variables: [Variable<String>(trackerId), Variable<double>(ratio)],
-      readsFrom: {dailyEntries, trackerRows},
-    ).get();
-    return rows.map((r) => r.read<int>('day')).toList();
   }
 
   /// Newest-first event feed for the Expenses/Screen-time detail screens.
@@ -814,7 +812,7 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
 
   /// Per-day metadata for one tracker — habit checklists, symptom notes.
   Future<List<DailyEntry>> dailyRowsFor(String trackerId, {int days = 60}) {
-    final from = dayKey(DateTime.now().subtract(Duration(days: days - 1)));
+    final from = dayKeyWindowStart(days);
     return (select(dailyEntries)
           ..where((d) => d.trackerId.equals(trackerId) & d.day.isBiggerOrEqualValue(from))
           ..orderBy([(d) => OrderingTerm(expression: d.day)]))
