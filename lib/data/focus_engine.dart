@@ -231,6 +231,7 @@ class FocusEngine {
     required FocusEnforcement enforcement,
     required FocusEndReason reason,
     required bool timingVerified,
+    int pausedMs = 0,
   }) {
     switch (reason) {
       case FocusEndReason.serviceLost:
@@ -247,6 +248,7 @@ class FocusEngine {
     }
 
     if (becomesDegraded(mode, enforcement)) return FocusOutcome.completedDegraded;
+    if (pausedBeyondBudget(mode, pausedMs)) return FocusOutcome.completedDegraded;
     // An unverified timing source does not by itself degrade a standard session —
     // there is nothing else to verify — but it does for a session that claims to
     // have enforced something, because "45 minutes" is one of the rules being
@@ -539,7 +541,7 @@ class FocusEngine {
               'covered when you open them; ending the session releases them immediately.',
         FocusMode.deep =>
           'Ending takes a deliberate press-and-hold, because "deep" is a rule you chose — not a '
-              'trap. If a pause pushes past the ',
+              'trap. If a pause pushes past the '
               '${pauseBudgetFor(FocusMode.deep)!.inMinutes}-minute budget the session is still recorded, but '
               'not as a clean completion.',
       };

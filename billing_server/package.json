@@ -1,0 +1,13 @@
+{
+  "name": "track-billing-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Track Pro Google Play Billing verification and RTDN server (Node 20, zero runtime dependencies).",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  }
+}

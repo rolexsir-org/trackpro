@@ -527,10 +527,19 @@ class SettingsScreen extends StatelessWidget {
                   title: 'Privacy',
                   subtitle: AppEnvironment.hasHostedPolicies
                       ? 'How your data is stored and handled'
-                      : 'No policy URL is configured in this build',
+                      : 'In-app summary · no external URL configured in this build',
                   leading: const Text('🔒', style: TextStyle(fontSize: 15)),
                   accent: const Color(0xFF8E8E93),
                   onTap: () => openPolicy(context, AppEnvironment.privacyUrl, 'Privacy policy'),
+                ),
+                GlassRow(
+                  title: 'Terms & disclosures',
+                  subtitle: AppEnvironment.hasHostedPolicies
+                      ? 'Subscription terms and product disclosures'
+                      : 'In-app summary · no external URL configured in this build',
+                  leading: const Text('📄', style: TextStyle(fontSize: 15)),
+                  accent: const Color(0xFF8E8E93),
+                  onTap: () => openPolicy(context, AppEnvironment.termsUrl, 'Terms of service'),
                 ),
                 GlassRow(
                   title: 'Version',
@@ -846,21 +855,17 @@ Future<bool> showTrackConfirm(
   return result ?? false;
 }
 
-/// Opens an external page, degrading to an honest dialog when the build has no
-/// URL configured — never to a fake "success" toast.
+/// Opens an external page when configured, or the bundled in-app disclosure
+/// sheet when the build has no URL configured — never a fabricated URL.
 Future<void> openPolicy(BuildContext context, String url, String label) async {
+  final kind = label.toLowerCase().contains('term') ? 'terms' : 'privacy';
   if (url.trim().isEmpty) {
-    showTrackDialog(
-      context,
-      title: label,
-      body: 'This build has no $label URL configured, so there is nothing to open. '
-          'Everything you log stays in this app until you export or delete it.',
-    );
+    await showLegalSheet(context, kind: kind);
     return;
   }
   final ok = await launcher.launchUrl(Uri.parse(url.trim()), mode: launcher.LaunchMode.externalApplication);
   if (!ok && context.mounted) {
-    showTrackDialog(context, title: label, body: 'Could not open $url on this device.');
+    await showLegalSheet(context, kind: kind);
   }
 }
 

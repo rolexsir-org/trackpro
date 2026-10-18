@@ -218,7 +218,7 @@ def c_placeholders():
     for rel in dart_rel('lib'):
         body = prose(rel)
         for rx, why in [
-            (r'track\.app/(?:terms|privacy)', 'a placeholder legal URL'),
+            (r'(?:https?://)?track\.app/', 'a placeholder legal URL'),
             (r'\bREPLACE_?ME\b|\byour-?api-?key\b|AIza[0-9A-Za-z_\-]{10,}|sk_live_[0-9A-Za-z]{6,}',
              'a template or real-looking credential'),
         ]:

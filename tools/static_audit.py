@@ -31,7 +31,13 @@ IGNORED_PREFIXES = ('_', 'this.', 'super.')
 
 
 def dart_files(root):
-    return sorted(glob.glob(os.path.join(root, 'lib', '**', '*.dart'), recursive=True))
+    # Generated `.g.dart` files are produced by build_runner (where Drift names its
+    # own VerificationContext parameter `state` and calls Drift base-class methods);
+    # the lexical contract (`state` == AppState) applies to hand-written `lib/`.
+    return sorted(
+        p for p in glob.glob(os.path.join(root, 'lib', '**', '*.dart'), recursive=True)
+        if not p.endswith('.g.dart')
+    )
 
 
 # The stripper lives in its own module: the audits share it, and it has to

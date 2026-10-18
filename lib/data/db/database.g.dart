@@ -795,7 +795,8 @@ class DailyEntry extends DataClass implements Insertable<DailyEntry> {
   final DateTime updatedAt;
   final double value;
 
-  /// manual | health | widget | demo | import — user data always wins over sync.
+  /// manual | health | usage | widget | demo | import — user data always wins over
+  /// sync (`usage` is the Android Usage Access screen-time auto-fill).
   final String source;
   final String? meta;
   const DailyEntry(

@@ -109,6 +109,9 @@ jobs:
           python3 tools/test_api_audit.py
           python3 tools/static_audit.py
 
+      - name: billing server test suite (Node 20)
+        run: npm --prefix billing_server test
+
       # The store build is only meaningful with the verification backend and the hosted
       # policy pages compiled in. They arrive as secrets so that a fork's CI still
       # builds (no secrets -> the build happens with Pro permanently locked, which is
@@ -151,7 +154,19 @@ jobs:
           flutter build apk --release $defines
 
       - name: flutter build appbundle --release
-        run: flutter build appbundle --release
+        env:
+          TRACK_VERIFY_URL: ${{ secrets.TRACK_VERIFY_URL }}
+          TRACK_TERMS_URL: ${{ secrets.TRACK_TERMS_URL }}
+          TRACK_PRIVACY_URL: ${{ secrets.TRACK_PRIVACY_URL }}
+          TRACK_SUPPORT_EMAIL: ${{ secrets.TRACK_SUPPORT_EMAIL }}
+        run: |
+          defines=""
+          [ -n "$TRACK_VERIFY_URL" ]    && defines="$defines --dart-define=TRACK_VERIFY_URL=$TRACK_VERIFY_URL"
+          [ -n "$TRACK_TERMS_URL" ]     && defines="$defines --dart-define=TRACK_TERMS_URL=$TRACK_TERMS_URL"
+          [ -n "$TRACK_PRIVACY_URL" ]   && defines="$defines --dart-define=TRACK_PRIVACY_URL=$TRACK_PRIVACY_URL"
+          [ -n "$TRACK_SUPPORT_EMAIL" ] && defines="$defines --dart-define=TRACK_SUPPORT_EMAIL=$TRACK_SUPPORT_EMAIL"
+          # shellcheck disable=SC2086
+          flutter build appbundle --release $defines
 
       - name: Verify release artifacts (identity, version, signing)
         run: |
@@ -177,7 +192,7 @@ jobs:
           mkdir -p /tmp/dex
           unzip -o -q "$apk" 'classes*.dex' -d /tmp/dex
           strings /tmp/dex/classes*.dex > /tmp/dex/strings.txt
-          for cls in MainActivity TrackWidgetReceiver FocusSessionService FocusBlockOverlay; do
+          for cls in MainActivity TrackWidgetReceiver FocusSessionService FocusBlockOverlay FocusChannel ScreenTimeChannel; do
             if ! grep -q "Lcom/track/app/$cls;" /tmp/dex/strings.txt; then
               echo "::error::com.track.app.$cls is named in AndroidManifest.xml but was stripped"
               echo "   from the release DEX — restore its -keep rule in android/app/proguard-rules.pro"

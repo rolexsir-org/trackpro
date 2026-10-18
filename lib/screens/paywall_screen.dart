@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 
+import '../config/app_environment.dart';
 import '../config/pro_config.dart';
 import '../main.dart' show TrackTheme;
 import '../services/haptics.dart';
@@ -698,11 +699,13 @@ class _Footer extends StatelessWidget {
   }
 
   Future<void> _openPolicy(BuildContext context, String which) async {
-    final url = Uri.parse('https://track.app/$which');
-    if (!await launcher.launchUrl(url, mode: launcher.LaunchMode.externalApplication)) {
-      if (context.mounted) {
-        showTrackDialog(context, title: 'Coming soon', body: 'Host your $which policy at track.app/$which and this link goes live.');
-      }
+    final url = which == 'terms' ? AppEnvironment.termsUrl : AppEnvironment.privacyUrl;
+    if (url.trim().isNotEmpty) {
+      final ok = await launcher.launchUrl(Uri.parse(url.trim()), mode: launcher.LaunchMode.externalApplication);
+      if (ok) return;
+    }
+    if (context.mounted) {
+      await showLegalSheet(context, kind: which);
     }
   }
 }
@@ -741,6 +744,165 @@ Future<void> showTrackDialog(BuildContext context, {required String title, requi
     ),
   );
 }
+
+/// Bundled Privacy Policy and Terms disclosures, shown when the build has no
+/// external URL configured (`TRACK_PRIVACY_URL` / `TRACK_TERMS_URL`) or when the
+/// device cannot open a browser. Never invents a URL that does not exist.
+Future<void> showLegalSheet(BuildContext context, {required String kind}) {
+  final isTerms = kind == 'terms';
+  final title = isTerms ? 'Terms & Disclosures' : 'Privacy & Data Flow';
+  final sections = isTerms ? _termsSections : _privacySections;
+  final configuredUrl = isTerms ? AppEnvironment.termsUrl.trim() : AppEnvironment.privacyUrl.trim();
+  final dark = Theme.of(context).brightness == Brightness.dark;
+
+  return showCupertinoModalPopup<void>(
+    context: context,
+    builder: (ctx) => SafeArea(
+      top: false,
+      child: Container(
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(ctx).size.height * 0.82),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 24),
+        decoration: BoxDecoration(
+          color: TrackTheme.surface(dark),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(TrackTheme.radiusSheet)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: TrackTheme.label3(dark),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: TrackTheme.label(dark)),
+                    ),
+                  ),
+                  CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: Text(
+                      'Done',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.blue),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                configuredUrl.isEmpty
+                    ? 'In-app disclosure · no external policy URL is configured in this build'
+                    : 'Configured URL: $configuredUrl',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+              ),
+              const SizedBox(height: 12),
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: sections.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  itemBuilder: (_, i) {
+                    final (heading, body) = sections[i];
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          heading,
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          body,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            height: 1.45,
+                            fontWeight: FontWeight.w500,
+                            color: TrackTheme.label2(dark),
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+const List<(String, String)> _privacySections = <(String, String)>[
+  (
+    'Local-first storage, no cloud backup',
+    'Routines, tracker entries, focus sessions, and settings are stored on this device in app-private '
+        'SQLite storage. Android cloud backup is disabled (`allowBackup="false"`) so health and habit data '
+        'is never copied to Google Drive without your explicit action.',
+  ),
+  (
+    'Health Connect (optional, read-only)',
+    'When you connect Health Connect in Settings, Track Pro reads Steps, Sleep, and Weight for the last '
+        '30 days to fill those trackers. Track Pro never writes to Health Connect, never reads in the '
+        'background, and never overwrites a value you typed yourself.',
+  ),
+  (
+    'Android Usage Access & Overlays (optional)',
+    'Used only when you enable automatic Screen time or Focus Lock app covering. Only foreground duration '
+        'or the active foreground package name is read on-device; no app content, messages, or notifications '
+        'are ever read, stored, or transmitted.',
+  ),
+  (
+    'Google Play Billing verification',
+    'When you purchase or restore Track Pro, the Google Play purchase token, product ID, and package name '
+        '(`com.track.app`) are sent over HTTPS to the verification backend (`TRACK_VERIFY_URL`) solely to '
+        'confirm entitlement status with Google Play.',
+  ),
+  (
+    'Export & complete deletion',
+    'You can export your recorded history as JSON or CSV, or permanently delete all recorded user data '
+        '(trackers, routines, focus sessions, and preferences) at any time from Settings → Your data.',
+  ),
+];
+
+const List<(String, String)> _termsSections = <(String, String)>[
+  (
+    'Subscriptions & renewals',
+    'Track Pro subscriptions (`track_pro_monthly`, `track_pro_annual`) are billed through Google Play and '
+        'renew automatically unless cancelled at least 24 hours before the current period ends. You can '
+        'manage or cancel at any time in Google Play → Payments & subscriptions → Subscriptions.',
+  ),
+  (
+    'Free trials & lifetime access',
+    'Where a 7-day free trial is offered on the annual plan, unused trial time converts to an auto-renewing '
+        'annual subscription unless cancelled in Google Play before the trial ends. The lifetime plan is a '
+        'one-time non-consumable purchase.',
+  ),
+  (
+    'Informational use, not medical advice',
+    'All measurements, sleep and weight trends, and cycle predictions are informational summaries computed '
+        'from the numbers you log or sync. Track Pro is not a medical device and does not provide medical '
+        'advice, diagnosis, or contraception.',
+  ),
+  (
+    'Focus Lock best-effort disclosure',
+    'Android does not provide a non-privileged API to stop apps from launching. Focus Lock covers selected '
+        'apps on a best-effort basis using the permissions you grant, and never covers the phone dialer, '
+        'emergency call screens, or system settings.',
+  ),
+];
 
 /// Convenience: the soft prompt.
 ///

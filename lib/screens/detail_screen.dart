@@ -548,20 +548,79 @@ class DetailScreen extends StatelessWidget {
 
       case 'screen':
         final hasScreenData = [for (final v in state.historyOf('screen')) if (v > 0)].isNotEmpty;
+        final granted = state.screenTimeConnected;
+        final available = state.screenTimeAvailable;
         return [
           const SectionLabel('Today by app'),
-          // Per-app screen time requires Android's Usage Access, which this build
-          // does not request. Rather than print a plausible app list, the section
-          // states the limitation.
-          const _NoData(
-            emoji: '📱',
-            title: 'Per-app breakdown is unavailable',
-            body: 'Reading which apps you use needs Android Usage Access, which Track Pro does not request. '
-                'The daily total you log is real and charted above.',
-          ),
+          // The per-app split is real data behind Android's "Usage access" grant,
+          // or nothing at all. Three honest states, never a fabricated list:
+          // no capability (non-Android build), no grant (onboarding card), or a
+          // grant with no reading yet (some OEM builds report late).
+          if (!available)
+            const _NoData(
+              emoji: '📱',
+              title: 'Automatic screen time is Android-only',
+              body: 'This build cannot read usage data on this platform. '
+                  'The totals you log yourself are real and charted below.',
+            )
+          else if (!granted)
+            _ScreenTimeOnboarding(state: state)
+          else if (state.screenTimeApps.isEmpty)
+            const _NoData(
+              emoji: '📱',
+              title: 'Nothing reported yet',
+              body: 'Usage access is granted, but this device has not reported screen time yet. '
+                  'Some Android builds report with a delay right after the grant — Sync now in a minute.',
+            )
+          else
+            GlassList(children: [
+              for (final app in state.screenTimeApps)
+                GlassRow(
+                  title: app.label,
+                  subtitle: app.packageName,
+                  trailing: Text(fmtValue(t, app.minutes),
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
+                  showChevron: false,
+                ),
+            ]),
+          if (available && granted) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(
+                child: TrackTintedButton(
+                  label: state.screenTimeSyncing ? 'Syncing…' : 'Sync now',
+                  color: t.accent,
+                  onTap: state.screenTimeSyncing ? null : () => state.syncScreenTime(),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: Text(
+                state.screenTimeLastSync == null
+                    ? 'Auto-filled from Android · nothing synced yet'
+                    : 'Auto-filled from Android · last synced ${fmtRelativeTime(state.screenTimeLastSync!)}',
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+              ),
+            ),
+          ],
           if (hasScreenData) ...[
             const SectionLabel('7-day screen time'),
             _Card(child: MiniChart(values: state.week('screen'), color: t.accent, height: 110, barRadius: 5)),
+            if (granted)
+              Padding(
+                padding: const EdgeInsets.only(top: 8, left: 2, right: 2),
+                child: Text(
+                  'Days you typed a total yourself are never overwritten by the automatic reading.',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                    color: TrackTheme.label3(dark),
+                  ),
+                ),
+              ),
           ],
         ];
 
@@ -741,6 +800,113 @@ class _NoData extends StatelessWidget {
                     style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
               ],
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The Usage Access onboarding card on the Screen time detail screen.
+///
+/// Re-checks the OS standing on first frame (so a user who granted it from the
+/// Focus Lock setup sheet does not see this card at all), and when the grant is
+/// missing, explains what is read, where the toggle lives in system Settings,
+/// and why manual logging still works without it.
+class _ScreenTimeOnboarding extends StatefulWidget {
+  const _ScreenTimeOnboarding({required this.state});
+
+  final AppState state;
+
+  @override
+  State<_ScreenTimeOnboarding> createState() => _ScreenTimeOnboardingState();
+}
+
+class _ScreenTimeOnboardingState extends State<_ScreenTimeOnboarding> {
+  @override
+  void initState() {
+    super.initState();
+    _probe();
+  }
+
+  Future<void> _probe() async {
+    await widget.state.refreshScreenTimePermission();
+    if (widget.state.screenTimeConnected) {
+      await widget.state.syncScreenTime();
+    }
+  }
+
+  Future<void> _openSettings(BuildContext context) async {
+    final svc = widget.state.screenTime;
+    final opened = svc != null && await svc.openUsageAccessSettings();
+    if (!opened && context.mounted) {
+      showTrackDialog(
+        context,
+        title: 'Usage access',
+        body: 'Open Android Settings → Apps → Special access → Usage access, '
+            'then enable Track Pro. Return here and the chart will fill in automatically.',
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(15, 14, 15, 15),
+      decoration: BoxDecoration(
+        color: TrackTheme.surface(dark),
+        borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
+        boxShadow: TrackTheme.cardShadow(dark),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('📱', style: TextStyle(fontSize: 20)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Fill screen time automatically',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.2,
+                        color: TrackTheme.label(dark),
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      'Grant Android Usage Access and Track Pro reads your daily foreground total and today\'s '
+                      'per-app split. No content is read, everything stays on this phone, and a total you type '
+                      'yourself always wins.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: TrackTheme.label2(dark),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TrackTintedButton(
+            label: 'Open Usage Access settings',
+            color: const Color(0xFFAF52DE),
+            onTap: () => _openSettings(context),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Prefer not to grant it? Log a daily total above — the chart and streaks work the same way.',
+            style: TextStyle(fontSize: 11.5, height: 1.35, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
           ),
         ],
       ),
@@ -942,6 +1108,7 @@ class _HistoryRow extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final provenance = switch (source) {
       'health' => 'Health Connect',
+      'usage' => 'Android Usage Access',
       'widget' => 'Widget',
       'import' => 'Imported',
       'demo' => 'Sample data',
