@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +28,12 @@ import 'paywall_screen.dart';
 /// `NotificationService.scheduleFocusSession`: the session begins when the person
 /// taps the notification. Starting to cover apps at a time nobody is holding the
 /// phone is the behaviour users correctly call malware, and it is not what this does.
+IconData _profileModeIcon(FocusMode mode) => switch (mode) {
+      FocusMode.standard => Icons.timer_outlined,
+      FocusMode.blocking => Icons.block_outlined,
+      FocusMode.deep => Icons.do_not_disturb_on_outlined,
+    };
+
 class FocusProfilesScreen extends StatelessWidget {
   const FocusProfilesScreen({super.key});
 
@@ -43,7 +48,7 @@ class FocusProfilesScreen extends StatelessWidget {
         children: [
           AmbientBackground(accent: TrackTheme.purple, accent2: TrackTheme.indigo),
           CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
             slivers: [
               LargeTitleHeader(
                 title: 'Profiles & schedules',
@@ -51,12 +56,12 @@ class FocusProfilesScreen extends StatelessWidget {
                 leading: const TrackBackButton(),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 60),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     if (!app.hasFocusSupport)
                       const InsightCard(
-                        emoji: '⏱️',
+                        emoji: 'timer',
                         title: 'Focus Lock is unavailable in this build',
                         body: 'Profiles and schedules configure the session engine, and this build has no '
                             'platform channel behind it. Nothing here would run.',
@@ -74,13 +79,13 @@ class FocusProfilesScreen extends StatelessWidget {
                           title: 'Saved profiles',
                           subtitle: 'One tap to start the exact session you use every day — mode, length and '
                               'app list included.',
-                          emoji: '⚡️',
+                          emoji: 'profile',
                           accent: TrackTheme.purple,
                           onTap: () => showPaywall(context, trigger: PaywallTrigger.focusProfiles),
                         )
                       else if (app.focusProfiles.isEmpty)
                         const InsightCard(
-                          emoji: '⚡️',
+                          emoji: 'profile',
                           title: 'No profiles yet.',
                           body: 'A profile is a session you have already decided about: the mode, the length, '
                               'the apps. Set one up and tomorrow\'s session starts with a single tap.',
@@ -106,13 +111,13 @@ class FocusProfilesScreen extends StatelessWidget {
                           title: 'Scheduled deep focus',
                           subtitle: 'Track Pro reminds you at the time you chose, with one tap to start. It never '
                               'starts covering apps on its own.',
-                          emoji: '🕘',
+                          emoji: 'schedule',
                           accent: TrackTheme.indigo,
                           onTap: () => showPaywall(context, trigger: PaywallTrigger.focusSchedules),
                         )
                       else if (app.focusSchedules.isEmpty)
                         const InsightCard(
-                          emoji: '🕘',
+                          emoji: 'schedule',
                           title: 'No schedules yet.',
                           body: 'Pick a time and the days it applies to. At that time Track Pro sends a reminder; '
                               'the session starts when you tap it, and not before.',
@@ -235,12 +240,20 @@ class _ProfileEditorState extends State<_ProfileEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CupertinoTextField(
+        TextField(
           controller: _name,
-          placeholder: 'Name — e.g. "Morning writing"',
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          textCapitalization: TextCapitalization.sentences,
           style: TextStyle(fontSize: 15, color: TrackTheme.label(dark)),
-          decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(11)),
+          decoration: InputDecoration(
+            hintText: 'Name — e.g. "Morning writing"',
+            filled: true,
+            fillColor: TrackTheme.fill(dark),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(11),
+              borderSide: BorderSide.none,
+            ),
+          ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),
@@ -252,7 +265,8 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           children: [
             for (final mode in FocusMode.values)
               _Chip(
-                label: '${mode.emoji} ${mode.shortLabel}',
+                label: mode.shortLabel,
+                icon: _profileModeIcon(mode),
                 selected: _mode == mode,
                 onTap: () => setState(() => _mode = mode),
               ),
@@ -269,7 +283,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
             for (final preset in FocusEngine.presetMinutes)
               _Chip(label: '$preset min', selected: _minutes == preset, onTap: () => setState(() => _minutes = preset)),
             _Chip(
-              label: '${_minutes} min ✎',
+              label: 'Custom: $_minutes min',
               selected: !FocusEngine.presetMinutes.contains(_minutes),
               onTap: () async {
                 final custom = await showFocusCustomMinutesSheet(context, initial: _minutes);
@@ -281,9 +295,9 @@ class _ProfileEditorState extends State<_ProfileEditor> {
         const SizedBox(height: 12),
         GlassList(children: [
           GlassRow(
-            title: _packages.isEmpty ? 'No apps covered' : '${_packages.length} app${_packages.length == 1 ? '' : 's'} covered',
+            title: _packages.isEmpty ? 'No apps selected' : '${_packages.length} app${_packages.length == 1 ? '' : 's'} selected',
             subtitle: _mode == FocusMode.standard ? 'Standard mode does not cover apps' : 'Tap to choose',
-            leading: const Text('📵', style: TextStyle(fontSize: 14)),
+            leading: const Icon(Icons.phonelink_lock_outlined, size: 18, color: TrackTheme.orange),
             accent: TrackTheme.indigo,
             onTap: _mode == FocusMode.standard
                 ? null
@@ -298,7 +312,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           GlassRow(
             title: _commitmentId == null ? 'Focus session' : _commitmentName(app),
             subtitle: 'Attach it to a routine, so your history reads like your life',
-            leading: const Text('🎯', style: TextStyle(fontSize: 14)),
+            leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
             accent: TrackTheme.blue,
             onTap: () async {
               final goal = await showFocusGoalPicker(context);
@@ -464,7 +478,8 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
           children: [
             for (final mode in FocusMode.values)
               _Chip(
-                label: '${mode.emoji} ${mode.shortLabel}',
+                label: mode.shortLabel,
+                icon: _profileModeIcon(mode),
                 selected: _mode == mode,
                 onTap: () => setState(() => _mode = mode),
               ),
@@ -484,9 +499,9 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
         const SizedBox(height: 12),
         GlassList(children: [
           GlassRow(
-            title: _packages.isEmpty ? 'No apps covered' : '${_packages.length} app${_packages.length == 1 ? '' : 's'} covered',
+            title: _packages.isEmpty ? 'No apps selected' : '${_packages.length} app${_packages.length == 1 ? '' : 's'} selected',
             subtitle: _mode == FocusMode.standard ? 'Standard mode does not cover apps' : 'Tap to choose',
-            leading: const Text('📵', style: TextStyle(fontSize: 14)),
+            leading: const Icon(Icons.phonelink_lock_outlined, size: 18, color: TrackTheme.orange),
             accent: TrackTheme.indigo,
             onTap: _mode == FocusMode.standard
                 ? null
@@ -565,7 +580,7 @@ class _ProfileRow extends StatelessWidget {
             title: profile.name,
             subtitle: '${profile.mode.label} · ${profile.minutes} min'
                 '${profile.packages.isEmpty ? '' : ' · ${profile.packages.length} app${profile.packages.length == 1 ? '' : 's'}'}',
-            leading: Text(profile.mode.emoji, style: const TextStyle(fontSize: 14)),
+            leading: Icon(_profileModeIcon(profile.mode), size: 18, color: TrackTheme.purple),
             accent: TrackTheme.purple,
             showChevron: false,
             onTap: onStart,
@@ -575,14 +590,14 @@ class _ProfileRow extends StatelessWidget {
                   onTap: onEdit,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(CupertinoIcons.pencil, size: 16, color: TrackTheme.label3(dark)),
+                    child: Icon(Icons.edit_outlined, size: 18, color: TrackTheme.label3(dark)),
                   ),
                 ),
                 Pressable(
                   onTap: onDelete,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(CupertinoIcons.trash, size: 16, color: TrackTheme.red.withOpacity(.8)),
+                    child: Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red.withOpacity(.8)),
                   ),
                 ),
               ],
@@ -648,7 +663,7 @@ class _ScheduleRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${schedule.label}  ·  ${schedule.mode.emoji} ${schedule.mode.shortLabel}',
+                Text('${schedule.label}  ·  ${schedule.mode.shortLabel}',
                     style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, letterSpacing: -.25, color: TrackTheme.label(dark))),
                 const SizedBox(height: 2),
                 Text('$_days · ${schedule.minutes} min'
@@ -664,17 +679,17 @@ class _ScheduleRow extends StatelessWidget {
             onTap: onEdit,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Icon(CupertinoIcons.pencil, size: 16, color: TrackTheme.label3(dark)),
+              child: Icon(Icons.edit_outlined, size: 18, color: TrackTheme.label3(dark)),
             ),
           ),
           Pressable(
             onTap: onDelete,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Icon(CupertinoIcons.trash, size: 16, color: TrackTheme.red.withOpacity(.8)),
+              child: Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red.withOpacity(.8)),
             ),
           ),
-          CupertinoSwitch(value: schedule.enabled, onChanged: onToggle),
+          Switch(value: schedule.enabled, onChanged: onToggle),
         ],
       ),
     );
@@ -693,18 +708,19 @@ class _AddButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
         decoration: BoxDecoration(color: TrackTheme.fill(Theme.of(context).brightness == Brightness.dark), borderRadius: BorderRadius.circular(TrackTheme.radiusPill)),
-        child: const Text('＋ Add', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.blue)),
+        child: const Text('Add', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.blue)),
       ),
     );
   }
 }
 
 class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.selected, required this.onTap});
+  const _Chip({required this.label, required this.selected, required this.onTap, this.icon});
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -718,12 +734,21 @@ class _Chip extends StatelessWidget {
           color: selected ? TrackTheme.purple : TrackTheme.fill(dark),
           borderRadius: BorderRadius.circular(TrackTheme.radiusPill),
         ),
-        child: Text(label,
-            style: TextStyle(
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
-              color: selected ? Colors.white : TrackTheme.label(dark),
-            )),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 16, color: selected ? Colors.white : TrackTheme.orange),
+              const SizedBox(width: 5),
+            ],
+            Text(label,
+                style: TextStyle(
+                  fontSize: 13.5,
+                  fontWeight: FontWeight.w600,
+                  color: selected ? Colors.white : TrackTheme.label(dark),
+                )),
+          ],
+        ),
       ),
     );
   }

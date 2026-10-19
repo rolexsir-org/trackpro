@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -59,18 +58,7 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final bottom = MediaQuery.paddingOf(context).bottom;
     final tab = state.tabIndex;
-
-    // Each tab tints the ambient field — the whole app subtly re-lights as you
-    // move between sections.
-    const accents = <List<Color>>[
-      [TrackTheme.blue, TrackTheme.indigo],
-      [TrackTheme.green, TrackTheme.mint],
-      [TrackTheme.indigo, TrackTheme.purple],
-      [TrackTheme.mint, TrackTheme.blue],
-      [Color(0xFF8E8E93), TrackTheme.blue],
-    ];
 
     // Five sections, in the order the product thinks in: do → commit → verify →
     // understand → configure. Measurements are reached from Routines or Profile
@@ -84,25 +72,21 @@ class _HomeShellState extends State<HomeShell> {
     ];
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: TrackTheme.bg(Theme.of(context).brightness == Brightness.dark),
       body: Stack(
         children: [
-          AmbientBackground(accent: accents[tab][0], accent2: accents[tab][1]),
+          // Keep every destination mounted. This preserves each tab's scroll
+          // position and transient UI (such as Routines filters) while still
+          // letting AppState own the actual persisted records.
           Positioned.fill(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 280),
-              switchInCurve: TrackTheme.easeOut,
-              switchOutCurve: TrackTheme.easeOut,
-              transitionBuilder: (child, anim) => FadeTransition(
-                opacity: anim,
-                child: ScaleTransition(scale: Tween<double>(begin: .986, end: 1).animate(anim), child: child),
-              ),
-              child: KeyedSubtree(key: ValueKey<int>(tab), child: screens[tab]),
-            ),
+            child: IndexedStack(index: tab, children: screens),
           ),
           Positioned(
             right: 18,
-            bottom: 104 + bottom,
+            // The tab bar grows when Android accessibility text wraps a tab
+            // label. Anchor the FAB above its measured height instead of a
+            // fixed 104px so the two controls cannot overlap.
+            bottom: IosTabBar.totalHeight(context) + 20,
             child: QuickAddFab(
               visible: tab == 0,
               onTap: () => showQuickAdd(context),
@@ -174,7 +158,7 @@ class _WriteFailureBanner extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('⚠️', style: TextStyle(fontSize: 17)),
+                  const Icon(Icons.warning_amber_rounded, size: 20, color: TrackTheme.orange),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
@@ -364,7 +348,7 @@ class _OnboardingArt extends StatelessWidget {
                 ],
               ),
               for (var i = 0; i < DefaultTrackers.all().length; i++)
-                _orb(i, DefaultTrackers.all()[i].emoji),
+                _orb(i, DefaultTrackers.all()[i].name),
             ],
           ),
         );
@@ -381,7 +365,7 @@ class _OnboardingArt extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text('🎯', style: TextStyle(fontSize: 19)),
+                  const Icon(Icons.track_changes_outlined, size: 20, color: TrackTheme.orange),
                   const SizedBox(width: 9),
                   Text('You choose both', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
                 ],
@@ -414,7 +398,7 @@ class _OnboardingArt extends StatelessWidget {
           child: Column(
             children: [
               const InsightCard(
-                emoji: '💡',
+                emoji: 'insight',
                 title: 'Your own record, nothing else.',
                 body: 'Everything you see is built from what you log here. There is no sample history and no '
                     'one else\'s data.',
@@ -441,11 +425,11 @@ class _OnboardingArt extends StatelessWidget {
     }
   }
 
-  Widget _orb(int i, String emoji) {
+  Widget _orb(int i, String label) {
     final angle = (i / 10) * math.pi * 2 - math.pi / 2;
     return Align(
       alignment: Alignment(math.cos(angle), math.sin(angle)),
-      child: Text(emoji, style: const TextStyle(fontSize: 19)),
+      child: TrackRecordIcon(label: label, color: TrackTheme.orange, size: 34, iconSize: 18),
     );
   }
 }

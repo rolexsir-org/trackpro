@@ -140,9 +140,9 @@ internal object FocusChannel {
         return mapOf(
             "running" to alive,
             // `blocking` means the detector is alive AND the session asked for blocking
-            // AND both grants are held. It is NOT a statement that a block happened —
-            // that is what `detectionEvents` is for, and the Dart side requires it before
-            // it will render the word "blocking".
+            // AND both grants are held. It is NOT a statement that coverage happened:
+            // Dart requires both a foreground detection and a successful coverage-panel
+            // launch (`overlayShows`) before it can describe coverage as verified.
             "blocking" to (alive && FocusStore.blocking(appContext) && FocusBlockOverlay.canShow(appContext)),
             "startedAtRealtimeMs" to FocusStore.startedRealtime(appContext),
             "endsAtRealtimeMs" to FocusStore.endsRealtime(appContext),

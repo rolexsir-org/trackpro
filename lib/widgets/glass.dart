@@ -1,16 +1,77 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../services/haptics.dart';
 
 import '../main.dart' show TrackTheme;
 
+/// Shared page canvas retained for existing routes. Its accent parameters are
+/// intentionally ignored: the previous ambient colour bloom made every tab look
+/// like a different product and lowered contrast behind scroll content.
+class AmbientBackground extends StatelessWidget {
+  const AmbientBackground({super.key, required this.accent, required this.accent2});
+
+  final Color accent;
+  final Color accent2;
+
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+        color: TrackTheme.bg(Theme.of(context).brightness == Brightness.dark),
+      );
+}
+
+/// A stable vector mark for stored routines and trackers. Historical emoji values
+/// remain in the data model and exports for compatibility, but product UI no longer
+/// renders platform-dependent emoji glyphs as navigation or status icons.
+class TrackRecordIcon extends StatelessWidget {
+  const TrackRecordIcon({
+    super.key,
+    required this.label,
+    required this.color,
+    this.size = 42,
+    this.iconSize = 21,
+  });
+
+  final String label;
+  final Color color;
+  final double size;
+  final double iconSize;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: size,
+        height: size,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: color.withOpacity(.15),
+          borderRadius: BorderRadius.circular(size * .32),
+        ),
+        child: Icon(_recordIcon(label), size: iconSize, color: color),
+      );
+}
+
+IconData _recordIcon(String label) {
+  final value = label.toLowerCase();
+  if (value.contains('water')) return Icons.water_drop_outlined;
+  if (value.contains('mood')) return Icons.sentiment_satisfied_alt_outlined;
+  if (value.contains('money') || value.contains('expense') || value.contains('spend')) return Icons.account_balance_wallet_outlined;
+  if (value.contains('sleep')) return Icons.bedtime_outlined;
+  if (value.contains('calor') || value.contains('food')) return Icons.restaurant_outlined;
+  if (value.contains('step') || value.contains('walk')) return Icons.directions_walk_outlined;
+  if (value.contains('run')) return Icons.directions_run_outlined;
+  if (value.contains('workout') || value.contains('train') || value.contains('lift')) return Icons.fitness_center_outlined;
+  if (value.contains('read') || value.contains('book')) return Icons.menu_book_outlined;
+  if (value.contains('meditat') || value.contains('breath')) return Icons.self_improvement_outlined;
+  if (value.contains('write') || value.contains('journal')) return Icons.edit_note_outlined;
+  if (value.contains('screen')) return Icons.phone_android_outlined;
+  if (value.contains('weight')) return Icons.monitor_weight_outlined;
+  return Icons.check_circle_outline_rounded;
+}
+
 /// ---------------------------------------------------------------------------
-/// Bottom sheet — slides up with Apple's sheet curve over a blurred backdrop
-/// and can be dragged down to dismiss.
+/// Bottom sheet — a solid Android-style modal surface with a visible drag handle.
+/// It keeps the content in a bounded, scrollable region and can be dismissed by
+/// dragging down or using the system back gesture.
 /// ---------------------------------------------------------------------------
 Future<T?> showGlassSheet<T>(
   BuildContext context, {
@@ -25,27 +86,24 @@ Future<T?> showGlassSheet<T>(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Dismiss',
-    barrierColor: Colors.black.withOpacity(.32),
-    transitionDuration: const Duration(milliseconds: 440),
+    barrierColor: Colors.black.withOpacity(.62),
+    transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (_, __, ___) => const SizedBox.shrink(),
     transitionBuilder: (context, anim, secondary, _) {
       final curved = CurvedAnimation(parent: anim, curve: TrackTheme.sheetCurve, reverseCurve: Curves.easeInCubic);
-      return BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10 * anim.value, sigmaY: 10 * anim.value),
-        child: SafeArea(
-          top: false,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: FractionalTranslation(
-              translation: Offset(0, 1 - curved.value),
-              child: _SheetSurface(
-                accent: accent,
-                title: title,
-                subtitle: subtitle,
-                body: body,
-                actions: actions,
-                scrollable: scrollable,
-              ),
+      return SafeArea(
+        top: false,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: FractionalTranslation(
+            translation: Offset(0, 1 - curved.value),
+            child: _SheetSurface(
+              accent: accent,
+              title: title,
+              subtitle: subtitle,
+              body: body,
+              actions: actions,
+              scrollable: scrollable,
             ),
           ),
         ),
@@ -84,7 +142,7 @@ class _SheetSurfaceState extends State<_SheetSurface> {
     final maxHeight = MediaQuery.sizeOf(context).height * .86;
 
     return GestureDetector(
-      onVerticalDragUpdate: (d) => setState(() => _drag = (_drag + d.delta.dy).clamp(0, 400)),
+      onVerticalDragUpdate: (d) => setState(() => _drag = (_drag + d.delta.dy).clamp(0, 400).toDouble()),
       onVerticalDragEnd: (d) {
         if (_drag > 90 || d.velocity.pixelsPerSecond.dy > 700) {
           Navigator.of(context).maybePop();
@@ -98,15 +156,12 @@ class _SheetSurfaceState extends State<_SheetSurface> {
         transform: Matrix4.translationValues(0, _drag, 0),
         constraints: BoxConstraints(maxHeight: maxHeight),
         decoration: BoxDecoration(
-          color: dark ? const Color(0xFF1C1C1E).withOpacity(.94) : Colors.white.withOpacity(.94),
+          color: TrackTheme.surface(dark),
           borderRadius: const BorderRadius.vertical(top: Radius.circular(TrackTheme.radiusSheet)),
+          border: Border.all(color: TrackTheme.separator(dark), width: .5),
           boxShadow: TrackTheme.sheetShadow,
         ),
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(TrackTheme.radiusSheet)),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 34, sigmaY: 34),
-            child: Column(
+        child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const SizedBox(height: 9),
@@ -120,14 +175,31 @@ class _SheetSurfaceState extends State<_SheetSurface> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(widget.title,
-                                style: TextStyle(
-                                    fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.4, color: TrackTheme.label(dark))),
+                            Text(
+                              widget.title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 19,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -.4,
+                                color: TrackTheme.label(dark),
+                              ),
+                            ),
                             if (widget.subtitle != null)
                               Padding(
                                 padding: const EdgeInsets.only(top: 3),
-                                child: Text(widget.subtitle!,
-                                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                                child: Text(
+                                  widget.subtitle!,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.35,
+                                    fontWeight: FontWeight.w500,
+                                    color: TrackTheme.label3(dark),
+                                  ),
+                                ),
                               ),
                           ],
                         ),
@@ -137,7 +209,7 @@ class _SheetSurfaceState extends State<_SheetSurface> {
                 ),
                 Flexible(
                   child: SingleChildScrollView(
-                    physics: const BouncingScrollPhysics(),
+                    physics: const ClampingScrollPhysics(),
                     padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
                     child: widget.body,
                   ),
@@ -145,22 +217,25 @@ class _SheetSurfaceState extends State<_SheetSurface> {
                 if (widget.actions.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                    child: Column(children: [
-                      for (final a in widget.actions) ...[a, const SizedBox(height: 9)],
-                    ]),
+                    child: Column(
+                      children: [
+                        for (var i = 0; i < widget.actions.length; i++) ...[
+                          widget.actions[i],
+                          if (i < widget.actions.length - 1) const SizedBox(height: 9),
+                        ],
+                      ],
+                    ),
                   )
                 else
                   const SizedBox(height: 26),
               ],
             ),
-          ),
-        ),
       ),
     );
   }
 }
 
-/// iOS-filled and iOS-tinted buttons.
+/// Primary and secondary product buttons.
 class TrackFilledButton extends StatelessWidget {
   const TrackFilledButton({super.key, required this.label, this.onTap, this.color = TrackTheme.blue});
 
@@ -173,9 +248,8 @@ class TrackFilledButton extends StatelessWidget {
     return _Btn(
       label: label,
       onTap: onTap,
-      bg: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [color, Color.lerp(color, Colors.black, .12)!]),
-      fg: Colors.white,
-      glow: color.withOpacity(.85),
+      bg: color,
+      fg: Colors.black,
     );
   }
 }
@@ -195,14 +269,13 @@ class TrackTintedButton extends StatelessWidget {
 }
 
 class _Btn extends StatefulWidget {
-  const _Btn({required this.label, this.onTap, this.bg, required this.fg, this.flatColor, this.glow});
+  const _Btn({required this.label, this.onTap, this.bg, required this.fg, this.flatColor});
 
   final String label;
   final VoidCallback? onTap;
-  final Gradient? bg;
+  final Color? bg;
   final Color fg;
   final Color? flatColor;
-  final Color? glow;
 
   @override
   State<_Btn> createState() => _BtnState();
@@ -223,29 +296,40 @@ class _BtnState extends State<_Btn> {
               Haptics.light();
               widget.onTap!();
             },
-      child: AnimatedScale(
-        scale: _down ? .97 : 1,
-        duration: Duration(milliseconds: _down ? 120 : 300),
-        curve: TrackTheme.spring,
-        // A button with no handler is drawn as unavailable. Before this, `onTap: null`
-        // removed the handler but kept the fill and the label exactly as they were, so a
-        // button that had already done its job still invited a tap.
-        child: AnimatedOpacity(
-          opacity: widget.onTap == null ? .55 : 1,
-          duration: const Duration(milliseconds: 200),
-          child: Container(
-            height: 50,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: widget.bg,
-              color: widget.flatColor,
-              borderRadius: BorderRadius.circular(14),
-              boxShadow: widget.glow == null
-                  ? null
-                  : [BoxShadow(color: widget.glow!, blurRadius: 22, offset: const Offset(0, 10), spreadRadius: -10)],
+      child: Semantics(
+        button: true,
+        enabled: widget.onTap != null,
+        label: widget.label,
+        child: AnimatedScale(
+          scale: _down ? .97 : 1,
+          duration: Duration(milliseconds: _down ? 120 : 300),
+          curve: TrackTheme.spring,
+          // A button with no handler is drawn as unavailable. Before this, `onTap: null`
+          // removed the handler but kept the fill and the label exactly as they were, so a
+          // button that had already done its job still invited a tap.
+          child: AnimatedOpacity(
+            opacity: widget.onTap == null ? .55 : 1,
+            duration: const Duration(milliseconds: 200),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 50),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: widget.bg ?? widget.flatColor,
+                borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
+                border: Border.all(
+                  color: widget.bg == null ? TrackTheme.separator(Theme.of(context).brightness == Brightness.dark) : Colors.transparent,
+                  width: .5,
+                ),
+              ),
+              child: Text(
+                widget.label,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -.3, color: widget.fg),
+              ),
             ),
-            child: Text(widget.label,
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -.3, color: widget.fg)),
           ),
         ),
       ),
@@ -339,7 +423,7 @@ class TrackBackButton extends StatelessWidget {
         height: 34,
         alignment: Alignment.center,
         decoration: BoxDecoration(color: TrackTheme.fill(dark), shape: BoxShape.circle),
-        child: const Icon(CupertinoIcons.chevron_back, size: 17, color: TrackTheme.blue),
+        child: const Icon(Icons.arrow_back_rounded, size: 19, color: TrackTheme.blue),
       ),
     );
   }
@@ -357,12 +441,26 @@ class SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(4, 26, 4, 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           Expanded(
-            child: Text(text.toUpperCase(),
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: .4, color: TrackTheme.label3(dark))),
+            child: Text(
+              text.toUpperCase(),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.25,
+                fontWeight: FontWeight.w600,
+                letterSpacing: .4,
+                color: TrackTheme.label3(dark),
+              ),
+            ),
           ),
-          if (trailing != null) trailing!,
+          if (trailing != null) ...[
+            const SizedBox(width: 8),
+            Flexible(fit: FlexFit.loose, child: trailing!),
+          ],
         ],
       ),
     );
@@ -381,8 +479,7 @@ class GlassList extends StatelessWidget {
       decoration: BoxDecoration(
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-        boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+        border: Border.all(color: TrackTheme.separator(dark), width: .5),
       ),
       child: Column(
         children: [
@@ -434,6 +531,7 @@ class GlassRow extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             if (leading != null) ...[
               Container(
@@ -449,14 +547,32 @@ class GlassRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -.32,
+                      color: TrackTheme.label(dark),
+                    ),
+                  ),
                   if (subtitle != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 1),
-                      child: Text(subtitle!,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        subtitle!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.35,
+                          fontWeight: FontWeight.w500,
+                          color: TrackTheme.label3(dark),
+                        ),
+                      ),
                     ),
                 ],
               ),
@@ -465,7 +581,7 @@ class GlassRow extends StatelessWidget {
             if (showChevron && onTap != null)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
-                child: Icon(CupertinoIcons.chevron_forward, size: 13, color: TrackTheme.label3(dark).withOpacity(.6)),
+                child: Icon(Icons.chevron_right_rounded, size: 18, color: TrackTheme.label3(dark)),
               ),
           ],
         ),
@@ -488,19 +604,40 @@ class StatTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(14),
-        boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+        border: Border.all(color: TrackTheme.separator(dark), width: .5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -.5, color: TrackTheme.label(dark))),
+          // Counts may be wider than a third of a narrow Android screen.
+          // Scale just the numeric glyphs down when necessary instead of clipping
+          // or letting a text-scale setting push the three-card row out of bounds.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -.5,
+                color: TrackTheme.label(dark),
+              ),
+            ),
+          ),
           const SizedBox(height: 3),
-          Text(label.toUpperCase(),
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, letterSpacing: .1, color: TrackTheme.label3(dark))),
+          Text(
+            label.toUpperCase(),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.25,
+              fontWeight: FontWeight.w600,
+              letterSpacing: .1,
+              color: TrackTheme.label3(dark),
+            ),
+          ),
         ],
       ),
     );
@@ -525,17 +662,13 @@ class InsightCard extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [accent.withOpacity(dark ? .3 : .18), accent2.withOpacity(dark ? .22 : .12)],
-        ),
-        border: Border.all(color: accent.withOpacity(.18), width: .5),
+        color: Color.lerp(TrackTheme.surface(dark), accent, dark ? .13 : .08),
+        border: Border.all(color: Color.lerp(TrackTheme.separator(dark), accent, .35)!, width: .5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 18)),
+          Icon(_insightIcon(emoji), size: 20, color: Color.lerp(accent, accent2, .25)),
           const SizedBox(width: 11),
           Expanded(
             child: Column(
@@ -555,15 +688,22 @@ class InsightCard extends StatelessWidget {
   }
 }
 
+IconData _insightIcon(String hint) {
+  if (hint.contains('↗') || hint.contains('↘')) return Icons.trending_up_rounded;
+  if (hint.contains('📅')) return Icons.calendar_today_outlined;
+  if (hint.contains('🎯')) return Icons.track_changes_outlined;
+  if (hint.contains('⚖')) return Icons.monitor_weight_outlined;
+  return Icons.insights_outlined;
+}
+
 /// ---------------------------------------------------------------------------
-/// Long-press quick actions (iOS context menu, blurred + spring-scaled).
+/// Long-press quick actions presented as a solid, accessible menu.
 /// ---------------------------------------------------------------------------
 Future<String?> showTrackContextMenu(
   BuildContext context,
   Offset globalPosition, {
   required List<List<Object>> items, // [label, IconData, isDestructive?]
 }) {
-  final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
   return showGeneralDialog<String>(
     context: context,
     barrierDismissible: true,
@@ -575,8 +715,8 @@ Future<String?> showTrackContextMenu(
       final curved = CurvedAnimation(parent: anim, curve: TrackTheme.spring, reverseCurve: Curves.easeIn);
       final dark = Theme.of(context).brightness == Brightness.dark;
       final size = MediaQuery.sizeOf(context);
-      final dx = globalPosition.dx.clamp(12.0, size.width - 240);
-      final dy = globalPosition.dy.clamp(70.0, size.height - 300);
+      final dx = globalPosition.dx.clamp(12.0, size.width - 240).toDouble();
+      final dy = globalPosition.dy.clamp(70.0, size.height - 300).toDouble();
       return Stack(
         children: [
           Positioned(
@@ -592,16 +732,11 @@ Future<String?> showTrackContextMenu(
                   child: Container(
                     width: 232,
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      color: dark ? const Color(0xFF2C2C2E).withOpacity(.92) : Colors.white.withOpacity(.9),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(.28), blurRadius: 40, offset: const Offset(0, 16), spreadRadius: -8)],
-                      border: Border.all(color: dark ? Colors.white.withOpacity(.07) : Colors.black.withOpacity(.05), width: .5),
+                      borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
+                      color: TrackTheme.surface(dark),
+                      border: Border.all(color: TrackTheme.separator(dark), width: .5),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(14),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                        child: Column(
+                    child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             for (final item in items)
@@ -634,8 +769,6 @@ Future<String?> showTrackContextMenu(
                                 ),
                               ),
                           ],
-                        ),
-                      ),
                     ),
                   ),
                 ),

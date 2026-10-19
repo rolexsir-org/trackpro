@@ -30,8 +30,10 @@ void main() {
       expect(fmtValue(byId('sleep'), 7.3), '7.3 h');
     });
 
-    test('mood and cycle have their own vocabularies', () {
-      expect(fmtValue(byId('mood'), 4), '🙂');
+    test('mood and cycle have their own vocabularies without emoji glyphs', () {
+      expect(fmtValue(byId('mood'), 4), 'Good');
+      expect(fmtValue(byId('mood'), -5), 'Poor');
+      expect(fmtValue(byId('mood'), 99), 'Great');
       expect(fmtValue(byId('period'), 14), 'Day 14');
       expect(fmtGoalLong(byId('period')), '28-day cycle');
     });

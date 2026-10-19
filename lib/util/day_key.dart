@@ -87,7 +87,7 @@ int weekStartKey(int day) {
 String weekdayName(int weekday, {bool short = false}) {
   const long = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
   const brief = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  final i = (weekday - 1).clamp(0, 6);
+  final i = (weekday - 1).clamp(0, 6).toInt();
   return short ? brief[i] : long[i];
 }
 

@@ -1,13 +1,11 @@
 import 'dart:async';
-import 'dart:ui' show ImageFilter;
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'config/app_environment.dart';
+import 'config/design_system.dart';
 import 'data/db/database.dart';
 import 'data/commitment_repository.dart';
 import 'data/entry_repository.dart';
@@ -26,14 +24,15 @@ import 'state/app_state.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Edge-to-edge with transparent system bars — the iOS look depends on the app
-  // owning the full canvas and drawing its own status-bar safe areas.
+  // Draw edge-to-edge while leaving content responsible for SafeArea/insets.
+  // Light system icons retain contrast against the dark default canvas.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     systemNavigationBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-    statusBarBrightness: Brightness.light,
+    statusBarIconBrightness: Brightness.light,
+    systemNavigationBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
   ));
 
   // --- storage: SQLite via Drift, one connection for the app's lifetime ------
@@ -219,17 +218,28 @@ class TrackApp extends StatelessWidget {
         // declared dependency and eleven screens called `context.watch`, but nothing
         // ever put an AppState into the tree. The release gate now checks for it,
         // see P-20 in tools/release_gate.py.)
-        return ChangeNotifierProvider<AppState>.value(
-          value: state,
-          child: MaterialApp(
-            title: 'Track Pro',
-            debugShowCheckedModeBanner: false,
-            themeMode: state.isDark ? ThemeMode.dark : ThemeMode.light,
-            theme: TrackTheme.light(),
-            darkTheme: TrackTheme.dark(),
-            // iOS page transitions (parallax push + edge-swipe back) on Android too.
-            scrollBehavior: const IosScrollBehavior(),
-            home: const HomeShell(),
+        final icons = state.isDark ? Brightness.light : Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor: Colors.transparent,
+            systemNavigationBarColor: Colors.transparent,
+            statusBarIconBrightness: icons,
+            systemNavigationBarIconBrightness: icons,
+            statusBarBrightness: state.isDark ? Brightness.dark : Brightness.light,
+          ),
+          child: ChangeNotifierProvider<AppState>.value(
+            value: state,
+            child: MaterialApp(
+              title: 'Track Pro',
+              debugShowCheckedModeBanner: false,
+              themeMode: state.isDark ? ThemeMode.dark : ThemeMode.light,
+              theme: TrackTheme.light(),
+              darkTheme: TrackTheme.dark(),
+              // Keep scrolling quiet and platform-appropriate without overriding
+              // Android's native physics or route transitions.
+              scrollBehavior: const TrackScrollBehavior(),
+              home: const HomeShell(),
+            ),
           ),
         );
       },
@@ -237,75 +247,76 @@ class TrackApp extends StatelessWidget {
   }
 }
 
-/// Kills Android's Material overscroll glow/ripple and swaps in iOS-style
-/// rubber-band physics. Without this the app instantly reads as "an Android app
-/// wearing iOS clothes".
-class IosScrollBehavior extends MaterialScrollBehavior {
-  const IosScrollBehavior();
+/// Keeps edge effects restrained without overriding Android scrolling physics.
+class TrackScrollBehavior extends MaterialScrollBehavior {
+  const TrackScrollBehavior();
 
   @override
   Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;
-
-  @override
-  ScrollPhysics getScrollPhysics(BuildContext context) =>
-      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 }
 
 /// ---------------------------------------------------------------------------
-/// DESIGN TOKENS — Apple HIG values, translated 1:1.
+/// DESIGN TOKENS — solid Android-first dark surfaces and restrained orange accents.
 /// ---------------------------------------------------------------------------
 class TrackTheme {
-  // iOS system palette
-  static const blue = Color(0xFF007AFF);
-  static const indigo = Color(0xFF5856D6);
-  static const purple = Color(0xFFAF52DE);
-  static const pink = Color(0xFFFF2D55);
-  static const red = Color(0xFFFF3B30);
-  static const orange = Color(0xFFFF9500);
-  static const yellow = Color(0xFFFFCC00);
-  static const green = Color(0xFF34C759);
-  static const mint = Color(0xFF00C7BE);
-  static const teal = Color(0xFF30B0C7);
-  static const cyan = Color(0xFF32ADE6);
+  const TrackTheme._();
 
-  static Color bg(bool dark) => dark ? const Color(0xFF000000) : const Color(0xFFF2F2F7);
-  static Color surface(bool dark) => dark ? const Color(0xFF1C1C1E) : Colors.white;
-  static Color surfaceGlass(bool dark) =>
-      dark ? const Color(0xFF1C1C1E).withOpacity(.72) : Colors.white.withOpacity(.72);
-  static Color label(bool dark) => dark ? Colors.white : Colors.black;
-  static Color label2(bool dark) => dark ? const Color(0xFFEBEBF5).withOpacity(.6) : const Color(0xFF3C3C43).withOpacity(.6);
-  static Color label3(bool dark) => dark ? const Color(0xFFEBEBF5).withOpacity(.3) : const Color(0xFF3C3C43).withOpacity(.3);
-  static Color separator(bool dark) =>
-      dark ? const Color(0xFF545458).withOpacity(.65) : const Color(0xFF3C3C43).withOpacity(.13);
-  static Color fill(bool dark) =>
-      dark ? const Color(0xFF787880).withOpacity(.24) : const Color(0xFF787880).withOpacity(.12);
+  // Compatibility names used by the established widgets. They all resolve to the
+  // one orange product palette defined in `Editorial`; no screen carries its own
+  // private blue platform colour system anymore.
+  static const blue = Editorial.accent;
+  static const indigo = Editorial.accentStrong;
+  static const purple = Color(0xFFB77735);
+  static const pink = Editorial.accentStrong;
+  static const red = Editorial.danger;
+  static const orange = Editorial.accent;
+  static const yellow = Color(0xFFE0A44A);
+  static const green = Editorial.full;
+  static const mint = Editorial.full;
+  static const teal = Editorial.full;
+  static const cyan = Color(0xFF63A7C8);
 
-  // iOS light shadow: barely-there, wide, low opacity — never Material elevation.
+  static Color bg(bool dark) => dark ? Editorial.canvas : const Color(0xFFF6F5F3);
+  static Color surface(bool dark) => dark ? Editorial.surface : Colors.white;
+
+  /// Kept for source compatibility with existing callers. It is intentionally an
+  /// opaque surface now: frosted translucent layers made content and contrast
+  /// depend on whatever happened to sit behind it.
+  static Color surfaceGlass(bool dark) => surface(dark);
+
+  static Color label(bool dark) => dark ? Editorial.ink : const Color(0xFF16120F);
+  static Color label2(bool dark) => dark ? Editorial.inkSecondary : const Color(0xFF5D5650);
+  static Color label3(bool dark) => dark ? Editorial.inkTertiary : const Color(0xFF817A73);
+  static Color separator(bool dark) => dark ? Editorial.hairline : const Color(0xFFD7D1CA);
+  static Color fill(bool dark) => dark ? Editorial.well : const Color(0xFFECE9E5);
+
+  /// Surfaces are separated by a border, not decorative elevation. A low shadow
+  /// remains only in light mode where otherwise adjacent white cards disappear.
   static List<BoxShadow> cardShadow(bool dark) => dark
-      ? [BoxShadow(color: Colors.black.withOpacity(.55), blurRadius: 26, offset: const Offset(0, 12))]
-      : [
-          BoxShadow(color: const Color(0xFF101828).withOpacity(.05), blurRadius: 22, offset: const Offset(0, 8)),
-          BoxShadow(color: const Color(0xFF101828).withOpacity(.03), blurRadius: 2, offset: const Offset(0, 1)),
+      ? const <BoxShadow>[]
+      : <BoxShadow>[
+          BoxShadow(
+            color: const Color(0xFF101010).withOpacity(.04),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          ),
         ];
 
-  static const sheetShadow = [
-    BoxShadow(color: Color(0x33000000), blurRadius: 60, offset: Offset(0, -12)),
+  static const sheetShadow = <BoxShadow>[
+    BoxShadow(color: Color(0x44000000), blurRadius: 22, offset: Offset(0, -4)),
   ];
 
-  // Geometry
-  static const radiusCard = 16.0;
-  static const radiusSheet = 22.0;
-  static const radiusPill = 999.0;
+  // Geometry follows the 20px-gutter / 16px-card-padding product rhythm.
+  static const radiusCard = Editorial.rCard;
+  static const radiusSheet = Editorial.rSheet;
+  static const radiusPill = Editorial.rPill;
 
-  // Motion — Apple's own curves
-  static const spring = Cubic(.34, 1.56, .64, 1);
-  static const easeOut = Cubic(.22, 1, .36, 1);
-  static const sheetCurve = Cubic(.32, .72, 0, 1);
+  static const spring = Cubic(.2, .8, .2, 1);
+  static const easeOut = Cubic(.2, 0, 0, 1);
+  static const sheetCurve = Cubic(.2, .8, .2, 1);
 
-  /// SF Pro first (if you hold an Apple licence and uncomment it in
-  /// pubspec.yaml), then the bundled Inter, then whatever the device ships.
   static const _family = 'Inter';
-  static const _fallbacks = <String>['SFProDisplay', 'SF Pro Display', 'Roboto', '.SF Pro Display'];
+  static const _fallbacks = <String>['Roboto', 'Noto Sans', 'sans-serif'];
 
   static ThemeData _base(Brightness brightness) {
     final dark = brightness == Brightness.dark;
@@ -316,45 +327,57 @@ class TrackTheme {
           fontWeight: w,
           letterSpacing: ls,
           height: height,
-          color: color ?? TrackTheme.label(dark),
+          color: color ?? label(dark),
+          decoration: TextDecoration.none,
         );
 
+    final scheme = ColorScheme.fromSeed(
+      seedColor: blue,
+      brightness: brightness,
+    );
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      // Force iOS platform so every Material widget we do use falls back to
-      // Cupertino behaviour + motion.
-      platform: TargetPlatform.iOS,
-      splashFactory: NoSplash.splashFactory,
-      highlightColor: Colors.transparent,
+      platform: TargetPlatform.android,
+      splashFactory: InkRipple.splashFactory,
       scaffoldBackgroundColor: bg(dark),
-      colorScheme: ColorScheme.fromSeed(seedColor: blue, brightness: brightness),
+      colorScheme: scheme.copyWith(
+        primary: blue,
+        onPrimary: Colors.black,
+        surface: surface(dark),
+        onSurface: label(dark),
+        outline: separator(dark),
+      ),
       textTheme: TextTheme(
-        displayLarge: t(34, FontWeight.w700, ls: -.7),
-        titleLarge: t(22, FontWeight.w700, ls: -.5),
-        titleMedium: t(17, FontWeight.w600, ls: -.41),
-        bodyLarge: t(16, FontWeight.w400, ls: -.32),
-        bodyMedium: t(14, FontWeight.w400, ls: -.15, color: label2(dark)),
-        labelLarge: t(15, FontWeight.w600, ls: -.2),
-        labelSmall: t(11, FontWeight.w600, ls: .4, color: label3(dark)),
+        displayLarge: t(34, FontWeight.w700, ls: -1.0, height: 1.1),
+        titleLarge: t(22, FontWeight.w700, ls: -.5, height: 1.2),
+        titleMedium: t(17, FontWeight.w600, ls: -.25, height: 1.25),
+        bodyLarge: t(16, FontWeight.w400, ls: -.15, height: 1.4),
+        bodyMedium: t(14, FontWeight.w400, ls: -.1, color: label2(dark), height: 1.4),
+        labelLarge: t(15, FontWeight.w600, ls: -.1),
+        labelSmall: t(11, FontWeight.w600, ls: .5, color: label3(dark)),
       ),
       dividerColor: separator(dark),
-      cupertinoOverrideTheme: CupertinoThemeData(brightness: brightness, applyThemeToAll: true),
-      pageTransitionsTheme: const PageTransitionsTheme(builders: {
-        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      }),
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: surface(dark),
+        surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(radiusSheet)),
+        ),
+      ),
     );
   }
 
   static ThemeData light() => _base(Brightness.light);
   static ThemeData dark() => _base(Brightness.dark);
 
-  /// The signature frosted-glass surface: blurred backdrop + saturated tint.
+  /// Legacy helper retained for callers while rendering a solid, bordered card.
+  /// The `blur` argument is purposely ignored so no backdrop blur leaks back into
+  /// product surfaces through old call sites.
   static Widget frosted({
     required Widget child,
     required bool dark,
-    double blur = 24,
+    double blur = 0,
     double radius = radiusCard,
     EdgeInsets? padding,
     bool strong = false,
@@ -362,17 +385,19 @@ class TrackTheme {
     VoidCallback? onLongPress,
     BoxShadow? shadow,
   }) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(radius),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        onLongPress: onLongPress,
+        borderRadius: BorderRadius.circular(radius),
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: strong ? surfaceGlass(dark) : (dark ? surface(dark).withOpacity(.86) : Colors.white.withOpacity(.8)),
+            color: strong ? fill(dark) : surface(dark),
             borderRadius: BorderRadius.circular(radius),
-            border: Border.all(color: Colors.white.withOpacity(dark ? .06 : .5), width: .5),
-            boxShadow: shadow == null ? cardShadow(dark) : [shadow],
+            border: Border.all(color: separator(dark), width: .5),
+            boxShadow: shadow == null ? cardShadow(dark) : <BoxShadow>[shadow],
           ),
           child: child,
         ),

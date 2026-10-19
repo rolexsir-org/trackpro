@@ -1,9 +1,9 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/design_system.dart';
 import '../data/momentum.dart';
+import '../models/focus_models.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../util/day_key.dart';
@@ -11,6 +11,7 @@ import '../widgets/glass.dart';
 import '../widgets/large_title_header.dart';
 import 'commitment_sheets.dart';
 import 'focus_history_screen.dart';
+import 'focus_screen.dart';
 import 'focus_setup_sheets.dart';
 
 /// Momentum — the consistency record, and the screen that has to be honest.
@@ -34,29 +35,31 @@ class MomentumScreen extends StatelessWidget {
     final commitments = state.commitments;
 
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       slivers: [
-        SliverToBoxAdapter(
-          child: LargeTitleHeader(
-            title: 'Momentum',
-            subtitle: commitments.isEmpty
-                ? 'Your progress at a glance'
-                : '${commitments.length} routine${commitments.length == 1 ? '' : 's'} · '
-                    'last ${MomentumEngine.rateWindowDays} days',
-          ),
+        LargeTitleHeader(
+          title: 'Momentum',
+          subtitle: commitments.isEmpty
+              ? 'Your progress at a glance'
+              : '${commitments.length} routine${commitments.length == 1 ? '' : 's'} · '
+                  'last ${MomentumEngine.rateWindowDays} days',
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(Editorial.s4, Editorial.s1, Editorial.s4, 130),
+          padding: const EdgeInsets.fromLTRB(Editorial.s5, Editorial.s1, Editorial.s5, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              if (state.hasFocusSupport) ...[
+                _FocusHero(state: state),
+                const SizedBox(height: Editorial.s4),
+              ],
               if (commitments.isEmpty && !state.focusStats.hasAny)
-                _EmptyMomentum(showFocus: state.hasFocusSupport)
+                _EmptyMomentum(showFocus: false)
               else ...[
                 if (overall != null) ...[
                   _HeadlineCard(state: state, overall: overall),
                   const SizedBox(height: Editorial.s4),
                 ],
-                if (state.focusStats.hasAny) ...[
+                if (state.focusStats.hasAny && !state.hasFocusSupport) ...[
                   _FocusProgressCard(state: state),
                   const SizedBox(height: Editorial.s4),
                 ],
@@ -84,12 +87,12 @@ class MomentumScreen extends StatelessWidget {
                     padding: const EdgeInsets.all(Editorial.s4),
                     child: Row(
                       children: [
-                        Icon(CupertinoIcons.info_circle, size: 18, color: Editorial.inkTertiary),
+                        Icon(Icons.info_outline_rounded, size: 20, color: Editorial.inkTertiary),
                         const SizedBox(width: Editorial.s3),
                         Expanded(
                           child: Text('How momentum is calculated', style: Editorial.figure),
                         ),
-                        Icon(CupertinoIcons.chevron_right, size: 16, color: Editorial.inkTertiary),
+                        Icon(Icons.chevron_right_rounded, size: 20, color: Editorial.inkTertiary),
                       ],
                     ),
                   ),
@@ -101,6 +104,172 @@ class MomentumScreen extends StatelessWidget {
       ],
     );
   }
+}
+
+
+/// The primary Focus entry point. A live session exposes its real countdown and
+/// opens the dedicated session route; an idle state offers only genuine presets
+/// and setup, never a decorative timer that implies work is already in progress.
+class _FocusHero extends StatelessWidget {
+  const _FocusHero({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = state.activeFocusSession;
+    final live = session != null;
+    final plannedMs = session?.plannedMs ?? 0;
+    final remaining = session == null ? 0 : state.focusRemainingMs.clamp(0, plannedMs).toInt();
+    final progress = plannedMs > 0
+        ? (1 - remaining / plannedMs).clamp(0.0, 1.0).toDouble()
+        : 0.0;
+    final accent = Editorial.accent;
+
+    return Container(
+      decoration: Editorial.card(
+        border: live ? accent.withOpacity(.55) : Editorial.hairline,
+        fill: live ? Editorial.well : Editorial.surface,
+      ),
+      padding: const EdgeInsets.all(Editorial.s5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Icon(live ? Icons.timer_outlined : Icons.bolt_outlined, size: 19, color: accent),
+              const SizedBox(width: Editorial.s2),
+              Text(live ? 'FOCUS IN PROGRESS' : 'FOCUS', style: Editorial.label.copyWith(color: accent)),
+              const Spacer(),
+              if (session?.isPaused ?? false)
+                Text('PAUSED', style: Editorial.label.copyWith(color: Editorial.minimum)),
+            ],
+          ),
+          const SizedBox(height: Editorial.s4),
+          if (session != null) ...[
+            Semantics(
+              label: '${_remainingLabel(remaining)} remaining',
+              child: Center(
+                child: Text(
+                  _remainingLabel(remaining),
+                  style: Editorial.display.copyWith(fontSize: 48, letterSpacing: -2.2),
+                ),
+              ),
+            ),
+            const SizedBox(height: Editorial.s2),
+            Center(
+              child: Text(
+                session.goalLabel.trim().isEmpty ? 'Focus session' : session.goalLabel,
+                maxLines: 2,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: Editorial.body,
+              ),
+            ),
+            const SizedBox(height: Editorial.s4),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(Editorial.rPill),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 6,
+                color: accent,
+                backgroundColor: Editorial.canvas,
+              ),
+            ),
+            const SizedBox(height: Editorial.s5),
+            TrackFilledButton(
+              label: 'Open focus session',
+              onTap: () => openFocusSession(context),
+            ),
+          ] else ...[
+            Center(
+              child: Container(
+                width: 132,
+                height: 132,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: Editorial.canvas,
+                  border: Border.all(color: Editorial.hairline, width: 1),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('READY', style: Editorial.label.copyWith(color: accent)),
+                    const SizedBox(height: 4),
+                    Text('TO FOCUS', style: Editorial.caption),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: Editorial.s4),
+            Text('Choose a duration to configure your next session.', textAlign: TextAlign.center, style: Editorial.body),
+            const SizedBox(height: Editorial.s4),
+            Row(
+              children: [
+                for (final minutes in const <int>[15, 25, 45]) ...[
+                  Expanded(
+                    child: _FocusPreset(
+                      minutes: minutes,
+                      onTap: () => showFocusStartSheet(context, minutes: minutes),
+                    ),
+                  ),
+                  if (minutes != 45) const SizedBox(width: Editorial.s2),
+                ],
+              ],
+            ),
+            const SizedBox(height: Editorial.s3),
+            TrackFilledButton(
+              label: 'Set up focus',
+              onTap: () => showFocusStartSheet(context, minutes: 25),
+            ),
+          ],
+          const SizedBox(height: Editorial.s2),
+          TextButton.icon(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
+            ),
+            icon: const Icon(Icons.history_rounded, size: 18),
+            label: const Text('Focus history'),
+            style: TextButton.styleFrom(foregroundColor: Editorial.inkSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _remainingLabel(int milliseconds) {
+    final seconds = (milliseconds ~/ 1000).clamp(0, 24 * 60 * 60).toInt();
+    final minutes = seconds ~/ 60;
+    final remainder = seconds % 60;
+    return '$minutes:${remainder.toString().padLeft(2, '0')}';
+  }
+}
+
+class _FocusPreset extends StatelessWidget {
+  const _FocusPreset({required this.minutes, required this.onTap});
+
+  final int minutes;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Material(
+        color: Editorial.canvas,
+        borderRadius: BorderRadius.circular(Editorial.rSmall),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(Editorial.rSmall),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 46),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(Editorial.rSmall),
+              border: Border.all(color: Editorial.hairline, width: .5),
+            ),
+            child: Text('$minutes min', style: Editorial.figure.copyWith(fontSize: 13)),
+          ),
+        ),
+      );
 }
 
 /// The one number the screen is about — or an honest account of why there isn't one.
@@ -219,7 +388,7 @@ class _FocusProgressCard extends StatelessWidget {
                 child: TrackTintedButton(
                   label: 'Focus history',
                   onTap: () => Navigator.of(context).push(
-                    CupertinoPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
+                    MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
                   ),
                 ),
               ),
@@ -252,7 +421,7 @@ class _RestartCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(CupertinoIcons.arrow_counterclockwise, size: 18, color: Editorial.minimum),
+              Icon(Icons.restart_alt_rounded, size: 20, color: Editorial.minimum),
               const SizedBox(width: Editorial.s3),
               Expanded(
                 child: Text(
@@ -324,13 +493,7 @@ class _CommitmentCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: c.color.withOpacity(.16), borderRadius: BorderRadius.circular(12)),
-                child: Text(c.emoji, style: const TextStyle(fontSize: 19)),
-              ),
+              TrackRecordIcon(label: c.name, color: c.color, size: 38, iconSize: 20),
               const SizedBox(width: Editorial.s3),
               Expanded(
                 child: Column(
@@ -349,7 +512,7 @@ class _CommitmentCard extends StatelessWidget {
               ),
               GestureDetector(
                 onTap: () => showCommitmentEditor(context, existing: c),
-                child: Icon(CupertinoIcons.ellipsis, size: 18, color: Editorial.inkTertiary),
+                child: Icon(Icons.more_horiz_rounded, size: 20, color: Editorial.inkTertiary),
               ),
             ],
           ),
@@ -421,7 +584,7 @@ class _TodayRow extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: Editorial.s4, vertical: Editorial.s3),
           child: Row(
             children: [
-              Icon(CupertinoIcons.checkmark_alt, size: 16, color: tint),
+              Icon(Icons.check_rounded, size: 18, color: tint),
               const SizedBox(width: Editorial.s3),
               Expanded(child: Text('Today: ${o.label}', style: Editorial.figure.copyWith(fontSize: 14))),
               Text('change', style: Editorial.caption.copyWith(color: Editorial.accent)),
@@ -747,7 +910,7 @@ class _WeeklyReviewCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: Editorial.s2),
                 child: Row(
                   children: [
-                    Text(line.emoji, style: const TextStyle(fontSize: 15)),
+                    Icon(Icons.repeat_rounded, size: 17, color: Editorial.accent),
                     const SizedBox(width: Editorial.s2),
                     Expanded(child: Text(line.name, style: Editorial.body.copyWith(color: Editorial.ink, fontSize: 14))),
                     Text(

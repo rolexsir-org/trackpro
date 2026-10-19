@@ -13,9 +13,9 @@ import '../data/db/database.dart';
 ///   that day is never overwritten (enforced in EntryRepository).
 /// - **Bounded windows.** 30 days per pull, so first sync is fast and the
 ///   post-reinstall catch-up is complete but not unbounded.
-/// - **Failures are silent.** No Health Connect, permission denied, OEM
-///   weirdness — the app behaves exactly as it did before.
-/// What Health Connect actually says, asked rather than remembered.
+/// - **No surprise prompt.** Availability and authorization checks never open a
+///   platform dialog. Only [requestPermissions], called from an explicit user
+///   action after the in-app explanation, may call the platform request API.
 ///
 /// `unavailable` and `denied` need different fixes and different copy: one is "install
 /// Health Connect", the other is "grant the permission". Collapsing them into a single
@@ -24,11 +24,11 @@ import '../data/db/database.dart';
 enum HealthPermissionState { unknown, unavailable, denied, granted }
 
 class HealthService {
-  HealthService({this.lookbackDays = 30});
+  HealthService({this.lookbackDays = 30, Health? health}) : _health = health ?? Health();
 
   final int lookbackDays;
-
-  final HealthFactory _factory = HealthFactory(useHealthConnectIfAvailable: true);
+  final Health _health;
+  Future<void>? _configuration;
   bool _granted = false;
 
   static const List<HealthDataType> _types = [
@@ -37,38 +37,54 @@ class HealthService {
     HealthDataType.WEIGHT,
   ];
 
+  static const List<HealthDataAccess> _readAccess = [
+    HealthDataAccess.READ,
+    HealthDataAccess.READ,
+    HealthDataAccess.READ,
+  ];
+
   bool get isAuthorized => _granted;
 
-  /// The one place the OS is asked what the standing is. Probes availability first,
-  /// because on Android 13 and below Health Connect is a separate app and "not
-  /// installed" is a different state from "not granted".
+  /// The one place the OS is asked what the standing is. It uses the package's
+  /// dedicated Health Connect SDK availability API before asking about a grant,
+  /// so a permission-gated data read can never be mistaken for "not installed".
   Future<HealthPermissionState> permissionState() async {
-    if (!await isAvailable()) return HealthPermissionState.unavailable;
-    if (await hasPermissions()) {
-      _granted = true;
-      return HealthPermissionState.granted;
+    if (!await isAvailable()) {
+      _granted = false;
+      return HealthPermissionState.unavailable;
     }
-    return HealthPermissionState.denied;
+    return await hasPermissions() ? HealthPermissionState.granted : HealthPermissionState.denied;
   }
 
-  /// Probe: Health Connect may not be installed (it is a separate system app on
-  /// Android 13 and below). A one-minute read is the cheapest reliable check.
+  /// Health 13.x requires one configured [Health] instance. The same instance is
+  /// retained for the application's lifetime, which also avoids a fresh instance
+  /// forgetting a grant that the OS has already reported.
+  Future<void> _ensureConfigured() async {
+    _configuration ??= _health.configure();
+    await _configuration;
+  }
+
+  /// A direct SDK check, not a permission-protected data probe. On Android 13 and
+  /// below it distinguishes an absent/outdated Health Connect provider from a
+  /// user who simply has not granted Track Pro access yet.
   Future<bool> isAvailable() async {
     try {
-      final now = DateTime.now();
-      await _factory.getHealthDataFromTypes(now.subtract(const Duration(minutes: 1)), now, [HealthDataType.STEPS]);
-      return true;
+      await _ensureConfigured();
+      return await _health.isHealthConnectAvailable();
     } catch (_) {
       return false;
     }
   }
 
+  /// This is intentionally the *only* method that asks the platform to display
+  /// the Health permission UI. Callers must have a contextual user gesture.
   Future<bool> requestPermissions() async {
+    if (!await isAvailable()) {
+      _granted = false;
+      return false;
+    }
     try {
-      _granted = await _factory.requestAuthorization(
-        _types,
-        permissions: const [HealthDataAccess.READ, HealthDataAccess.READ, HealthDataAccess.READ],
-      );
+      _granted = await _health.requestAuthorization(_types, permissions: _readAccess);
       return _granted;
     } catch (_) {
       _granted = false;
@@ -76,10 +92,16 @@ class HealthService {
     }
   }
 
+  /// Checks the current OS grant and always brings the local cache into line.
+  /// This is important after process recreation: a new service must not turn a
+  /// pre-existing grant into an unsolicited request on the next automatic sync.
   Future<bool> hasPermissions() async {
     try {
-      return await _factory.hasPermissions(_types);
+      await _ensureConfigured();
+      _granted = (await _health.hasPermissions(_types, permissions: _readAccess)) == true;
+      return _granted;
     } catch (_) {
+      _granted = false;
       return false;
     }
   }
@@ -100,8 +122,8 @@ class HealthService {
     final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: n + 1));
     final out = <int, double>{};
     try {
-      final points = await _factory.getHealthDataFromTypes(start, now, [HealthDataType.SLEEP_ASLEEP]);
-      for (final p in HealthFactory.removeDuplicates(points)) {
+      final points = await _read([HealthDataType.SLEEP_ASLEEP], start, now);
+      for (final p in _health.removeDuplicates(points)) {
         if (p.type != HealthDataType.SLEEP_ASLEEP) continue;
         final hours = p.dateTo.difference(p.dateFrom).inMinutes / 60.0;
         if (hours <= 0 || hours > 16) continue; // naps and bad data
@@ -124,9 +146,9 @@ class HealthService {
     final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: n));
     final out = <int, double>{};
     try {
-      final points = await _factory.getHealthDataFromTypes(start, now, [HealthDataType.WEIGHT]);
+      final points = await _read([HealthDataType.WEIGHT], start, now);
       final newest = <int, DateTime>{};
-      for (final p in HealthFactory.removeDuplicates(points)) {
+      for (final p in _health.removeDuplicates(points)) {
         if (p.type != HealthDataType.WEIGHT) continue;
         final kg = _numeric(p.value);
         if (kg == null || kg <= 0) continue;
@@ -148,8 +170,8 @@ class HealthService {
     final start = DateTime(now.year, now.month, now.day).subtract(Duration(days: days));
     final out = <int, double>{};
     try {
-      final points = await _factory.getHealthDataFromTypes(start, now, [type]);
-      for (final p in HealthFactory.removeDuplicates(points)) {
+      final points = await _read([type], start, now);
+      for (final p in _health.removeDuplicates(points)) {
         if (p.type != type) continue;
         final v = _numeric(p.value);
         if (v == null) continue;
@@ -164,9 +186,17 @@ class HealthService {
     };
   }
 
+  /// Health 13.x uses named query parameters. Keeping that API translation in one
+  /// method makes every read follow the same configured-instance contract.
+  Future<List<HealthDataPoint>> _read(List<HealthDataType> types, DateTime start, DateTime end) async {
+    await _ensureConfigured();
+    return _health.getHealthDataFromTypes(types: types, startTime: start, endTime: end);
+  }
+
   /// `HealthDataPoint.value` has changed shape across plugin generations
-  /// (`num` → `HealthValue` with `numericValue`). Probing at runtime keeps this
-  /// compiling and working across both without pinning the app to one version.
+  /// (`num` → `HealthValue` with `numericValue`). The current package uses the
+  /// latter for numeric data, while this conversion remains deliberately narrow
+  /// so an unfamiliar value becomes an omitted reading instead of invented data.
   double? _numeric(Object? value) {
     if (value == null) return null;
     if (value is num) return value.toDouble();
@@ -175,7 +205,7 @@ class HealthService {
       final dynamic nested = dynamicValue.numericValue;
       if (nested is num) return nested.toDouble();
     } catch (_) {
-      // Not a HealthValue — fall through to string parsing.
+      // Not a numeric HealthValue — fall through to string parsing.
     }
     return double.tryParse('$value');
   }

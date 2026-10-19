@@ -7,13 +7,10 @@ import 'package:flutter/material.dart';
 /// from each other: one palette, one spacing scale, one type ramp, one motion
 /// vocabulary.
 ///
-/// Honest status: the screens that existed before this pass — the measurement
-/// detail views, the log sheets, the paywall — still read `TrackTheme` (in
-/// `main.dart`), which carries the older, brighter iOS palette. Both layers are
-/// present in the app today, and `docs/PRODUCTION_READINESS.md` records the
-/// migration as an open item. The tokens below are used by everything written in
-/// this pass, and `TrackTheme` remains the single source for colours that both
-/// layers share (greens, reds, the separator hairline), so nothing is duplicated.
+/// `TrackTheme` in `main.dart` resolves the established screens and shared
+/// widgets to this same palette. The names in that compatibility layer remain so
+/// persisted routes and UI contracts do not need a destructive rewrite; the visual
+/// values are centralized here.
 ///
 /// Rules this file encodes:
 ///  - **Dark first.** The app opens dark unless the user chose otherwise; the light
@@ -28,26 +25,28 @@ class Editorial {
   const Editorial._();
 
   // ------------------------------------------------------------------ palette
-  /// Page background. Near-black with a blue cast, not pure #000: pure black makes
-  /// hairline borders disappear on OLED.
-  static const Color canvas = Color(0xFF0B0C0F);
+  /// Page background. The intentional separation from the card ramp keeps the
+  /// interface legible on OLED without turning every section into a bright panel.
+  static const Color canvas = Color(0xFF080808);
 
-  /// Raised surfaces (cards, sheets).
-  static const Color surface = Color(0xFF141519);
+  /// Primary card surface.
+  static const Color surface = Color(0xFF111111);
 
-  /// The darkest step above the canvas, for wells and inset groups.
-  static const Color well = Color(0xFF1C1D22);
+  /// The raised step for controls, wells and selected states.
+  static const Color well = Color(0xFF171717);
 
-  /// Hairline. One value, used at 0.5dp everywhere.
-  static const Color hairline = Color(0xFF2A2C33);
+  /// Hairline used on cards and grouped rows.
+  static const Color hairline = Color(0xFF272727);
 
-  static const Color ink = Color(0xFFF2F3F5);
-  static const Color inkSecondary = Color(0xFFA2A6B0);
-  static const Color inkTertiary = Color(0xFF6E727C);
+  static const Color ink = Color(0xFFF5F5F5);
+  static const Color inkSecondary = Color(0xFFA8A8A8);
+  static const Color inkTertiary = Color(0xFF777777);
 
-  /// The single accent. Used for the active state, the primary action and the
-  /// momentum figure — never as decoration.
-  static const Color accent = Color(0xFF5B7CFA);
+  /// The single product accent. It identifies the selected destination and the
+  /// primary action; it is never used as a decorative wash or gradient.
+  static const Color accent = Color(0xFFFF7A18);
+  static const Color accentStrong = Color(0xFFFF5A1F);
+  static const Color accentSurface = Color(0xFF33200F);
 
   /// Semantic colours for outcomes. Not decorative: each one means exactly one
   /// thing in the calendar, the strip and the review.
@@ -61,7 +60,7 @@ class Editorial {
   /// Rest and deliberate skips. Same value: both mean "not counted".
   static const Color rest = Color(0xFF39404F);
 
-  static const Color danger = Color(0xFFE5484D);
+  static const Color danger = Color(0xFFFF4335);
 
   // ------------------------------------------------------------------ spacing
   static const double s1 = 4;
@@ -73,9 +72,9 @@ class Editorial {
   static const double s8 = 32;
 
   // ------------------------------------------------------------------- radius
-  static const double rSmall = 10;
-  static const double rCard = 16;
-  static const double rSheet = 22;
+  static const double rSmall = 12;
+  static const double rCard = 20;
+  static const double rSheet = 24;
   static const double rPill = 999;
 
   // --------------------------------------------------------------------- type

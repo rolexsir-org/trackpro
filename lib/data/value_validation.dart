@@ -48,7 +48,7 @@ class ValueValidation {
     if (!value.isFinite) return null;
     if (value < 0) return null;
     final (min, max) = boundsFor(trackerId);
-    return value.clamp(min, max);
+    return value.clamp(min, max).toDouble();
   }
 
   /// True when [value] had to be adjusted to be storable.

@@ -485,17 +485,35 @@ class AppState extends ChangeNotifier {
   FocusEnforcement get focusEnforcement {
     final session = activeFocusSession;
     if (session == null) return FocusEnforcement.timerOnly;
+    // A pause intentionally stops the coverage service. Preserve the state that
+    // was evidenced before the pause instead of showing a false "service lost"
+    // banner merely because the native service is correctly idle.
+    if (session.state == FocusSessionState.paused) return session.enforcement;
     // A live session's enforcement is re-derived from the platform on every tick,
     // so a permission revoked thirty seconds ago is reflected now.
     if (session.enforcement.intendsToBlock) {
-      return FocusEngine.enforcementFor(
+      final permissionLostMidSession = session.enforcement != FocusEnforcement.unavailable &&
+          (!focusNative.overlay || !focusNative.usageAccess);
+      final reported = FocusEngine.enforcementFor(
         blockingRequested: true,
-        serviceAlive: focusNative.running,
-        permissionLostMidSession: false,
+        serviceAlive: focusNative.running && focusNative.blocking,
+        permissionLostMidSession: permissionLostMidSession,
         overlayGranted: focusNative.overlay,
         usageAccessGranted: focusNative.usageAccess,
         detectionEvents: focusNative.detectionEvents,
+        overlayShows: focusNative.overlayShows,
       );
+      // Once a live session had an unprotected interval, a later re-grant cannot
+      // make that interval disappear from the UI or the eventual record. `armed`
+      // remains upgradeable because it is a healthy-but-not-yet-proven service,
+      // not evidence of a gap.
+      if (session.enforcement == FocusEnforcement.lost) return FocusEnforcement.lost;
+      if (session.enforcement == FocusEnforcement.unavailable &&
+          reported != FocusEnforcement.unavailable &&
+          reported != FocusEnforcement.timerOnly) {
+        return FocusEnforcement.lost;
+      }
+      return reported;
     }
     return session.enforcement;
   }
@@ -531,7 +549,7 @@ class AppState extends ChangeNotifier {
       canSeeFocusAnalytics ? focusHistory : focusHistory.take(ProConfig.freeFocusHistorySessions).toList();
 
   int get hiddenFocusSessions =>
-      canSeeFocusAnalytics ? 0 : (focusHistory.length - ProConfig.freeFocusHistorySessions).clamp(0, 1 << 30);
+      canSeeFocusAnalytics ? 0 : (focusHistory.length - ProConfig.freeFocusHistorySessions).clamp(0, 1 << 30).toInt();
 
   // ------------------------------------------------------------- permissions
   /// Re-reads the device's grants. Never grants anything itself, and never touches
@@ -576,7 +594,7 @@ class AppState extends ChangeNotifier {
     List<String> packages = const <String>[],
     String? commitmentId,
     String? goalLabel,
-    int accentArgb = 0xFF5B7CFA,
+    int accentArgb = 0xFFFF7A18,
   }) async {
     final repo = focusRepo;
     if (repo == null) return null;
@@ -643,7 +661,7 @@ class AppState extends ChangeNotifier {
     // repeating the same arithmetic (and another database read) every second.
     focusNative = await repo.enforcer.state();
     focusElapsedMs = session.focusMs;
-    focusRemainingMs = (session.plannedMs - session.focusMs).clamp(0, session.plannedMs);
+    focusRemainingMs = (session.plannedMs - session.focusMs).clamp(0, session.plannedMs).toInt();
     notifyListeners();
   }
 
@@ -1988,24 +2006,34 @@ class AppState extends ChangeNotifier {
       return 0;
     }
     if (!canUseHealthSync) return -2; // Pro feature; the caller opens the paywall
-    if (await svc.hasPermissions()) {
-      healthPermission = HealthPermissionState.granted;
-      if (!svc.isAuthorized) await svc.requestPermissions();
-    } else {
-      if (!askPermission) {
-        // Not asked yet, and we are not going to ask behind the user's back — but the
-        // absence of a grant *is* a fact worth showing, so it is recorded as denied
-        // rather than left as "unknown" forever.
-        healthPermission = HealthPermissionState.denied;
+
+    // Always ask the platform for the current standing. In particular, do not use
+    // `isAuthorized` as a reason to call requestAuthorization: a new service instance
+    // starts with an empty local cache even when Android has already granted access.
+    // Automatic launch/resume/pull-to-refresh sync must read only after a confirmed
+    // grant; the platform permission sheet belongs exclusively to an explicit action.
+    var standing = await svc.permissionState();
+    healthPermission = standing;
+    if (standing != HealthPermissionState.granted) {
+      if (standing == HealthPermissionState.unavailable || !askPermission) {
+        await repo.dao.setSetting('health.permission', standing.name);
+        notifyListeners();
         return 0;
       }
-      if (!await svc.requestPermissions()) {
-        healthPermission = HealthPermissionState.denied;
-        await repo.dao.setSetting('health.permission', healthPermission.name);
-        return -1; // denied
+
+      // This branch is reached only by Settings after its contextual explanation.
+      // A failed request is checked again so an unavailable provider is never presented
+      // as a user denial.
+      final requested = await svc.requestPermissions();
+      standing = await svc.permissionState();
+      healthPermission = standing;
+      if (!requested || standing != HealthPermissionState.granted) {
+        await repo.dao.setSetting('health.permission', standing.name);
+        notifyListeners();
+        return standing == HealthPermissionState.unavailable ? 0 : -1;
       }
-      healthPermission = HealthPermissionState.granted;
     }
+
     var written = 0;
     final steps = await svc.dailySteps(days: 30);
     written += await repo.mergeHealthSeries('steps', steps);

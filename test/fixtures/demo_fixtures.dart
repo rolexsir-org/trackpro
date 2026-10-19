@@ -64,7 +64,7 @@ class DemoFixtures {
         case 'expenses':
           v = (jitter(r, weekend ? 1850 : 1120, 520) / 10).round() * 10;
         case 'sleep':
-          v = (jitter(r, weekend ? 7.9 : 7.1, 1.0).clamp(4.5, 9.5) * 10).round() / 10;
+          v = (jitter(r, weekend ? 7.9 : 7.1, 1.0).clamp(4.5, 9.5).toDouble() * 10).round() / 10;
         case 'habits':
           v = jitter(r, weekend ? 3.4 : 4.0, 1.4).round().clamp(0, 3).toDouble();
         case 'calories':

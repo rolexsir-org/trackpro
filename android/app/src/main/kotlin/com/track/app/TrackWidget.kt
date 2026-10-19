@@ -2,10 +2,8 @@ package com.track.app
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RectF
-import android.graphics.Shader
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -15,6 +13,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.LocalSize
 import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
@@ -101,103 +100,117 @@ class TrackWidget : GlanceAppWidget() {
         val rings = payload?.optJSONArray("rings")
         val streak = payload?.optInt("streak", 0) ?: 0
         val summary = payload?.optString("summary").orEmpty()
+        val size = LocalSize.current
+        val compact = size.height < 150.dp
 
         GlanceTheme {
             Column(
                 modifier = GlanceModifier
                     .fillMaxSize()
                     .appWidgetBackground()
-                    .background(ColorProvider(Color(0xFFF2F2F7)))
-                    .cornerRadius(24.dp)
-                    .padding(16.dp)
+                    .background(ColorProvider(Color(0xFF111111)))
+                    .cornerRadius(20.dp)
+                    .padding(if (compact) 10.dp else 16.dp)
                     .clickable(actionStartActivity<MainActivity>()),
             ) {
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(text = "Track Pro", style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold))
+                    Text(
+                        text = "Track Pro",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = ColorProvider(Color(0xFFF5F5F5)),
+                        ),
+                    )
                     Spacer(GlanceModifier.defaultWeight())
                     if (streak > 0) {
                         Text(
-                            text = "🔥 $streak day streak",
-                            style = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Medium),
+                            text = "$streak-day streak",
+                            style = TextStyle(
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = ColorProvider(Color(0xFFFF7A18)),
+                            ),
                         )
                     }
                 }
 
-                Spacer(GlanceModifier.height(12.dp))
+                Spacer(GlanceModifier.height(if (compact) 6.dp else 12.dp))
 
                 Row(modifier = GlanceModifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     if (rings == null || rings.length() == 0) {
-                        Text(text = "Open Track Pro to start logging", style = TextStyle(fontSize = 12.sp))
+                        Text(
+                            text = "Open Track Pro to start logging",
+                            style = TextStyle(fontSize = 12.sp, color = ColorProvider(Color(0xFFA8A8A8))),
+                        )
                     } else {
-                        for (i in 0 until rings.length()) {
+                        // A launcher can size this widget as narrowly as 160dp. One
+                        // ring remains readable there; three fit only in the wider size.
+                        val count = minOf(rings.length(), if (size.width < 220.dp) 1 else 3)
+                        for (i in 0 until count) {
                             val ring = rings.getJSONObject(i)
                             Ring(
                                 context = context,
                                 pct = ring.optDouble("pct", 0.0).toFloat(),
                                 value = ring.optString("value"),
                                 label = ring.optString("name"),
-                                emoji = ring.optString("emoji"),
-                                colorArgb = ring.optInt("color"),
-                                color2Argb = ring.optInt("color2"),
                             )
-                            if (i < rings.length() - 1) Spacer(GlanceModifier.width(14.dp))
+                            if (i < count - 1) Spacer(GlanceModifier.width(14.dp))
                         }
                     }
                 }
 
-                if (summary.isNotEmpty()) {
+                if (!compact && summary.isNotEmpty()) {
                     Spacer(GlanceModifier.height(12.dp))
-                    Text(text = summary, style = TextStyle(fontSize = 11.sp))
+                    Text(
+                        text = summary,
+                        style = TextStyle(fontSize = 11.sp, color = ColorProvider(Color(0xFFA8A8A8))),
+                    )
                 }
             }
         }
     }
 
-    /** One ring: emoji + value centred in a gradient arc, tracker name below. */
+    /** One ring: a compact value inside a solid orange progress arc. */
     @Composable
     private fun Ring(
         context: Context,
         pct: Float,
         value: String,
         label: String,
-        emoji: String,
-        colorArgb: Int,
-        color2Argb: Int,
     ) {
         val clamped = pct.coerceIn(0f, 1f)
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(modifier = GlanceModifier.size(58.dp), contentAlignment = Alignment.Center) {
                 Image(
-                    provider = ImageProvider(ringBitmap(context, clamped, colorArgb, color2Argb)),
+                    provider = ImageProvider(ringBitmap(context, clamped)),
                     contentDescription = null,
                     modifier = GlanceModifier.size(58.dp),
                 )
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = emoji, style = TextStyle(fontSize = 11.sp))
-                    Text(
-                        text = value,
-                        style = TextStyle(
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ColorProvider(Color(colorArgb)),
-                        ),
-                    )
-                }
+                Text(
+                    text = value,
+                    style = TextStyle(
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ColorProvider(Color(0xFFFF7A18)),
+                    ),
+                )
             }
             Spacer(GlanceModifier.height(5.dp))
-            Text(text = label, style = TextStyle(fontSize = 10.sp))
+            Text(
+                text = label,
+                style = TextStyle(fontSize = 10.sp, color = ColorProvider(Color(0xFFA8A8A8))),
+            )
         }
     }
 
-    /** Draws the track circle + gradient progress arc into a bitmap. */
+    /** Draws a neutral track and a single solid accent arc into a bitmap. */
     private fun ringBitmap(
         context: Context,
         pct: Float,
-        colorArgb: Int,
-        color2Argb: Int,
         sizeDp: Float = 58f,
         strokeDp: Float = 6f,
     ): Bitmap {
@@ -214,18 +227,12 @@ class TrackWidget : GlanceAppWidget() {
             strokeCap = Paint.Cap.ROUND
         }
 
-        // Faint full track.
-        paint.color = 0x1F3C3C43
+        paint.color = 0xFF272727.toInt()
         canvas.drawArc(rect, 0f, 360f, false, paint)
 
-        // Gradient progress arc from 12 o'clock.
         if (pct > 0f) {
-            paint.shader = LinearGradient(
-                0f, 0f, px.toFloat(), px.toFloat(),
-                colorArgb, color2Argb, Shader.TileMode.CLAMP,
-            )
+            paint.color = 0xFFFF7A18.toInt()
             canvas.drawArc(rect, -90f, 360f * pct, false, paint)
-            paint.shader = null
         }
         return bitmap
     }

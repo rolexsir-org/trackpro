@@ -91,7 +91,7 @@ class ScreenTimeService {
   /// Foreground minutes per local day (`yyyymmdd` keys), oldest first, covering
   /// the last [days] days including today. Empty when there is no grant.
   Future<Map<int, double>> dailyMinutes({int days = defaultLookbackDays}) async {
-    final bounded = days.clamp(1, maxLookbackDays);
+    final bounded = days.clamp(1, maxLookbackDays).toInt();
     final raw = await _method<List<Object?>>('dailyMinutes', {'days': bounded});
     return parseDailyMinutes(raw, now: DateTime.now(), days: bounded);
   }
@@ -135,7 +135,7 @@ class ScreenTimeService {
       summed[day] = (summed[day] ?? 0) + value;
     }
     return {
-      for (final e in summed.entries) e.key: e.value.clamp(0, 1440.0),
+      for (final e in summed.entries) e.key: e.value.clamp(0, 1440.0).toDouble(),
     };
   }
 
@@ -158,11 +158,11 @@ class ScreenTimeService {
       out.add(ScreenTimeAppUsage(
         packageName: pkg,
         label: label is String && label.trim().isNotEmpty ? label.trim() : pkg,
-        minutes: value.clamp(0, 1440.0),
+        minutes: value.clamp(0, 1440.0).toDouble(),
       ));
     }
     out.sort((a, b) => b.minutes.compareTo(a.minutes));
-    return out.take(limit.clamp(0, 25)).toList();
+    return out.take(limit.clamp(0, 25).toInt()).toList();
   }
 
   Future<T?> _method<T>(String name, [Map<String, Object?>? args]) async {

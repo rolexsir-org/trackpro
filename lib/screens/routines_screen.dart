@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -18,45 +17,71 @@ import 'paywall_screen.dart';
 /// This screen is deliberately about *definitions*. Today's actions live on Today,
 /// and the record lives on Momentum; mixing the three is how habit apps end up
 /// showing the same thing four times.
-class RoutinesScreen extends StatelessWidget {
+class RoutinesScreen extends StatefulWidget {
   const RoutinesScreen({super.key});
+
+  @override
+  State<RoutinesScreen> createState() => _RoutinesScreenState();
+}
+
+enum _RoutineFilter { all, daily, weekly }
+
+class _RoutinesScreenState extends State<RoutinesScreen> {
+  _RoutineFilter _filter = _RoutineFilter.all;
+
+  List<Commitment> _filtered(List<Commitment> commitments) => switch (_filter) {
+        _RoutineFilter.all => commitments,
+        // Schedules are stored as sets of ISO weekdays. The current product does
+        // not model a separate custom cadence, so the filters reflect only data we
+        // can truthfully query: every day and selected weekly days.
+        _RoutineFilter.daily => commitments.where((c) => c.schedule.length == 7).toList(),
+        _RoutineFilter.weekly => commitments.where((c) => c.schedule.length < 7).toList(),
+      };
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final active = state.commitments;
+    final allActive = state.commitments;
+    final active = _filtered(allActive);
     final archived = state.archivedCommitments;
 
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
-        SliverToBoxAdapter(
-          child: LargeTitleHeader(
-            title: 'Routines',
-            subtitle: active.isEmpty
-                ? 'No routines yet'
-                : '${active.length} active'
-                    '${state.hasCommitments && state.bestCommitmentStreak > 0 ? ' · best run ${state.bestCommitmentStreak} days' : ''}',
-          ),
+        LargeTitleHeader(
+          title: 'Routines',
+          subtitle: allActive.isEmpty
+              ? 'No routines yet'
+              : '${allActive.length} active'
+                  '${state.hasCommitments && state.bestCommitmentStreak > 0 ? ' · best run ${state.bestCommitmentStreak} days' : ''}',
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(Editorial.s4, Editorial.s1, Editorial.s4, 130),
+          padding: const EdgeInsets.fromLTRB(Editorial.s5, Editorial.s1, Editorial.s5, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              if (active.isEmpty)
-                _EmptyRoutines()
+              if (allActive.isNotEmpty) ...[
+                _RoutineFilters(
+                  selected: _filter,
+                  onChanged: (value) => setState(() => _filter = value),
+                ),
+                const SizedBox(height: Editorial.s4),
+              ],
+              if (allActive.isEmpty)
+                const _EmptyRoutines()
+              else if (active.isEmpty)
+                _FilteredEmpty(filter: _filter)
               else
                 for (final c in active) ...[
                   _RoutineRow(state: state, commitment: c),
                   const SizedBox(height: Editorial.s3),
                 ],
-              if (active.isNotEmpty) ...[
+              if (allActive.isNotEmpty) ...[
                 const SizedBox(height: Editorial.s2),
                 Row(
                   children: [
                     Expanded(
                       child: TrackFilledButton(
-                        label: 'Start a routine',
+                        label: 'Add routine',
                         onTap: () => state.canAddCommitment()
                             ? showTemplatePicker(context)
                             : showPaywall(context, trigger: PaywallTrigger.commitmentLimit),
@@ -66,9 +91,6 @@ class RoutinesScreen extends StatelessWidget {
                     Expanded(
                       child: TrackTintedButton(
                         label: 'From scratch',
-                        // The other creation path used to skip the limit entirely, so
-                        // "Free includes 3 routines" was true on one button and false on
-                        // the one beside it.
                         onTap: () => state.canAddCommitment()
                             ? showCommitmentEditor(context)
                             : showPaywall(context, trigger: PaywallTrigger.commitmentLimit),
@@ -101,9 +123,8 @@ class RoutinesScreen extends StatelessWidget {
               GlassList(children: [
                 GlassRow(
                   title: 'Water, mood, money, sleep…',
-                  subtitle: 'The measurement trackers live here now — separate from habits, because '
-                      '"how much" and "did you" are different questions',
-                  leading: const Text('📊', style: TextStyle(fontSize: 15)),
+                  subtitle: 'Track quantities separately from routines, so “how much” and “did you” stay clear.',
+                  leading: const Icon(Icons.bar_chart_rounded, size: 17, color: Editorial.accent),
                   accent: Editorial.accent,
                   onTap: () => Navigator.of(context).push(
                     MaterialPageRoute<void>(builder: (_) => const MeasurementsPage()),
@@ -116,7 +137,93 @@ class RoutinesScreen extends StatelessWidget {
       ],
     );
   }
+}
 
+class _RoutineFilters extends StatelessWidget {
+  const _RoutineFilters({required this.selected, required this.onChanged});
+
+  final _RoutineFilter selected;
+  final ValueChanged<_RoutineFilter> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    const filters = <MapEntry<_RoutineFilter, String>>[
+      MapEntry(_RoutineFilter.all, 'All'),
+      MapEntry(_RoutineFilter.daily, 'Daily'),
+      MapEntry(_RoutineFilter.weekly, 'Weekly'),
+    ];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final filter in filters) ...[
+            _RoutineFilterChip(
+              label: filter.value,
+              selected: selected == filter.key,
+              onTap: () => onChanged(filter.key),
+            ),
+            if (filter.key != filters.last.key) const SizedBox(width: Editorial.s2),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _RoutineFilterChip extends StatelessWidget {
+  const _RoutineFilterChip({required this.label, required this.selected, required this.onTap});
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+        button: true,
+        selected: selected,
+        label: '$label routines',
+        child: Material(
+          color: selected ? Editorial.accentSurface : Editorial.well,
+          borderRadius: BorderRadius.circular(Editorial.rPill),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(Editorial.rPill),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: 38),
+              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(Editorial.rPill),
+                border: Border.all(color: selected ? Editorial.accent.withOpacity(.55) : Editorial.hairline, width: .5),
+              ),
+              child: Text(
+                label,
+                style: Editorial.body.copyWith(
+                  color: selected ? Editorial.accent : Editorial.inkSecondary,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+class _FilteredEmpty extends StatelessWidget {
+  const _FilteredEmpty({required this.filter});
+
+  final _RoutineFilter filter;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        decoration: Editorial.card(),
+        padding: const EdgeInsets.all(Editorial.s4),
+        child: Text(
+          filter == _RoutineFilter.daily
+              ? 'No every-day routines yet.'
+              : 'No selected-day routines yet.',
+          style: Editorial.body,
+        ),
+      );
 }
 
 /// One routine: what it is, how it is going, and how to change it.
@@ -152,10 +259,10 @@ class _RoutineRow extends StatelessWidget {
           context,
           _menuAnchor(context),
           items: [
-            ['Log today', CupertinoIcons.checkmark_circle, false],
-            [paused ? 'Resume' : 'Pause', CupertinoIcons.pause_circle, false],
-            [archived ? 'Restore' : 'Archive', CupertinoIcons.archivebox, false],
-            ['Delete', CupertinoIcons.trash, true],
+            ['Log today', Icons.check_circle_outline_rounded, false],
+            [paused ? 'Resume' : 'Pause', Icons.pause_circle_outline_rounded, false],
+            [archived ? 'Restore' : 'Archive', Icons.archive_outlined, false],
+            ['Delete', Icons.delete_outline_rounded, true],
           ],
         );
         if (choice == null || !context.mounted) return;
@@ -189,13 +296,7 @@ class _RoutineRow extends StatelessWidget {
           padding: const EdgeInsets.all(Editorial.s4),
           child: Row(
             children: [
-              Container(
-                width: 42,
-                height: 42,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(color: c.color.withOpacity(.16), borderRadius: BorderRadius.circular(13)),
-                child: Text(c.emoji, style: const TextStyle(fontSize: 20)),
-              ),
+              TrackRecordIcon(label: c.name, color: c.color),
               const SizedBox(width: Editorial.s4),
               Expanded(
                 child: Column(
@@ -206,7 +307,7 @@ class _RoutineRow extends StatelessWidget {
                         Flexible(child: Text(c.name, style: Editorial.figure.copyWith(fontSize: 16), overflow: TextOverflow.ellipsis)),
                         if (!archived && logged) ...[
                           const SizedBox(width: Editorial.s2),
-                          Icon(CupertinoIcons.checkmark_seal_fill, size: 13, color: Editorial.full),
+                          Icon(Icons.verified_rounded, size: 14, color: Editorial.full),
                         ],
                       ],
                     ),
@@ -228,13 +329,13 @@ class _RoutineRow extends StatelessWidget {
                 GestureDetector(
                   onTap: () => showOutcomeSheet(context, c),
                   child: Icon(
-                    logged ? CupertinoIcons.checkmark_circle : CupertinoIcons.circle,
+                    logged ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
                     size: 22,
                     color: logged ? Editorial.full : Editorial.inkTertiary,
                   ),
                 ),
               const SizedBox(width: Editorial.s2),
-              Icon(CupertinoIcons.chevron_right, size: 15, color: Editorial.inkTertiary),
+              Icon(Icons.chevron_right_rounded, size: 20, color: Editorial.inkTertiary),
             ],
           ),
         ),

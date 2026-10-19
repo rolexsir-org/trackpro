@@ -184,6 +184,26 @@ class FocusRepository {
     }
   }
 
+  /// Carries forward evidence of an unenforced interval. A later healthy service
+  /// can prove that it works *now*; it cannot prove that it covered the portion of
+  /// this same session that ran before it was healthy.
+  ///
+  /// `armed` deliberately remains upgradeable to `verified`: it means the service
+  /// and grants were present but no selected app had yet been observed, not that an
+  /// unprotected interval is known to have happened.
+  FocusEnforcement _carryEnforcementHistory(
+    FocusEnforcement previous,
+    FocusEnforcement reported,
+  ) {
+    if (previous == FocusEnforcement.lost) return FocusEnforcement.lost;
+    if (previous == FocusEnforcement.unavailable &&
+        reported != FocusEnforcement.unavailable &&
+        reported != FocusEnforcement.timerOnly) {
+      return FocusEnforcement.lost;
+    }
+    return reported;
+  }
+
   // ------------------------------------------------------------------ start
   /// Starts a session. The row is written **before** the platform is asked to
   /// enforce anything, so a crash between the two steps leaves a recoverable
@@ -250,14 +270,18 @@ class FocusRepository {
       session = session.copyWith(
         // A start that the platform refused was never running — it is `unavailable`,
         // not `lost` (which means enforcement stopped mid-session).
-        enforcement: started
+        // A launch that returned true but did not leave the actual blocking
+        // service alive is an initial setup failure, not a "lost" session. `lost`
+        // is reserved for something that was running and stopped later.
+        enforcement: started && native.running && native.blocking
             ? FocusEngine.enforcementFor(
                 blockingRequested: true,
-                serviceAlive: native.running,
+                serviceAlive: true,
                 permissionLostMidSession: false,
                 overlayGranted: native.overlay,
                 usageAccessGranted: native.usageAccess,
                 detectionEvents: native.detectionEvents,
+                overlayShows: native.overlayShows,
               )
             : FocusEnforcement.unavailable,
         blockedAttempts: native.blockedAttempts,
@@ -308,17 +332,43 @@ class FocusRepository {
       return finish(live, reason: FocusEndReason.deviceRestarted);
     }
 
+    // Blocking is deliberately suspended while paused. `pause()` stops the
+    // foreground service, so treating that expected stopped state as a service
+    // failure would permanently label every paused blocking session `lost` on the
+    // next one-second tick. If the final focused second was already served, finish
+    // from the stored evidence rather than blaming the intentionally stopped service.
+    if (live.state == FocusSessionState.paused) {
+      if (recovery.expired) {
+        return finish(
+          live,
+          reason: FocusEndReason.timer,
+          focusMs: live.plannedMs,
+        );
+      }
+      return live;
+    }
+
     final native = await enforcer.state();
     final blockingRequested = live.enforcement.intendsToBlock;
+    // A session that began with a working/armed mechanism and then loses a required
+    // grant is `lost`, not merely `unavailable`. The distinction records that some
+    // portion of this very session was no longer enforced.
+    final permissionLostMidSession = blockingRequested &&
+        live.enforcement != FocusEnforcement.unavailable &&
+        (!native.overlay || !native.usageAccess);
 
     // While time remains, a stopped service or a revoked permission degrades the
     // live session's enforcement (`lost` or `unavailable`) rather than killing the
     // timer underneath the user — the session screen shows the honesty banner and
     // the user can finish the timer or end by hand. When the planned time is behind
-    // us (`recovery.expired`), a session whose enforcement service died mid-run ends
-    // as `serviceLost` (`interrupted`), while a timer expiry is graded by `finish`.
+    // us (`recovery.expired`), either event is recorded as an interruption rather
+    // than silently becoming a timer completion.
     if (recovery.expired) {
-      if (live.enforcement == FocusEnforcement.lost) {
+      if (permissionLostMidSession) {
+        return finish(live, reason: FocusEndReason.permissionRevoked, native: native, focusMs: live.plannedMs);
+      }
+      if (live.enforcement == FocusEnforcement.lost ||
+          (blockingRequested && (!native.running || !native.blocking))) {
         return finish(live, reason: FocusEndReason.serviceLost, native: native, focusMs: live.plannedMs);
       }
       return finish(
@@ -329,14 +379,19 @@ class FocusRepository {
       );
     }
 
-    final enforcement = FocusEngine.enforcementFor(
+    final reportedEnforcement = FocusEngine.enforcementFor(
       blockingRequested: blockingRequested,
-      serviceAlive: blockingRequested ? native.running : true,
-      permissionLostMidSession: false,
+      serviceAlive: blockingRequested ? native.running && native.blocking : true,
+      permissionLostMidSession: permissionLostMidSession,
       overlayGranted: blockingRequested ? native.overlay : true,
       usageAccessGranted: blockingRequested ? native.usageAccess : true,
       detectionEvents: native.detectionEvents,
+      overlayShows: native.overlayShows,
     );
+    // A later re-grant/restart cannot rewrite the part of this same session that
+    // was already unprotected. Resume may re-arm the native service, but the record
+    // remains honest about the gap.
+    final enforcement = _carryEnforcementHistory(live.enforcement, reportedEnforcement);
 
     // `recovery.elapsedMs` is `focusMs + (now - segmentStartedAtRealtimeMs)`.
     // Banking it into `focusMs` while leaving the old segment start in place would
@@ -364,6 +419,8 @@ class FocusRepository {
         : monotonic - _lastCheckpointRealtimeMs!;
     final moved = sinceCheckpoint >= checkpointMs ||
         updated.blockedAttempts != live.blockedAttempts ||
+        updated.overlayShows != live.overlayShows ||
+        updated.detectionEvents != live.detectionEvents ||
         updated.enforcement != live.enforcement ||
         force;
     if (moved) {
@@ -384,6 +441,9 @@ class FocusRepository {
       nowWallMs: now().millisecondsSinceEpoch,
       monotonicAvailable: monotonic != null,
     );
+    // A tap that races the final second must not turn a served session into a
+    // paused one; reconciliation records the real timer/service verdict instead.
+    if (recovery.expired) return _syncNative(live, force: true);
     final paused = live.copyWith(
       state: FocusSessionState.paused,
       focusMs: recovery.elapsedMs,
@@ -415,7 +475,13 @@ class FocusRepository {
     final wall = now().millisecondsSinceEpoch;
     // The pause is banked here, not at the end: whatever happens next, the time the
     // user was not focusing is already accounted for and cannot be counted as focus.
-    final sincePause = live.pausedAtWallMs == null ? 0 : (wall - live.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000);
+    final sincePause = live.pausedAtWallMs == null ? 0 : (wall - live.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000).toInt();
+    // Focus time, unlike wall time, does not advance while paused. A session that
+    // was paused exactly at its final focused second is already complete; do not
+    // resurrect it into a zero-second running row.
+    if (live.focusMs >= live.plannedMs) {
+      return finish(live, reason: FocusEndReason.timer, focusMs: live.plannedMs);
+    }
     var resumed = live.copyWith(
       state: FocusSessionState.running,
       segmentStartedAtRealtimeMs: monotonic,
@@ -432,43 +498,57 @@ class FocusRepository {
     // pauses. Resuming used to leave a running timer with a dead detector, so the
     // rest of the session was recorded as unenforced. The platform seam can start the
     // same session id again for the time that is actually left.
-    if (monotonic != null && resumed.enforcement.intendsToBlock && resumed.blockedPackages.isNotEmpty) {
-      final native = await enforcer.state();
-      if (!native.running) {
-        final leftMs = (resumed.plannedMs - resumed.focusMs).clamp(0, resumed.plannedMs);
-        if (leftMs > 0) {
-          final started = await enforcer.startSession(
-            sessionId: resumed.id,
-            mode: resumed.mode.storage,
-            plannedMinutes: (leftMs / 60000).ceil().clamp(1, 24 * 60),
-            endsAtRealtimeMs: monotonic + leftMs,
-            packages: resumed.blockedPackages,
-            block: true,
-            label: resumed.goalLabel,
-            // The accent is presentation only; the session row is the record.
-            accentArgb: 0xFF5B7CFA,
-          );
-          // A restart the platform refused is not "still blocking": record what the
-          // platform reports, so the banner and the eventual verdict use the truth.
-          final native = await enforcer.state();
-          final enforcement = started
-              ? FocusEngine.enforcementFor(
-                  blockingRequested: true,
-                  serviceAlive: native.running,
-                  permissionLostMidSession: false,
-                  overlayGranted: native.overlay,
-                  usageAccessGranted: native.usageAccess,
-                  detectionEvents: native.detectionEvents,
-                )
-              : FocusEnforcement.unavailable;
-          resumed = resumed.copyWith(
-            enforcement: enforcement,
-            blockedAttempts: native.blockedAttempts,
-            overlayShows: native.overlayShows,
-            detectionEvents: native.detectionEvents,
-          );
-          await dao.upsert(_toRow(resumed));
-          _replace(resumed);
+    if (resumed.enforcement.intendsToBlock && resumed.blockedPackages.isNotEmpty) {
+      if (monotonic == null) {
+        // The platform service needs a monotonic expiry. Without one, this resumed
+        // stretch is a timer-only stretch even if the part before the pause was
+        // verified; it must not inherit that earlier proof.
+        resumed = resumed.copyWith(
+          enforcement: _carryEnforcementHistory(resumed.enforcement, FocusEnforcement.lost),
+          timingVerified: false,
+        );
+        await dao.upsert(_toRow(resumed));
+        _replace(resumed);
+      } else {
+        final nativeBeforeStart = await enforcer.state();
+        if (!nativeBeforeStart.running || !nativeBeforeStart.blocking) {
+          final leftMs = (resumed.plannedMs - resumed.focusMs).clamp(0, resumed.plannedMs).toInt();
+          if (leftMs > 0) {
+            final started = await enforcer.startSession(
+              sessionId: resumed.id,
+              mode: resumed.mode.storage,
+              plannedMinutes: (leftMs / 60000).ceil().clamp(1, 24 * 60).toInt(),
+              endsAtRealtimeMs: monotonic + leftMs,
+              packages: resumed.blockedPackages,
+              block: true,
+              label: resumed.goalLabel,
+              // The accent is presentation only; the session row is the record.
+              accentArgb: 0xFF5B7CFA,
+            );
+            // A failed re-arm leaves the *resumed* part of the session uncovered.
+            // That is a genuine mid-session loss, unlike a failed initial launch.
+            final native = await enforcer.state();
+            final reported = started
+                ? FocusEngine.enforcementFor(
+                    blockingRequested: true,
+                    serviceAlive: native.running && native.blocking,
+                    permissionLostMidSession: resumed.enforcement != FocusEnforcement.unavailable &&
+                        (!native.overlay || !native.usageAccess),
+                    overlayGranted: native.overlay,
+                    usageAccessGranted: native.usageAccess,
+                    detectionEvents: native.detectionEvents,
+                    overlayShows: native.overlayShows,
+                  )
+                : FocusEnforcement.lost;
+            resumed = resumed.copyWith(
+              enforcement: _carryEnforcementHistory(resumed.enforcement, reported),
+              blockedAttempts: native.blockedAttempts,
+              overlayShows: native.overlayShows,
+              detectionEvents: native.detectionEvents,
+            );
+            await dao.upsert(_toRow(resumed));
+            _replace(resumed);
+          }
         }
       }
     }
@@ -528,19 +608,33 @@ class FocusRepository {
     if (session.state == FocusSessionState.paused && session.pausedAtWallMs != null) {
       // The final pause is banked from its own start, so the pause budget is judged
       // on the real number even when the session ends while paused.
-      paused += (wall - session.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000);
+      paused += (wall - session.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000).toInt();
     }
 
-    final enforcement = native == null
+    // `pause()` intentionally stops the coverage service. Ending from that state
+    // must preserve the evidence collected before the pause, rather than convert
+    // an expected idle native state into a fictional service failure.
+    final enforcementSuspendedByPause = session.state == FocusSessionState.paused &&
+        reason != FocusEndReason.permissionRevoked &&
+        reason != FocusEndReason.serviceLost;
+    final permissionLostMidSession = !enforcementSuspendedByPause &&
+        native != null &&
+        session.enforcement.intendsToBlock &&
+        session.enforcement != FocusEnforcement.unavailable &&
+        (!native.overlay || !native.usageAccess);
+    final reportedEnforcement = native == null || enforcementSuspendedByPause
         ? session.enforcement
         : FocusEngine.enforcementFor(
             blockingRequested: session.enforcement.intendsToBlock || native.blocking,
-            serviceAlive: native.running,
-            permissionLostMidSession: false,
+            serviceAlive: native.running &&
+                (session.enforcement.intendsToBlock ? native.blocking : true),
+            permissionLostMidSession: permissionLostMidSession,
             overlayGranted: native.overlay,
             usageAccessGranted: native.usageAccess,
             detectionEvents: native.detectionEvents,
+            overlayShows: native.overlayShows,
           );
+    final enforcement = _carryEnforcementHistory(session.enforcement, reportedEnforcement);
 
     final outcome = FocusEngine.outcomeFor(
       mode: session.mode,
@@ -687,8 +781,8 @@ class FocusRepository {
       id: id ?? _newId(),
       mode: mode,
       minutes: FocusEngine.clampMinutes(minutes),
-      hour: hour.clamp(0, 23),
-      minute: minute.clamp(0, 59),
+      hour: hour.clamp(0, 23).toInt(),
+      minute: minute.clamp(0, 59).toInt(),
       weekdays: weekdays,
       commitmentId: commitmentId,
       packages: sanitized.allowed,

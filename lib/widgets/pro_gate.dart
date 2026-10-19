@@ -1,36 +1,18 @@
-import 'dart:ui' show ImageFilter;
-
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../main.dart' show Pressable, TrackTheme;
 import '../services/haptics.dart';
 
 /// The gold treatment. Used identically on the paywall CTA, the Pro chip and the
-/// locked overlays, so "this is Pro" is a single visual language — the same way
-/// iOS uses system blue for "this is interactive".
+/// locked overlays, so "this is Pro" is a single visual language with one restrained
+/// orange accent.
 class ProPalette {
   const ProPalette._();
 
-  static const gold = Color(0xFFFFC53D);
-  static const goldDeep = Color(0xFFFF9F0A);
-  static const goldText = Color(0xFF7A5200);
-
-  static const LinearGradient gradient = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFFFFD873), Color(0xFFFFC53D), Color(0xFFFFA51F)],
-  );
-
-  static const LinearGradient hero = LinearGradient(
-    begin: Alignment.topLeft,
-    end: Alignment.bottomRight,
-    colors: [Color(0xFF1B1A3A), Color(0xFF2E2361), Color(0xFF3D2A6E)],
-  );
-
-  static List<BoxShadow> glow({double opacity = .45}) => [
-        BoxShadow(color: goldDeep.withOpacity(opacity), blurRadius: 28, offset: const Offset(0, 12), spreadRadius: -10),
-      ];
+  static const gold = Color(0xFFFF7A18);
+  static const goldDeep = Color(0xFFFF5A1F);
+  static const goldText = Color(0xFF17110B);
+  static const surface = Color(0xFF27190E);
 }
 
 /// Small "PRO" pill. Appears on locked rows, gated sections and the profile card.
@@ -45,7 +27,7 @@ class ProChip extends StatelessWidget {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 2 : 3),
       decoration: BoxDecoration(
-        gradient: ProPalette.gradient,
+        color: ProPalette.gold,
         borderRadius: BorderRadius.circular(7),
       ),
       child: Text(
@@ -98,27 +80,12 @@ class ProGate extends StatelessWidget {
       child: Stack(
         alignment: Alignment.bottomCenter,
         children: [
-          // Locked content, blurred but legible — proof the feature is real.
-          IgnorePointer(
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-              child: Opacity(opacity: .85, child: child),
-            ),
-          ),
+          // A solid veil keeps the gate readable without blurring content or
+          // fabricating a glossy layer behind the lock message.
+          IgnorePointer(child: Opacity(opacity: .32, child: child)),
           Positioned.fill(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 3, sigmaY: 3),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: dark
-                        ? [Colors.black.withOpacity(.35), Colors.black.withOpacity(.82)]
-                        : [Colors.white.withOpacity(.3), Colors.white.withOpacity(.9)],
-                  ),
-                ),
-              ),
+            child: ColoredBox(
+              color: dark ? Colors.black.withOpacity(.72) : Colors.white.withOpacity(.82),
             ),
           ),
           Padding(
@@ -129,7 +96,7 @@ class ProGate extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(CupertinoIcons.lock_fill, size: 13, color: ProPalette.goldDeep),
+                    const Icon(Icons.lock_outline_rounded, size: 15, color: ProPalette.gold),
                     const SizedBox(width: 6),
                     const ProChip(compact: true),
                   ],
@@ -206,21 +173,38 @@ class ProLockedRow extends StatelessWidget {
                 color: ProPalette.gold.withOpacity(.16),
                 borderRadius: BorderRadius.circular(9),
               ),
-              child: Text(emoji, style: const TextStyle(fontSize: 14)),
+              child: Icon(Icons.lock_outline_rounded, size: 16, color: ProPalette.gold),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 16,
+                      height: 1.25,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -.32,
+                      color: TrackTheme.label(dark),
+                    ),
+                  ),
                   Padding(
-                    padding: const EdgeInsets.only(top: 1),
-                    child: Text(subtitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        height: 1.35,
+                        fontWeight: FontWeight.w500,
+                        color: TrackTheme.label3(dark),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -266,23 +250,25 @@ class _ProButtonState extends State<_ProButton> {
         duration: Duration(milliseconds: _down ? 110 : 300),
         curve: TrackTheme.spring,
         child: Container(
-          height: widget.fullWidth ? 54 : 42,
+          constraints: BoxConstraints(minHeight: widget.fullWidth ? 54 : 42),
           width: widget.fullWidth ? double.infinity : null,
-          padding: widget.fullWidth ? null : const EdgeInsets.symmetric(horizontal: 18),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            gradient: ProPalette.gradient,
+            color: ProPalette.gold,
             borderRadius: BorderRadius.circular(widget.fullWidth ? 16 : 12),
-            boxShadow: ProPalette.glow(),
           ),
           child: widget.loading
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CupertinoActivityIndicator(color: ProPalette.goldText),
+                  child: CircularProgressIndicator(strokeWidth: 2, color: ProPalette.goldText),
                 )
               : Text(
                   widget.label,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: widget.fullWidth ? 17 : 14.5,
                     fontWeight: FontWeight.w700,
@@ -329,7 +315,7 @@ class ProUsageMeter extends StatelessWidget {
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     final atLimit = used >= limit;
-    final progress = (used / limit).clamp(0.0, 1.0);
+    final progress = limit <= 0 ? 1.0 : (used / limit).clamp(0.0, 1.0).toDouble();
 
     return Container(
       padding: const EdgeInsets.fromLTRB(15, 13, 15, 14),
@@ -368,8 +354,7 @@ class ProUsageMeter extends StatelessWidget {
                   child: Container(
                     height: 7,
                     decoration: BoxDecoration(
-                      gradient: atLimit ? ProPalette.gradient : null,
-                      color: atLimit ? null : TrackTheme.blue,
+                      color: atLimit ? ProPalette.gold : TrackTheme.blue,
                     ),
                   ),
                 ),
