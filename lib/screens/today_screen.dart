@@ -20,6 +20,7 @@ import 'focus_history_screen.dart';
 import 'focus_screen.dart';
 import 'focus_setup_sheets.dart';
 import 'log_sheets.dart';
+import 'measurements_page.dart';
 
 /// The dashboard. One scroll surface: greeting → hero tracker → 2-up grid of
 /// every other tracker → the patterns only a unified app can surface.
@@ -30,7 +31,7 @@ class TodayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final trackers = state.visibleTrackers;
-    if (trackers.isEmpty) return const SizedBox.shrink();
+    if (trackers.isEmpty) return const _NoTrackers();
 
     final hero = trackers.firstWhere((t) => t.hero, orElse: () => trackers.first);
     final grid = trackers.where((t) => t.id != hero.id).toList();
@@ -76,6 +77,10 @@ class TodayScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
+              // One quiet sentence when something the user asked for cannot currently
+              // happen. It is a card, not a dialog: it never interrupts, and "not now"
+              // silences it until the next launch.
+              const _PermissionNotice(),
               // The commitment queue leads, because "what do I still have to do
               // today?" is the question this screen exists to answer. Measurements
               // sit underneath, where they are useful but not the point.
@@ -185,9 +190,8 @@ class TodayScreen extends StatelessWidget {
       cards.add(InsightCard(
         emoji: '😊',
         title: 'Mood averaged ${avg.toStringAsFixed(1)} over the last 7 days.',
-        body: 'Computed from $moodDays day${moodDays == 1 ? '' : 's'} with a logged mood. '
-            'Blank days are not counted as zeros, so an unlucky week reads as a quiet week rather '
-            'than a bad one.',
+        body: 'From $moodDays day${moodDays == 1 ? '' : 's'} with a mood logged. '
+            'Days you skipped are left out rather than counted as zero.',
         accent: TrackTheme.orange,
         accent2: TrackTheme.yellow,
       ));
@@ -198,9 +202,8 @@ class TodayScreen extends StatelessWidget {
     return [
       const InsightCard(
         emoji: '🌱',
-        title: 'Nothing to report yet — and nothing invented to fill the space.',
-        body: 'Patterns, averages and streaks need real days behind them. Log a few and this section '
-            'fills in from your own record, with the sample size printed next to the claim.',
+        title: 'Nothing to report yet',
+        body: 'Log a few days and your patterns, averages and streaks will appear here.',
         accent: TrackTheme.green,
         accent2: TrackTheme.mint,
       ),
@@ -342,7 +345,7 @@ class _CommitmentTile extends StatelessWidget {
                   child: TrackFilledButton(
                     label: 'Full',
                     color: c.color,
-                    onTap: () => state.logCommitmentDay(c.id, DayOutcome.full),
+                    onTap: () => _log(context, c.id, DayOutcome.full),
                   ),
                 ),
                 const SizedBox(width: Editorial.s2),
@@ -350,7 +353,7 @@ class _CommitmentTile extends StatelessWidget {
                   child: TrackTintedButton(
                     label: 'Minimum',
                     color: c.color,
-                    onTap: () => state.logCommitmentDay(c.id, DayOutcome.minimum),
+                    onTap: () => _log(context, c.id, DayOutcome.minimum),
                   ),
                 ),
                 const SizedBox(width: Editorial.s2),
@@ -373,6 +376,15 @@ class _CommitmentTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// One tap on Full or Minimum. The write is awaited so a refusal is reported in the
+/// user's words instead of silently leaving the tile unchanged.
+Future<void> _log(BuildContext context, String id, DayOutcome outcome) async {
+  final saved = await context.read<AppState>().logCommitmentDay(id, outcome);
+  if (!saved && context.mounted) {
+    showTrackToast(context, 'That did not save. Your previous answer is unchanged.');
   }
 }
 
@@ -404,7 +416,7 @@ class _SeeAll extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => context.read<AppState>().setTab(1),
+      onTap: () => context.read<AppState>().setTab(3),
       child: const Text('See all',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue)),
     );
@@ -428,7 +440,134 @@ class _Avatar extends StatelessWidget {
           shape: BoxShape.circle,
           gradient: LinearGradient(colors: [Color(0xFF5AC8FA), Color(0xFF007AFF)]),
         ),
-        child: const Text('JD', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+        // No initials: this app has no account and no name to put here.
+        child: const Icon(CupertinoIcons.person_fill, size: 18, color: Colors.white),
+      ),
+    );
+  }
+}
+
+/// Shown when every tracker has been hidden. Before this, the screen went blank
+/// with no way back; now it says what happened and offers the one action that fixes
+/// it.
+class _NoTrackers extends StatelessWidget {
+  const _NoTrackers();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      slivers: [
+        LargeTitleHeader(title: greetingFor(DateTime.now()), subtitle: longDate(DateTime.now())),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+          sliver: SliverList(
+            delegate: SliverChildListDelegate([
+              Container(
+                decoration: Editorial.card(),
+                padding: const EdgeInsets.all(Editorial.s6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('All trackers are hidden', style: Editorial.title),
+                    const SizedBox(height: Editorial.s3),
+                    Text(
+                      'Your trackers and history are still here. Turn one back on to see today on '
+                      'this screen.',
+                      style: Editorial.body,
+                    ),
+                    const SizedBox(height: Editorial.s5),
+                    TrackFilledButton(
+                      label: 'Manage trackers',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(builder: (_) => const MeasurementsPage()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The one permission sentence Today is allowed to show.
+///
+/// Only things the user has already asked for appear here: reminders they switched
+/// on, or focus schedules they created. Nothing asks for a grant in order to unlock
+/// the habit loop, which needs no permission at all. The action opens the correct
+/// Android surface — a runtime prompt for notifications, or Settings for the two
+/// special grants — and never grants anything itself.
+class _PermissionNotice extends StatelessWidget {
+  const _PermissionNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = context.watch<AppState>();
+    if (state.permissionNoticeDismissed) return const SizedBox.shrink();
+
+    final remindersBlocked = state.notifyDaily && !state.notificationsAllowed;
+    final focusBlocked = !state.focusPermissions.canBlock &&
+        state.focusSchedules.any((s) => s.enabled);
+    if (!remindersBlocked && !focusBlocked) return const SizedBox.shrink();
+
+    final title = remindersBlocked ? 'Reminders cannot reach you' : 'Focus sessions cannot cover apps';
+    final body = remindersBlocked
+        ? 'This phone is blocking Track Pro notifications, so your daily check-in will not '
+            'appear. Everything you log is still saved.'
+        : 'Usage access and Display over other apps are still off. Sessions time and record '
+            'normally; they just cannot cover the apps you pick.';
+    final action = remindersBlocked ? 'Allow' : 'Review';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Editorial.s3),
+      child: Container(
+        decoration: Editorial.card(border: Editorial.minimum.withOpacity(.45)),
+        padding: const EdgeInsets.fromLTRB(Editorial.s4, Editorial.s4, Editorial.s4, Editorial.s2),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(title, style: Editorial.figure),
+            const SizedBox(height: Editorial.s1),
+            Text(body, style: Editorial.body.copyWith(fontSize: 13.5)),
+            const SizedBox(height: Editorial.s1),
+            Row(
+              children: [
+                TrackTintedButton(
+                  label: action,
+                  onTap: () async {
+                    if (!remindersBlocked) {
+                      await openFocusPermissionSheet(context);
+                      return;
+                    }
+                    // The card is the explanation; the system dialog is the request.
+                    // Android only offers it once, so a refusal falls through to the
+                    // app's notification settings rather than asking again.
+                    final granted = await state.notifications?.requestPermission() ?? false;
+                    if (!context.mounted) return;
+                    if (granted) {
+                      await state.refreshReminders();
+                    } else {
+                      await state.openNotificationSettings();
+                    }
+                  },
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: state.dismissPermissionNotice,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Editorial.s3, vertical: Editorial.s3),
+                    child: Text('Not now', style: Editorial.caption.copyWith(color: Editorial.inkSecondary)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -548,12 +687,17 @@ class _FocusCard extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
                       const SizedBox(height: 3),
-                      Text(enforcement.label,
+                      Text(live.isPaused ? 'Paused' : enforcement.label,
                           style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: accent)),
-                      Text(enforcement.intendsToBlock && !enforcement.isConfirmed
-                              ? enforcement.detail
-                              : '${live.mode.label} · ${live.blockedPackages.length} app'
-                                  '${live.blockedPackages.length == 1 ? '' : 's'} covered',
+                      Text(
+                          live.isPaused
+                              ? 'Apps are available until you resume.'
+                              : enforcement.intendsToBlock && !enforcement.isConfirmed
+                                  ? enforcement.detail
+                                  : live.blockedPackages.isEmpty
+                                      ? live.mode.label
+                                      : '${live.mode.label} · ${live.blockedPackages.length} app'
+                                          '${live.blockedPackages.length == 1 ? '' : 's'} covered',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 11.5, height: 1.35, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
@@ -598,8 +742,7 @@ class _FocusCard extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               last == null
-                  ? 'A timer, or a session that holds back the apps you choose. Everything about the session '
-                      'stays on this device.'
+                  ? 'A timer, or a session that keeps the apps you choose out of reach.'
                   : 'Last session: ${last.goalLabel} · ${focusDurationLabel(last.focusMs)}'
                       '${last.outcome == null ? '' : ' · ${last.outcome!.label.toLowerCase()}'}',
               style: TextStyle(fontSize: 12.5, height: 1.45, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
@@ -630,8 +773,7 @@ class _FocusCard extends StatelessWidget {
             if (!app.focusPlatformAvailable) ...[
               const SizedBox(height: 8),
               Text(
-                'This build has no focus channel, so sessions are timers with a goal and a reflection — '
-                'no app is covered, and Track Pro will not claim otherwise.',
+                'Sessions will time and record here, but this device cannot cover apps.',
                 style: TextStyle(fontSize: 11.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
               ),
             ],

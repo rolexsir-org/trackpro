@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/cupertino.dart';
@@ -10,7 +11,6 @@ import '../models/models.dart';
 import '../widgets/glass.dart';
 import '../services/notification_service.dart';
 import '../state/app_state.dart';
-import '../config/pro_config.dart';
 import '../widgets/ios_tab_bar.dart';
 import '../widgets/large_title_header.dart';
 import '../widgets/progress_ring.dart';
@@ -22,8 +22,39 @@ import 'routines_screen.dart';
 import 'settings_screen.dart';
 import 'today_screen.dart';
 
-class HomeShell extends StatelessWidget {
+class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
+
+  @override
+  State<HomeShell> createState() => _HomeShellState();
+}
+
+/// One countdown ticker for the whole app.
+///
+/// The focus countdown used to be driven by the session screen alone, which meant
+/// the card on Today froze whenever the screen was closed and a second ticker
+/// started every time the screen was pushed again. There is now one timer, owned by
+/// the shell (which is alive for the whole session), and every surface reads the
+/// same clock-derived value. The value itself is never accumulated here: each tick
+/// is recomputed from the monotonic clock, so a late or dropped tick cannot drift.
+class _HomeShellState extends State<HomeShell> {
+  Timer? _focusTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusTicker = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final state = context.read<AppState>();
+      if (state.focusLive) unawaited(state.tickFocus());
+    });
+  }
+
+  @override
+  void dispose() {
+    _focusTicker?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -214,9 +245,9 @@ class _OnboardingOverlayState extends State<_OnboardingOverlay> {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     const copy = <List<String>>[
-      ['Plan a real commitment.', 'Name the outcome you want, then set the smallest version of it you would still count as showing up. A 30-minute run can have a 5-minute minimum.'],
-      ['Log the truth about today.', 'Tap once for "full", once for "minimum" — or mark a rest day, or skip it on purpose. Minimum is never scored as a full completion.'],
-      ['Watch momentum, not guilt.', 'Momentum shows the rate you have actually kept, the days it is measured over, and a restart plan after a gap. It never invents a number to fill the screen.'],
+      ['Start with one thing.', 'Pick a routine and set the smallest version that still counts — a 30-minute run can have a 5-minute minimum.'],
+      ['Tap what happened.', 'Full, minimum, rest or skip. That one tap is all it takes, and it is saved on this phone.'],
+      ['See what you kept.', 'Momentum shows the days you followed through, plus your focus time. Nothing is invented when there is no data.'],
     ];
 
     return AnimatedSlide(
@@ -263,7 +294,7 @@ class _OnboardingOverlayState extends State<_OnboardingOverlay> {
                   ),
                   const SizedBox(height: 18),
                   TrackFilledButton(
-                    label: step == 2 ? 'Set up the first routine' : 'Continue',
+                    label: step == 2 ? 'Create my first routine' : 'Continue',
                     onTap: () {
                       if (step < 2) {
                         setState(() => step++);
@@ -327,9 +358,9 @@ class _OnboardingArt extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // The real catalogue size, not a marketing number.
-                  Text('${DefaultTrackers.enabledByDefault.length} of ${DefaultTrackers.all().length}',
+                  Text('${DefaultTrackers.enabledByDefault.length}',
                       style: TextStyle(fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: -1.4, color: TrackTheme.label(dark))),
-                  Text('TRACKERS ON BY DEFAULT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: .4, color: TrackTheme.label3(dark))),
+                  Text('TRACKERS READY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: .4, color: TrackTheme.label3(dark))),
                 ],
               ),
               for (var i = 0; i < DefaultTrackers.all().length; i++)
@@ -338,6 +369,9 @@ class _OnboardingArt extends StatelessWidget {
           ),
         );
       case 1:
+        // A diagram of the two answers a routine asks for, with no invented
+        // quantities: the numbers are whatever the user chooses, so printing example
+        // ones here only made them look like the app's defaults.
         return Container(
           width: 280,
           padding: const EdgeInsets.all(18),
@@ -347,35 +381,27 @@ class _OnboardingArt extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Text('🚶', style: TextStyle(fontSize: 19)),
+                  const Text('🎯', style: TextStyle(fontSize: 19)),
                   const SizedBox(width: 9),
-                  Text('Morning walk', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
-                  const Spacer(),
-                  // Labelled, so nothing on this screen reads as a claim about
-                  // the user's own data.
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: TrackTheme.orange.withOpacity(.16), borderRadius: BorderRadius.circular(6)),
-                    child: const Text('EXAMPLE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: TrackTheme.orange)),
-                  ),
+                  Text('You choose both', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
                 ],
               ),
               const SizedBox(height: 14),
               _SpecimenRow(
                 dark: dark,
-                label: 'Full target',
-                value: '30 min',
-                note: 'counts as a full completion',
+                label: 'Full',
+                value: 'The thing itself',
+                note: 'counts as a completed day',
               ),
               const SizedBox(height: 8),
               _SpecimenRow(
                 dark: dark,
                 label: 'Minimum',
-                value: '10 min',
-                note: 'counts as partial — never as full',
+                value: 'The smallest version',
+                note: 'keeps the routine alive — not a full day',
               ),
               const SizedBox(height: 14),
-              Text('A day you barely manage still counts for something. It just does not count as the whole thing.',
+              Text('A hard day still counts for something. It just does not count as the whole thing.',
                   style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
             ],
           ),
@@ -389,10 +415,9 @@ class _OnboardingArt extends StatelessWidget {
             children: [
               const InsightCard(
                 emoji: '💡',
-                title: 'Patterns appear only when your own record supports them.',
-                body: 'Track Pro waits until a habit has enough decided days before it reports anything, and every '
-                    'finding shows the number of days it was computed from. Below that threshold it says so '
-                    'instead of guessing.',
+                title: 'Your own record, nothing else.',
+                body: 'Everything you see is built from what you log here. There is no sample history and no '
+                    'one else\'s data.',
                 accent: TrackTheme.indigo,
               ),
               const SizedBox(height: 4),
@@ -404,8 +429,8 @@ class _OnboardingArt extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: StatTile(
-                      value: '${ProConfig.freeTrackerLimit}',
-                      label: 'Free trackers',
+                      value: '${state.commitments.length}',
+                      label: 'Routines',
                     ),
                   ),
                 ],
@@ -466,7 +491,7 @@ class _NotificationRouterState extends State<NotificationRouter> {
         });
         break;
       case 'insights':
-        state.setTab(1);
+        state.setTab(3);
         break;
       case 'today':
         state.setTab(0);

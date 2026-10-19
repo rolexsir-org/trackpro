@@ -16,6 +16,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 
 /**
@@ -77,6 +78,7 @@ class FocusSessionService : Service() {
     private var lastSeenPackage: String? = null
     private var overlayShownFor: String? = null
     private var stopped = false
+    private var lastNotifiedMinute = -1
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -220,6 +222,12 @@ class FocusSessionService : Service() {
             return
         }
 
+        // The ongoing notice is the lock-screen clock. It used to be built once, at
+        // start, and then read "25 min left" for the whole session; refresh it when
+        // the whole-minute figure changes, which is cheap and keeps the one number a
+        // user can see without opening the app honest.
+        refreshNotification()
+
         val usage = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return
         val now = SystemClock.elapsedRealtime()
         val windowStart = now - POLL_WINDOW_MS
@@ -289,6 +297,20 @@ class FocusSessionService : Service() {
     }
 
     private var lastOverlayAt = 0L
+
+    private fun refreshNotification() {
+        val remaining = (FocusStore.endsRealtime(this) - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        val minutes = ((remaining + 59_999L) / 60_000L).toInt()
+        if (minutes == lastNotifiedMinute) return
+        lastNotifiedMinute = minutes
+        try {
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, buildNotification())
+        } catch (t: Throwable) {
+            // A notification that cannot be refreshed (permission refused, channel
+            // blocked) must not stop the detector; the timer and the history are
+            // unaffected.
+        }
+    }
 
     private fun stopSession() {
         stopped = true

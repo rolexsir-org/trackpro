@@ -848,9 +848,9 @@ Future<void> showLegalSheet(BuildContext context, {required String kind}) {
 const List<(String, String)> _privacySections = <(String, String)>[
   (
     'Local-first storage, no cloud backup',
-    'Routines, tracker entries, focus sessions, and settings are stored on this device in app-private '
-        'SQLite storage. Android cloud backup is disabled (`allowBackup="false"`) so health and habit data '
-        'is never copied to Google Drive without your explicit action.',
+    'Routines, tracker entries, focus sessions and settings are stored inside the app on this device. '
+        'Android backup is turned off, so your health and habit data is never copied to Google Drive '
+        'without your explicit action.',
   ),
   (
     'Health Connect (optional, read-only)',
@@ -898,7 +898,7 @@ const List<(String, String)> _termsSections = <(String, String)>[
   ),
   (
     'Focus Lock best-effort disclosure',
-    'Android does not provide a non-privileged API to stop apps from launching. Focus Lock covers selected '
+    'Android does not let an ordinary app stop another app from launching. Focus Lock covers selected '
         'apps on a best-effort basis using the permissions you grant, and never covers the phone dialer, '
         'emergency call screens, or system settings.',
   ),

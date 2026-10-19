@@ -176,7 +176,7 @@ class FocusProfilesScreen extends StatelessWidget {
       if (context.mounted) showTrackToast(context, 'A session is already running');
       return;
     }
-    await navigator.push(CupertinoPageRoute<void>(fullscreenDialog: true, builder: (_) => const FocusSessionScreen()));
+    await openFocusSession(navigator.context);
   }
 }
 

@@ -138,10 +138,9 @@ class FocusHistoryScreen extends StatelessWidget {
                       ]),
                       const SizedBox(height: 14),
                       Text(
-                        'Timing comes from the device\'s monotonic clock, not the wall clock, so changing the '
-                        'time or crossing a time zone cannot extend or shorten a session. A session that was '
-                        'interrupted — device restart, service stopped, a permission revoked — is stored as '
-                        'interrupted and never counted as a completion.',
+                        'Time is measured from when the session started, so changing the phone\'s clock or '
+                        'crossing a time zone cannot lengthen or shorten it. A session that was interrupted '
+                        'by a restart or a lost permission is saved as interrupted, never as a completion.',
                         style: TextStyle(fontSize: 11.8, height: 1.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
                       ),
                     ],

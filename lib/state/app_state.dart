@@ -124,6 +124,19 @@ class AppState extends ChangeNotifier {
   /// True while a sync is in flight, so the UI can spin instead of lying.
   bool screenTimeSyncing = false;
 
+  /// Set when the user says "not now" to the launch permission notice.
+  ///
+  /// Deliberately not persisted: it silences the card for this run of the app and no
+  /// longer. A permission that is still missing when the app is next opened is still
+  /// worth one quiet sentence, and the card is not a modal prompt, so it never blocks
+  /// anything or asks twice in a row.
+  bool permissionNoticeDismissed = false;
+
+  void dismissPermissionNotice() {
+    permissionNoticeDismissed = true;
+    notifyListeners();
+  }
+
   /// The last write that failed, if any.
   ///
   /// This exists because the alternative — the previous behaviour — was to swallow the
@@ -567,7 +580,10 @@ class AppState extends ChangeNotifier {
   }) async {
     final repo = focusRepo;
     if (repo == null) return null;
-    if (repo.liveSession != null) return repo.liveSession;
+    // Null, not the existing session: every caller turns null into "a session is
+    // already running". Returning the live row made that message unreachable while
+    // the caller pushed a second copy of the session screen on top of the first.
+    if (repo.liveSession != null) return null;
     final session = await repo.start(
       mode: mode,
       minutes: minutes,
@@ -594,21 +610,6 @@ class AppState extends ChangeNotifier {
     Haptics.light();
   }
 
-  /// The countdown reached zero while the app was open and no platform service
-  /// reported it. It is recorded through the same rules as any other ending, so a
-  /// session whose enforcement failed is still recorded as degraded rather than as a
-  /// clean completion.
-  Future<FocusSession?> completeFocus() async {
-    final repo = focusRepo;
-    final session = repo?.liveSession;
-    if (repo == null || session == null) return null;
-    final ended = await repo.finish(session, reason: FocusEndReason.timer);
-    await refreshFocusState();
-    await _releaseHeldReminders();
-    Haptics.commit();
-    return ended;
-  }
-
   /// Ends the session by hand. The repository decides whether that is a cancelled
   /// session or a completion with the time already served.
   Future<FocusSession?> endFocus({String? reflection}) async {
@@ -628,19 +629,21 @@ class AppState extends ChangeNotifier {
     final repo = focusRepo;
     if (repo == null || repo.liveSession == null) return;
     final session = await repo.syncNative();
-    focusNative = await repo.enforcer.state();
-    if (session != null) {
-      final monotonic = await repo.enforcer.monotonicMs();
-      final recovery = FocusEngine.recover(
-        session: session,
-        nowRealtimeMs: monotonic ?? 0,
-        nowWallMs: DateTime.now().millisecondsSinceEpoch,
-        monotonicAvailable: monotonic != null,
-      );
-      focusElapsedMs = recovery.elapsedMs;
-      focusRemainingMs = recovery.remainingMs;
+    if (session == null) {
+      // It ended during this tick: expiry, a stopped service, or a device restart.
+      // Re-read the projections once so the history and the figures move together,
+      // and release the reminder hold the session was keeping.
+      await refreshFocusState(notify: false);
+      await _releaseHeldReminders();
+      notifyListeners();
+      return;
     }
-    await refreshFocusState(notify: false);
+    // `syncNative` has already banked the elapsed figure against the monotonic clock
+    // and re-based the segment, so the mirrors are read from it rather than by
+    // repeating the same arithmetic (and another database read) every second.
+    focusNative = await repo.enforcer.state();
+    focusElapsedMs = session.focusMs;
+    focusRemainingMs = (session.plannedMs - session.focusMs).clamp(0, session.plannedMs);
     notifyListeners();
   }
 
@@ -877,6 +880,13 @@ class AppState extends ChangeNotifier {
       await recoverFocus();
       await syncFocusSchedules();
     }
+
+    // Everything the app can be told "no" about, read once before the first frame.
+    // `recoverFocus()` above already re-read the two Focus Lock grants; these are the
+    // three that used to stay as their last remembered value until something else
+    // happened to ask: notification permission, Health Connect and Usage Access.
+    await refreshReminders();
+    unawaited(refreshScreenTimePermission());
 
     notifyListeners();
     unawaited(_refreshAggregates());
@@ -1263,23 +1273,48 @@ class AppState extends ChangeNotifier {
   bool commitmentDayLogged(String id) => commitmentRepo.daysFor(id)[commitmentRepo.todayKey] != null;
 
   /// Records what actually happened today (or on [day], for a correction).
-  Future<void> logCommitmentDay(
+  /// Returns false when the write did not land, so a caller cannot confirm a day
+  /// that SQLite never received. The failure is also put on [writeFailure], which the
+  /// shell shows wherever the user happens to be.
+  Future<bool> logCommitmentDay(
     String id,
     DayOutcome outcome, {
     double? value,
     String? note,
     int? day,
   }) async {
-    await commitmentRepo.record(commitmentId: id, outcome: outcome, day: day, value: value, note: note);
+    try {
+      await commitmentRepo.record(commitmentId: id, outcome: outcome, day: day, value: value, note: note);
+    } catch (_) {
+      writeFailure = SaveFailure(
+        action: 'Routine day',
+        detail: 'Your previous answer is unchanged. Check free space and try again.',
+        at: DateTime.now(),
+      );
+      notifyListeners();
+      return false;
+    }
     _refreshMomentum();
     notifyListeners();
     await _writeWidgetSnapshot();
+    return true;
   }
 
-  Future<void> clearCommitmentDay(String id, {int? day}) async {
-    await commitmentRepo.clearRecord(id, day: day);
+  Future<bool> clearCommitmentDay(String id, {int? day}) async {
+    try {
+      await commitmentRepo.clearRecord(id, day: day);
+    } catch (_) {
+      writeFailure = SaveFailure(
+        action: 'Routine day',
+        detail: 'That day is still recorded. Check free space and try again.',
+        at: DateTime.now(),
+      );
+      notifyListeners();
+      return false;
+    }
     _refreshMomentum();
     notifyListeners();
+    return true;
   }
 
   Future<Commitment> addCommitmentFromTemplate(CommitmentTemplate template) async {
