@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -288,7 +287,7 @@ Future<void> openLogSheet(BuildContext context, Tracker t) async {
     default:
       return showGlassSheet<void>(
         context,
-        title: 'Log ${t.emoji} ${t.name}',
+        title: 'Log ${t.name}',
         subtitle: 'Today · goal ${fmtGoalLong(t)}',
         accent: t.accent,
         body: _StepperBody(
@@ -363,7 +362,7 @@ class _StepperBodyState extends State<_StepperBody> {
 
   void _bump(double dir) {
     final step = widget.increment ?? widget.tracker.step;
-    setState(() => widget.value.value = (widget.value.value + dir * step).clamp(widget.min, widget.max));
+    setState(() => widget.value.value = (widget.value.value + dir * step).clamp(widget.min, widget.max).toDouble());
     Haptics.selection();
   }
 
@@ -376,7 +375,7 @@ class _StepperBodyState extends State<_StepperBody> {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            _RoundBtn(icon: CupertinoIcons.minus, color: t.accent, onTap: () => _bump(-1)),
+            _RoundBtn(icon: Icons.remove_rounded, color: t.accent, onTap: () => _bump(-1)),
             Container(
               width: 150,
               alignment: Alignment.center,
@@ -391,7 +390,7 @@ class _StepperBodyState extends State<_StepperBody> {
                 ],
               ),
             ),
-            _RoundBtn(icon: CupertinoIcons.plus, color: t.accent, onTap: () => _bump(1)),
+            _RoundBtn(icon: Icons.add_rounded, color: t.accent, onTap: () => _bump(1)),
           ],
         ),
         const SizedBox(height: 14),
@@ -405,7 +404,7 @@ class _StepperBodyState extends State<_StepperBody> {
                 label: t.kind == MetricKind.money ? '₹${p.round()}' : fmtValue(t, p),
                 color: t.accent,
                 onTap: () {
-                  setState(() => widget.value.value = p.clamp(widget.min, widget.max));
+                  setState(() => widget.value.value = p.clamp(widget.min, widget.max).toDouble());
                   Haptics.selection();
                 },
               ),
@@ -492,7 +491,13 @@ class _MoodBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const faces = ['😖', '🙁', '😐', '🙂', '😄'];
+    const faces = [
+      Icons.sentiment_very_dissatisfied_outlined,
+      Icons.sentiment_dissatisfied_outlined,
+      Icons.sentiment_neutral_outlined,
+      Icons.sentiment_satisfied_alt_outlined,
+      Icons.sentiment_very_satisfied_outlined,
+    ];
     const words = ['Awful', 'Low', 'Okay', 'Good', 'Great'];
     return Row(
       children: [
@@ -512,7 +517,7 @@ class _MoodBody extends StatelessWidget {
                   ),
                   child: Column(
                     children: [
-                      Text(faces[i], style: const TextStyle(fontSize: 26)),
+                      Icon(faces[i], size: 26, color: TrackTheme.orange),
                       const SizedBox(height: 5),
                       Text(words[i],
                           style: TextStyle(
@@ -553,13 +558,7 @@ class _HabitBody extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 12),
                 child: Row(
                   children: [
-                    Container(
-                      width: 29,
-                      height: 29,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(color: state.habits[i].color.withOpacity(.15), borderRadius: BorderRadius.circular(9)),
-                      child: Text(state.habits[i].emoji, style: const TextStyle(fontSize: 15)),
-                    ),
+                    TrackRecordIcon(label: state.habits[i].name, color: state.habits[i].color, size: 29, iconSize: 16),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Column(
@@ -567,7 +566,7 @@ class _HabitBody extends StatelessWidget {
                         children: [
                           Text(state.habits[i].name,
                               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
-                          Text('🔥 ${state.habits[i].streak}-day streak',
+                          Text('${state.habits[i].streak}-day streak',
                               style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
                         ],
                       ),
@@ -745,7 +744,7 @@ class _CalorieBody extends StatelessWidget {
               GlassRow(
                 title: f.name,
                 subtitle: 'tap to add',
-                leading: Text(f.emoji, style: const TextStyle(fontSize: 15)),
+                leading: const Icon(Icons.restaurant_outlined, size: 18, color: TrackTheme.orange),
                 trailing: Text('${f.kcal} kcal',
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
                 accent: TrackTheme.orange,
@@ -880,7 +879,7 @@ Future<void> openDaySheet(
 
   await showGlassSheet<void>(
     context,
-    title: '$when · ${t.emoji} ${t.name}',
+    title: '$when · ${t.name}',
     subtitle: '${switch (source) {
       'health' => 'Health Connect entry',
       'usage' => 'Android Usage Access entry',
@@ -960,25 +959,31 @@ Future<void> openDaySheet(
 Future<bool> _confirmClearDay(BuildContext context, Tracker t, int day) async {
   final confirmed = await showDialog<bool>(
     context: context,
-    builder: (dialogContext) => CupertinoAlertDialog(
-      title: Text('Clear ${shortDayKey(day)}?'),
-      content: Text(
-        'The entry for ${t.name} on ${shortDayKey(day)} is deleted. The day goes back to '
-        'having no record — it will not read as a 0, and your streaks, averages and insights '
-        'recompute without it.',
-      ),
-      actions: [
-        CupertinoDialogAction(
-          onPressed: () => Navigator.of(dialogContext).pop(false),
-          child: const Text('Keep it'),
+    builder: (dialogContext) {
+      final dark = Theme.of(dialogContext).brightness == Brightness.dark;
+      return AlertDialog(
+        backgroundColor: TrackTheme.surface(dark),
+        surfaceTintColor: Colors.transparent,
+        title: Text('Clear ${shortDayKey(day)}?', style: TextStyle(color: TrackTheme.label(dark))),
+        content: Text(
+          'The entry for ${t.name} on ${shortDayKey(day)} is deleted. The day goes back to '
+          'having no record — it will not read as a 0, and your streaks, averages and insights '
+          'recompute without it.',
+          style: TextStyle(color: TrackTheme.label2(dark), height: 1.4),
         ),
-        CupertinoDialogAction(
-          isDestructiveAction: true,
-          onPressed: () => Navigator.of(dialogContext).pop(true),
-          child: const Text('Delete entry'),
-        ),
-      ],
-    ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep it'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: TrackTheme.red, foregroundColor: Colors.white),
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete entry'),
+          ),
+        ],
+      );
+    },
   );
   return confirmed ?? false;
 }
@@ -1010,8 +1015,9 @@ Future<void> openGoalsSheet(BuildContext context) async {
         else
           for (final t in trackers)
             GlassRow(
-              title: '${t.emoji} ${t.name}',
+              title: t.name,
               subtitle: 'Goal ${fmtGoalLong(t)}',
+              leading: Icon(Icons.flag_outlined, size: 18, color: t.accent),
               accent: t.accent,
               onTap: () => openGoalSheet(context, t),
             ),
@@ -1027,7 +1033,7 @@ Future<void> openGoalSheet(BuildContext context, Tracker t) async {
   final value = ValueNotifier<double>(t.goal);
   await showGlassSheet<void>(
     context,
-    title: 'Goal for ${t.emoji} ${t.name}',
+    title: 'Goal for ${t.name}',
     subtitle: 'Used for rings, streaks and insights',
     accent: t.accent,
     body: _StepperBody(
@@ -1093,13 +1099,7 @@ Future<void> showQuickAdd(BuildContext context) async {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 34,
-                      height: 34,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(color: t.accent.withOpacity(.15), borderRadius: BorderRadius.circular(9)),
-                      child: Text(t.emoji, style: const TextStyle(fontSize: 16)),
-                    ),
+                    TrackRecordIcon(label: t.name, color: t.accent, size: 34, iconSize: 18),
                     const SizedBox(width: 9),
                     Expanded(
                       child: Column(
@@ -1127,38 +1127,19 @@ Future<void> showQuickAdd(BuildContext context) async {
   );
 }
 
-/// Minimal iOS switch (51×31, white knob, green on). Avoids Material's Switch.
+/// A non-interactive Material switch used as the state indicator inside the
+/// tappable habit row. The row owns the actual toggle action and persistence.
 class _Switch extends StatelessWidget {
   const _Switch({required this.value});
 
   final bool value;
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 280),
-      curve: TrackTheme.easeOut,
-      width: 51,
-      height: 31,
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: value ? TrackTheme.green : TrackTheme.fill(Theme.of(context).brightness == Brightness.dark),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: AnimatedAlign(
-        duration: const Duration(milliseconds: 280),
-        curve: TrackTheme.spring,
-        alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          width: 27,
-          height: 27,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(.15), blurRadius: 8, offset: const Offset(0, 3))],
-          ),
+  Widget build(BuildContext context) => IgnorePointer(
+        child: Switch(
+          value: value,
+          activeColor: TrackTheme.green,
+          onChanged: (_) {},
         ),
-      ),
-    );
-  }
+      );
 }

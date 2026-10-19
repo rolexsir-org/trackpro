@@ -248,7 +248,7 @@ class Commitment {
     if (days.length == 2 && days.contains(6) && days.contains(7)) return 'Weekends';
     if (days.isEmpty) return 'No days selected';
     const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((d) => names[(d - 1).clamp(0, 6)]).join(', ');
+    return days.map((d) => names[(d - 1).clamp(0, 6).toInt()]).join(', ');
   }
 
   Commitment copyWith({

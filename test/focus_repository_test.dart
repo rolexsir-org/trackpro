@@ -285,14 +285,16 @@ void main() {
         overlay: true,
       );
       final synced = await repo.syncNative(force: true);
-      expect(synced!.enforcement, FocusEnforcement.unavailable);
+      expect(synced!.enforcement, FocusEnforcement.lost,
+          reason: 'a grant revoked after an armed session is a mid-session loss');
 
       now = now.add(const Duration(minutes: 26));
       enforcer.monotonic += 26 * 60 * 1000;
       final ended = await repo.recover();
-      expect(ended!.outcome, isNot(FocusOutcome.completed),
-          reason: 'an unenforced session is never a clean completion');
-      expect(ended.enforcement, isNot(FocusEnforcement.verified));
+      expect(ended!.outcome, FocusOutcome.interrupted,
+          reason: 'a revoked grant at expiry is not a clean timer completion');
+      expect(ended.endReason, FocusEndReason.permissionRevoked);
+      expect(ended.enforcement, FocusEnforcement.lost);
     });
 
     test('the service dying mid-session is an interruption, not a completion', () async {
@@ -307,6 +309,27 @@ void main() {
       expect(ended!.outcome, FocusOutcome.interrupted);
       expect(ended.endReason, FocusEndReason.serviceLost);
     });
+    test('a later healthy native report cannot erase a recorded loss', () async {
+      await start(mode: FocusMode.blocking, minutes: 25);
+      enforcer.native = FocusNativeState.idle;
+      final lost = await repo.syncNative(force: true);
+      expect(lost!.enforcement, FocusEnforcement.lost);
+
+      enforcer.native = FocusNativeState(
+        running: true,
+        blocking: true,
+        startedAtRealtimeMs: enforcer.monotonic,
+        endsAtRealtimeMs: enforcer.monotonic + 25 * 60 * 1000,
+        blockedAttempts: 2,
+        overlayShows: 1,
+        detectionEvents: 2,
+        usageAccess: true,
+        overlay: true,
+      );
+      final recovered = await repo.syncNative(force: true);
+      expect(recovered!.enforcement, FocusEnforcement.lost,
+          reason: 'new coverage does not rewrite the known uncovered interval');
+    });
   });
 
   group('evidence, never assumption', () {
@@ -314,10 +337,9 @@ void main() {
       final session = await start();
       expect(session.enforcement, FocusEnforcement.armed);
       expect(session.enforcement.isConfirmed, isFalse);
-      expect(session.enforcement.isConfirmed, isFalse);
     });
 
-    test('the first observed foreground event is what upgrades it to verified', () async {
+    test('a detected selected app plus an accepted coverage panel upgrades it to verified', () async {
       await start();
       enforcer.native = FocusNativeState(
         running: true,
@@ -336,6 +358,28 @@ void main() {
       expect(synced!.enforcement, FocusEnforcement.verified);
       expect(synced.blockedAttempts, 1);
       expect(synced.detectionEvents, 3);
+    });
+
+    test('detection without an accepted panel stays armed', () async {
+      await start();
+      enforcer.native = FocusNativeState(
+        running: true,
+        blocking: true,
+        startedAtRealtimeMs: enforcer.monotonic,
+        endsAtRealtimeMs: enforcer.monotonic + 25 * 60 * 1000,
+        blockedAttempts: 1,
+        overlayShows: 0,
+        detectionEvents: 3,
+        usageAccess: true,
+        overlay: true,
+        foregroundPackage: 'com.instagram.android',
+        usageReportingSeen: true,
+      );
+
+      final synced = await repo.syncNative(force: true);
+      expect(synced!.enforcement, FocusEnforcement.armed,
+          reason: 'foreground detection alone does not prove Android allowed the panel');
+      expect(synced.enforcement.isConfirmed, isFalse);
     });
 
     test('a start the platform refused leaves no half-session behind', () async {
@@ -365,6 +409,28 @@ void main() {
       expect(session.enforcement, FocusEnforcement.unavailable);
       expect(session.enforcement.isConfirmed, isFalse);
       expect(session.enforcement.needsAttention, isTrue);
+    });
+
+    test('initially unavailable enforcement cannot become clean after a later re-grant', () async {
+      enforcer.setPermissions(FocusPermissions.none);
+      await start(mode: FocusMode.blocking);
+      expect(repo.liveSession!.enforcement, FocusEnforcement.unavailable);
+
+      // Settings grants access while the timer has already been running. The native
+      // service can work from this point, but it cannot certify the earlier interval.
+      enforcer.native = FocusNativeState(
+        running: true,
+        blocking: true,
+        startedAtRealtimeMs: enforcer.monotonic,
+        endsAtRealtimeMs: enforcer.monotonic + 25 * 60 * 1000,
+        blockedAttempts: 1,
+        overlayShows: 1,
+        detectionEvents: 1,
+        usageAccess: true,
+        overlay: true,
+      );
+      final synced = await repo.syncNative(force: true);
+      expect(synced!.enforcement, FocusEnforcement.lost);
     });
 
     test('the app never grants a permission itself — it only opens the system screen', () async {
@@ -419,7 +485,31 @@ void main() {
       expect(enforcer.native.running, isTrue);
     });
 
-    test('a resume the platform refuses is recorded as unavailable, not as blocking', () async {
+    test('the expected stopped service while paused is not recorded as a loss', () async {
+      await start(minutes: 25);
+      // Establish actual coverage evidence before pausing.
+      enforcer.native = FocusNativeState(
+        running: true,
+        blocking: true,
+        startedAtRealtimeMs: enforcer.monotonic,
+        endsAtRealtimeMs: enforcer.monotonic + 25 * 60 * 1000,
+        blockedAttempts: 1,
+        overlayShows: 1,
+        detectionEvents: 1,
+        usageAccess: true,
+        overlay: true,
+      );
+      await repo.syncNative(force: true);
+      await repo.pause();
+      expect(enforcer.native.running, isFalse);
+
+      final stillPaused = await repo.syncNative(force: true);
+      expect(stillPaused!.state, FocusSessionState.paused);
+      expect(stillPaused.enforcement, FocusEnforcement.verified,
+          reason: 'pause intentionally suspends coverage; it is not a service crash');
+    });
+
+    test('a resume the platform refuses records the resumed stretch as lost', () async {
       await start(minutes: 25);
       now = now.add(const Duration(minutes: 5));
       enforcer.monotonic += 5 * 60 * 1000;
@@ -428,8 +518,8 @@ void main() {
       enforcer.startSucceeds = false;
       final resumed = await repo.resume();
       expect(resumed!.state, FocusSessionState.running);
-      expect(resumed.enforcement, FocusEnforcement.unavailable,
-          reason: 'the row must not claim a service that refused to start');
+      expect(resumed.enforcement, FocusEnforcement.lost,
+          reason: 'focus resumed without a coverage service, so that later interval is known unprotected');
     });
 
     test('pausing past the mode budget is recorded as a degraded completion', () async {
@@ -445,8 +535,9 @@ void main() {
       enforcer.native = FocusNativeState.idle;
 
       final ended = await repo.recover();
-      expect(ended!.outcome, FocusOutcome.completedDegraded);
-      expect(ended.endReason, FocusEndReason.timer);
+      expect(ended!.outcome, FocusOutcome.interrupted,
+          reason: 'the detector died after focus resumed');
+      expect(ended.endReason, FocusEndReason.serviceLost);
     });
 
     test('a reflection is stored with the session and survives a reload', () async {

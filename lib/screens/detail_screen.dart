@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -23,9 +22,9 @@ import 'settings_screen.dart';
 
 Future<void> openDetail(BuildContext context, Tracker t) {
   return Navigator.of(context).push(
-    CupertinoPageRoute<void>(
+    MaterialPageRoute<void>(
       builder: (_) => DetailScreen(trackerId: t.id),
-      title: t.name,
+      settings: RouteSettings(name: 'tracker/${t.id}'),
     ),
   );
 }
@@ -58,15 +57,15 @@ class DetailScreen extends StatelessWidget {
         children: [
           AmbientBackground(accent: t.accent, accent2: t.accent2),
           CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
             slivers: [
               LargeTitleHeader(
-                title: '${t.emoji} ${t.name}',
+                title: t.name,
                 subtitle: '${t.blurb} · goal ${fmtGoalLong(t)}',
                 leading: _BackButton(onTap: () => Navigator.of(context).maybePop()),
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 60),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     Center(
@@ -94,7 +93,7 @@ class DetailScreen extends StatelessWidget {
                       children: [
                         Expanded(
                           child: TrackFilledButton(
-                            label: '＋ Log today',
+                            label: 'Log today',
                             color: t.accent,
                             onTap: () => openLogSheet(context, t),
                           ),
@@ -172,7 +171,7 @@ class DetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     InsightCard(
-                      emoji: '✨',
+                      emoji: 'insight',
                       title: t.insight,
                       // The count is the number of days with something logged, not
                       // the size of the window: "built from 90 days of your own
@@ -256,7 +255,7 @@ class DetailScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                           // A blank square means "not logged", which is why it is
                           // neutral grey and not the palest mood colour.
-                          color: m == 0 ? TrackTheme.fill(dark) : t.accent.withOpacity((.35 + m * .13).clamp(0.0, 1.0)),
+                          color: m == 0 ? TrackTheme.fill(dark) : t.accent.withOpacity((.35 + m * .13).clamp(0.0, 1.0).toDouble()),
                         ),
                       ),
                   ],
@@ -289,18 +288,18 @@ class DetailScreen extends StatelessWidget {
           const SectionLabel('Distribution'),
           if (logged.isEmpty)
             const _NoData(
-              emoji: '😊',
+              emoji: 'mood',
               title: 'No mood logged yet',
               body: 'Tap a face on the Today screen. After a week this becomes a distribution of your own days.',
             )
           else
             GlassList(children: [
               for (final row in const [
-                ['😄 Great', 5],
-                ['🙂 Good', 4],
-                ['😐 Okay', 3],
-                ['🙁 Low', 2],
-                ['😖 Awful', 1],
+                ['Great', 5],
+                ['Good', 4],
+                ['Okay', 3],
+                ['Low', 2],
+                ['Awful', 1],
               ])
                 _Bar(
                   label: row[0] as String,
@@ -320,7 +319,7 @@ class DetailScreen extends StatelessWidget {
           const SectionLabel('This week by category'),
           if (state.categories.isEmpty)
             const _NoData(
-              emoji: '🧾',
+              emoji: 'expenses',
               title: 'No spending logged yet',
               body: 'Add an expense and the category breakdown builds itself — this chart is a GROUP BY on your own entries.',
             )
@@ -331,14 +330,14 @@ class DetailScreen extends StatelessWidget {
             ]),
           const SectionLabel('Recent'),
           if (state.transactions.isEmpty)
-            const _NoData(emoji: '📭', title: 'Nothing here yet', body: 'Your logged expenses will appear in this list, newest first.')
+            const _NoData(emoji: 'inbox', title: 'Nothing here yet', body: 'Your logged expenses will appear in this list, newest first.')
           else
             GlassList(children: [
               for (final x in state.transactions.take(5))
                 GlassRow(
                   title: x.title,
                   subtitle: '${x.category} · ${x.when}',
-                  leading: const Text('🧾', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.receipt_long_outlined, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.green,
                   showChevron: false,
                   trailing: Text('₹${x.amount.round()}',
@@ -354,7 +353,7 @@ class DetailScreen extends StatelessWidget {
           const SectionLabel('Last 7 nights'),
           if (sleepLogged.isEmpty)
             const _NoData(
-              emoji: '😴',
+              emoji: 'sleep',
               title: 'No nights logged',
               body: 'Log hours slept, or connect Health Connect in Settings and this fills in from your phone or watch.',
             )
@@ -389,7 +388,7 @@ class DetailScreen extends StatelessWidget {
                   style: TextStyle(fontSize: 13, color: TrackTheme.label3(dark)))),
           if (state.habits.isEmpty)
             const _NoData(
-              emoji: '✅',
+              emoji: 'habits',
               title: 'No habits yet',
               body: 'Add a habit and it gets its own streak, counted from the days you actually tick it.',
             )
@@ -400,13 +399,13 @@ class DetailScreen extends StatelessWidget {
                   title: state.habits[i].name,
                   // Real streak, and a 30-day rate computed from the stored
                   // checklist rather than derived from the streak.
-                  subtitle: '🔥 ${state.habits[i].streak}-day streak · '
+                  subtitle: '${state.habits[i].streak}-day streak · '
                       '${state.habitRate(i, 30)}% of the last 30 days',
-                  leading: Text(state.habits[i].emoji, style: const TextStyle(fontSize: 15)),
+                  leading: TrackRecordIcon(label: state.habits[i].name, color: state.habits[i].color, size: 29, iconSize: 16),
                   accent: state.habits[i].color,
                   showChevron: false,
                   trailing: Icon(
-                    state.habits[i].done ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
+                    state.habits[i].done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
                     color: state.habits[i].done ? TrackTheme.green : TrackTheme.label3(dark),
                   ),
                   onTap: () => state.toggleHabit(i),
@@ -420,7 +419,7 @@ class DetailScreen extends StatelessWidget {
           const SectionLabel('Logged today'),
           if (entries.isEmpty)
             const _NoData(
-              emoji: '🍽️',
+              emoji: 'food',
               title: 'Nothing eaten yet today',
               body: 'Use quick-add or type a number. The day total is the sum of what you logged — nothing is estimated for you.',
             )
@@ -430,7 +429,7 @@ class DetailScreen extends StatelessWidget {
                 GlassRow(
                   title: f.title,
                   subtitle: '${f.when} · ${f.source == 'manual' ? 'added by you' : f.source}',
-                  leading: Text(f.emoji, style: const TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.restaurant_outlined, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.orange,
                   showChevron: false,
                   trailing: Text('${f.kcal.round()} kcal',
@@ -439,7 +438,7 @@ class DetailScreen extends StatelessWidget {
             ]),
           const SectionLabel('7-day intake'),
           if ([for (final v in state.week('calories')) if (v > 0) v].isEmpty)
-            const _NoData(emoji: '🔥', title: 'No intake to chart', body: 'Log a meal and this becomes your real weekly intake.')
+            const _NoData(emoji: 'food', title: 'No intake to chart', body: 'Log a meal and this becomes your real weekly intake.')
           else
             _Card(child: MiniChart(values: state.week('calories'), color: t.accent, height: 110, barRadius: 5)),
         ];
@@ -450,7 +449,7 @@ class DetailScreen extends StatelessWidget {
           const SectionLabel('This week'),
           if (steps7.isEmpty)
             const _NoData(
-              emoji: '👣',
+              emoji: 'steps',
               title: 'No step data',
               body: 'Android does not let an app read step counts on its own. Connect Health Connect in Settings, '
                   'or log a number by hand — both land in the same history.',
@@ -482,7 +481,7 @@ class DetailScreen extends StatelessWidget {
           const SectionLabel('Cycle'),
           if (!cycle.hasAnyData)
             const _NoData(
-              emoji: '🌸',
+              emoji: 'period',
               title: 'No period logged yet',
               body: 'Log the first day of your period. Predictions only appear once you have two cycles to measure — '
                   'before that, any date would be invented.',
@@ -535,7 +534,7 @@ class DetailScreen extends StatelessWidget {
                     subtitle: i == 0
                         ? 'First logged cycle'
                         : '${cycle.starts[i] - cycle.starts[i - 1]}-day cycle',
-                    leading: const Text('🌸', style: TextStyle(fontSize: 15)),
+                    leading: const Icon(Icons.calendar_month_outlined, size: 18, color: TrackTheme.orange),
                     accent: t.accent,
                     showChevron: false,
                     trailing: Text(i == cycle.starts.length - 1 ? 'latest' : '',
@@ -547,7 +546,7 @@ class DetailScreen extends StatelessWidget {
         ];
 
       case 'screen':
-        final hasScreenData = [for (final v in state.historyOf('screen')) if (v > 0)].isNotEmpty;
+        final hasScreenData = [for (final v in state.historyOf('screen')) if (v > 0) v].isNotEmpty;
         final granted = state.screenTimeConnected;
         final available = state.screenTimeAvailable;
         return [
@@ -558,7 +557,7 @@ class DetailScreen extends StatelessWidget {
           // grant with no reading yet (some OEM builds report late).
           if (!available)
             const _NoData(
-              emoji: '📱',
+              emoji: 'screen',
               title: 'Automatic screen time is Android-only',
               body: 'This build cannot read usage data on this platform. '
                   'The totals you log yourself are real and charted below.',
@@ -567,7 +566,7 @@ class DetailScreen extends StatelessWidget {
             _ScreenTimeOnboarding(state: state)
           else if (state.screenTimeApps.isEmpty)
             const _NoData(
-              emoji: '📱',
+              emoji: 'screen',
               title: 'Nothing reported yet',
               body: 'Usage access is granted, but this device has not reported screen time yet. '
                   'Some Android builds report with a delay right after the grant — Sync now in a minute.',
@@ -650,7 +649,7 @@ class DetailScreen extends StatelessWidget {
           ),
           if (weights.isEmpty)
             const _NoData(
-              emoji: '⚖️',
+              emoji: 'weight',
               title: 'No weigh-ins yet',
               body: 'Weight moves daily, so this chart is built from the days you actually logged — '
                   'and it will not draw a line through the gaps.',
@@ -663,7 +662,7 @@ class DetailScreen extends StatelessWidget {
             ProLockedRow(
               title: 'Trends need history',
               subtitle: 'Every weigh-in you have ever logged, drawn end to end',
-              emoji: '📈',
+              emoji: 'trend',
               accent: t.accent,
               onTap: () {
                 state.analytics?.log('pro_gate_tapped', {'gate': 'weight_trend'});
@@ -726,34 +725,45 @@ Future<void> _promptHeight(BuildContext context, AppState state) async {
   final controller = TextEditingController(
     text: state.heightCm == null ? '' : state.heightCm!.toStringAsFixed(0),
   );
-  final result = await showCupertinoDialog<double>(
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final result = await showDialog<double>(
     context: context,
-    builder: (context) => CupertinoAlertDialog(
-      title: const Text('Your height'),
-      content: Padding(
-        padding: const EdgeInsets.only(top: 10),
-        child: Column(
-          children: [
-            const Text('Used only to compute BMI on this device. It is never uploaded.'),
-            const SizedBox(height: 12),
-            CupertinoTextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              placeholder: 'cm',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: TrackTheme.surface(dark),
+      surfaceTintColor: Colors.transparent,
+      title: Text('Your height', style: TextStyle(color: TrackTheme.label(dark))),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Used only to compute BMI on this device. It is never uploaded.',
+            style: TextStyle(color: TrackTheme.label2(dark), height: 1.4),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: controller,
+            autofocus: true,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: TrackTheme.label(dark)),
+            decoration: const InputDecoration(labelText: 'Height in cm'),
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(double.tryParse(value.trim())),
+          ),
+        ],
       ),
       actions: [
-        CupertinoDialogAction(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        CupertinoDialogAction(
-          onPressed: () => Navigator.pop(context, double.tryParse(controller.text.trim())),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(dialogContext).pop(double.tryParse(controller.text.trim())),
           child: const Text('Save'),
         ),
       ],
     ),
   );
+  controller.dispose();
   if (result == null) return;
   // Out-of-range input is refused rather than stored: the setter validates and
   // the caller reports the outcome instead of silently keeping a bad number.
@@ -770,6 +780,8 @@ Future<void> _promptHeight(BuildContext context, AppState state) async {
 class _NoData extends StatelessWidget {
   const _NoData({required this.emoji, required this.title, required this.body});
 
+  /// A legacy semantic hint retained at call sites while presentation uses a
+  /// consistent Material icon rather than a platform-dependent emoji glyph.
   final String emoji;
   final String title;
   final String body;
@@ -782,12 +794,12 @@ class _NoData extends StatelessWidget {
       decoration: BoxDecoration(
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-        boxShadow: TrackTheme.cardShadow(dark),
+        border: Border.all(color: TrackTheme.separator(dark), width: .5),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(emoji, style: const TextStyle(fontSize: 20)),
+          Icon(_emptyStateIcon(emoji), size: 21, color: TrackTheme.orange),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -805,6 +817,25 @@ class _NoData extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _emptyStateIcon(String hint) {
+  final value = hint.toLowerCase();
+  if (value.contains('water')) return Icons.water_drop_outlined;
+  if (value.contains('mood')) return Icons.sentiment_satisfied_alt_outlined;
+  if (value.contains('expense')) return Icons.receipt_long_outlined;
+  if (value.contains('sleep')) return Icons.bedtime_outlined;
+  if (value.contains('habit')) return Icons.check_circle_outline_rounded;
+  if (value.contains('food')) return Icons.restaurant_outlined;
+  if (value.contains('step')) return Icons.directions_walk_outlined;
+  if (value.contains('period')) return Icons.calendar_month_outlined;
+  if (value.contains('screen')) return Icons.phone_android_outlined;
+  if (value.contains('weight')) return Icons.monitor_weight_outlined;
+  if (value.contains('trend')) return Icons.trending_up_rounded;
+  if (value.contains('warning')) return Icons.warning_amber_rounded;
+  if (value.contains('inbox')) return Icons.inbox_outlined;
+  if (value.contains('calendar')) return Icons.calendar_today_outlined;
+  return Icons.insights_outlined;
 }
 
 /// The Usage Access onboarding card on the Screen time detail screen.
@@ -865,7 +896,7 @@ class _ScreenTimeOnboardingState extends State<_ScreenTimeOnboarding> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('📱', style: TextStyle(fontSize: 20)),
+              const Icon(Icons.phone_android_outlined, size: 21, color: TrackTheme.orange),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -963,7 +994,7 @@ class _RhythmListState extends State<_RhythmList> {
     final rhythm = widget.state.rhythmFor(widget.tracker.id);
     if (rhythm == null || !rhythm.hasData) {
       return const _NoData(
-        emoji: '💧',
+        emoji: 'water',
         title: 'Nothing logged today yet',
         body: 'Each entry is timestamped, so once you log a few the app can show when in the day you drink.',
       );
@@ -1045,7 +1076,7 @@ class _Bar extends StatelessWidget {
           ),
           Expanded(
             child: TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: (value / max).clamp(0.0, 1.0)),
+              tween: Tween<double>(begin: 0, end: (value / max).clamp(0.0, 1.0).toDouble()),
               duration: const Duration(milliseconds: 800),
               curve: Curves.easeOutCubic,
               builder: (context, v, _) => ClipRRect(
@@ -1057,9 +1088,7 @@ class _Bar extends StatelessWidget {
                       widthFactor: v,
                       child: Container(
                         height: 8,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [Color.lerp(color, Colors.white, .12)!, color]),
-                        ),
+                        decoration: BoxDecoration(color: color),
                       ),
                     ),
                   ],
@@ -1118,7 +1147,7 @@ class _HistoryRow extends StatelessWidget {
       title: isToday ? 'Today' : longDate(date).split(',').first,
       subtitle: '${shortDate(date)} · $provenance',
       leading: isToday
-          ? Text(tracker.emoji, style: const TextStyle(fontSize: 15))
+          ? Icon(Icons.today_outlined, size: 18, color: tracker.accent)
           : Text('${date.day}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
       accent: tracker.accent,
       onTap: onTap,
@@ -1202,7 +1231,7 @@ class _HistorySectionState extends State<_HistorySection> {
 
     if (_failed) {
       return _NoData(
-        emoji: '⚠️',
+        emoji: 'warning',
         title: 'History could not be read',
         body: 'The entries are still in the database, but this screen could not load them. '
             'Reopening this tracker usually clears it.',
@@ -1226,7 +1255,7 @@ class _HistorySectionState extends State<_HistorySection> {
     final days = _days!;
     if (days.isEmpty) {
       return _NoData(
-        emoji: '🗓️',
+        emoji: 'calendar',
         title: 'No entries yet',
         body: 'Days you log appear here, one row each. Nothing is filled in for you: a day '
             'with no entry stays empty rather than showing a 0.',
@@ -1248,7 +1277,7 @@ class _HistorySectionState extends State<_HistorySection> {
           ProLockedRow(
             title: 'Older entries are kept, not deleted',
             subtitle: 'Pro reveals your whole history plus 90-day trends',
-            emoji: '🗓️',
+            emoji: 'calendar',
             accent: t.accent,
             onTap: widget.onLockedTap,
           ),
@@ -1272,7 +1301,7 @@ class _BackButton extends StatelessWidget {
         height: 34,
         alignment: Alignment.center,
         decoration: BoxDecoration(color: TrackTheme.fill(dark), shape: BoxShape.circle),
-        child: const Icon(CupertinoIcons.chevron_back, size: 17, color: TrackTheme.blue),
+        child: const Icon(Icons.arrow_back_rounded, size: 19, color: TrackTheme.blue),
       ),
     );
   }

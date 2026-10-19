@@ -166,9 +166,14 @@ internal object FocusStore {
         p.edit().putInt(KEY_ATTEMPTS, p.getInt(KEY_ATTEMPTS, 0) + 1).apply()
     }
 
+    /**
+     * Records a coverage-panel launch that Android accepted. This is intentionally
+     * separate from [bumpDetection]: a detected foreground app with a refused
+     * background activity launch must never become evidence that it was covered.
+     */
     fun bumpOverlayShow(context: Context) {
-        val p = prefs(context)
-        p.edit().putInt(KEY_OVERLAY_SHOWS, p.getInt(KEY_OVERLAY_SHOWS, 0) + 1).apply()
+      val p = prefs(context)
+      p.edit().putInt(KEY_OVERLAY_SHOWS, p.getInt(KEY_OVERLAY_SHOWS, 0) + 1).apply()
     }
 
     /** How long the service may go without a heartbeat before it is called dead. */

@@ -191,10 +191,10 @@ class NotificationService {
     await _scheduleDaily(
       id: _streakSaverId,
       channel: _streakChannel,
-      title: '🔥 Your $days-day streak is at risk',
+      title: 'Your $days-day streak is at risk',
       body: hideDetails
           ? 'One tap keeps it alive. Open Track Pro to see which one.'
-          : '${tracker.emoji} ${tracker.name} is still open today. One tap keeps it alive.',
+          : '${tracker.name} is still open today. One tap keeps it alive.',
       hour: 21,
       minute: 45,
       payload: 'quickadd',
@@ -389,7 +389,7 @@ class NotificationService {
           // Grouped under one app-level group so three reminders never stack into
           // a wall of noise.
           groupKey: 'com.track.app.reminders',
-          // iOS-like presentation: no huge icon, title + body + one action.
+          // Compact Android notification presentation: title, body and one action.
           actions: const [AndroidNotificationAction('log', 'Log now', showsUserInterface: true)],
         ),
       );

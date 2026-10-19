@@ -95,13 +95,14 @@ class FocusNativeState {
   final int startedAtRealtimeMs;
   final int endsAtRealtimeMs;
 
-  /// Blocked apps that were brought to the front, and how many times the block
-  /// surface actually covered one.
+  /// Times a selected app was brought to the front, and times Android accepted a
+  /// coverage-panel launch for it. A selected-app opening is not itself proof that
+  /// a panel appeared, so the two counters stay separate.
   final int blockedAttempts;
   final int overlayShows;
 
-  /// Foreground-app events the monitor reported. The single number that separates
-  /// "armed" from "verified".
+  /// Foreground-app events the monitor reported. Together with [overlayShows], this
+  /// separates healthy-but-unproven `armed` enforcement from `verified` coverage.
   final int detectionEvents;
 
   final bool usageAccess;

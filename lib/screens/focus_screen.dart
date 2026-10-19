@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:ui' show FontFeature;
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -38,7 +37,7 @@ Future<void> openFocusSession(BuildContext context) async {
   _sessionRouteOpen = true;
   try {
     await Navigator.of(context).push(
-      CupertinoPageRoute<void>(
+      MaterialPageRoute<void>(
         fullscreenDialog: true,
         builder: (_) => const FocusSessionScreen(),
       ),
@@ -47,6 +46,12 @@ Future<void> openFocusSession(BuildContext context) async {
     _sessionRouteOpen = false;
   }
 }
+
+IconData _modeIcon(FocusMode mode) => switch (mode) {
+      FocusMode.standard => Icons.timer_outlined,
+      FocusMode.blocking => Icons.block_outlined,
+      FocusMode.deep => Icons.do_not_disturb_on_outlined,
+    };
 
 class FocusSessionScreen extends StatefulWidget {
   const FocusSessionScreen({super.key});
@@ -191,8 +196,8 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
     }
 
     final plannedMs = session.plannedMs;
-    final remaining = app.focusRemainingMs.clamp(0, plannedMs);
-    final progress = plannedMs == 0 ? 0.0 : (1 - remaining / plannedMs).clamp(0.0, 1.0);
+    final remaining = app.focusRemainingMs.clamp(0, plannedMs).toInt();
+    final progress = plannedMs == 0 ? 0.0 : (1 - remaining / plannedMs).clamp(0.0, 1.0).toDouble();
     final enforcement = app.focusEnforcement;
 
     return Scaffold(
@@ -262,8 +267,14 @@ class _TopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(12, 6, 12, 2),
       child: Row(
         children: [
-          Text('${session.mode.emoji}  ${session.mode.label}',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: -.2, color: TrackTheme.label2(dark))),
+          Row(
+            children: [
+              Icon(_modeIcon(session.mode), size: 18, color: TrackTheme.orange),
+              const SizedBox(width: 7),
+              Text(session.mode.label,
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: -.2, color: TrackTheme.label2(dark))),
+            ],
+          ),
           const Spacer(),
           Pressable(
             onTap: () => unawaited(onEnd()),
@@ -413,15 +424,24 @@ class _StatusBlock extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                  paused
-                      ? 'Your covered apps are available again. Resume to cover them for the time that is left.'
-                      : enforcement.detail,
-                  style: TextStyle(fontSize: 12.8, fontWeight: FontWeight.w500, height: 1.45, color: TrackTheme.label2(dark))),
+                paused
+                    ? 'Your selected apps are available again. Resume to request coverage for the time that is left.'
+                    : enforcement.detail,
+                style: TextStyle(
+                  fontSize: 12.8,
+                  fontWeight: FontWeight.w500,
+                  height: 1.45,
+                  color: TrackTheme.label2(dark),
+                ),
+              ),
               if (blocking) ...[
                 const SizedBox(height: 8),
                 Text(
-                  '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} covered · '
-                  '${native.blockedAttempts} opening${native.blockedAttempts == 1 ? '' : 's'} noticed',
+                  enforcement.isConfirmed
+                      ? 'Coverage panel launched ${native.overlayShows} time${native.overlayShows == 1 ? '' : 's'} · '
+                          '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected'
+                      : '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected · '
+                          '${native.blockedAttempts} selected-app opening${native.blockedAttempts == 1 ? '' : 's'} noticed',
                   style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w600, color: accent),
                 ),
               ],
@@ -440,7 +460,7 @@ class _StatusBlock extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  Icon(CupertinoIcons.exclamationmark_triangle, size: 15, color: TrackTheme.orange),
+                  Icon(Icons.warning_amber_rounded, size: 18, color: TrackTheme.orange),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Text(
@@ -450,7 +470,7 @@ class _StatusBlock extends StatelessWidget {
                       style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
                     ),
                   ),
-                  Icon(CupertinoIcons.chevron_forward, size: 13, color: TrackTheme.label3(dark)),
+                  Icon(Icons.chevron_right_rounded, size: 20, color: TrackTheme.label3(dark)),
                 ],
               ),
             ),
@@ -680,7 +700,7 @@ class _SummaryBodyState extends State<_SummaryBody> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                outcome == null ? 'Not recorded' : '${outcome.emoji}  ${outcome.label}',
+                outcome == null ? 'Not recorded' : outcome.label,
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TrackTheme.label(dark)),
               ),
               const SizedBox(height: 4),
@@ -693,7 +713,7 @@ class _SummaryBodyState extends State<_SummaryBody> {
               ],
               if (widget.summary.blockedApps.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text('Covered: ${widget.summary.blockedApps.join(', ')}',
+                Text('Selected for coverage: ${widget.summary.blockedApps.join(', ')}',
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),

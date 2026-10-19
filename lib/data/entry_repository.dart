@@ -429,10 +429,10 @@ class EntryRepository {
   Future<RhythmBuckets> rhythm(String trackerId, {int buckets = 8, DateTime? day}) async {
     final target = day ?? DateTime.now();
     final events = await dao.eventsForDay(trackerId, dayKey(target));
-    final width = buckets <= 0 ? 24 : (24 ~/ buckets).clamp(1, 24);
+    final width = buckets <= 0 ? 24 : (24 ~/ buckets).clamp(1, 24).toInt();
     final sums = List<double>.filled(buckets <= 0 ? 1 : buckets, 0);
     for (final e in events) {
-      final slot = (e.ts.hour ~/ width).clamp(0, sums.length - 1);
+      final slot = (e.ts.hour ~/ width).clamp(0, sums.length - 1).toInt();
       sums[slot] += e.value;
     }
     final labels = [

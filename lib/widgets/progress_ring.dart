@@ -1,18 +1,15 @@
 import 'dart:math' as math;
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 
-/// Apple Health-style activity ring: gradient sweep, round caps, soft glow and
-/// a draw-on-load animation driven by a TweenAnimationBuilder.
+/// Progress ring with a single readable semantic color and a draw-on-load animation.
 class ProgressRing extends StatelessWidget {
   const ProgressRing({
     super.key,
     required this.pct,
     this.size = 78,
     this.stroke = 8,
-    this.colorA = const Color(0xFF007AFF),
-    this.colorB = const Color(0xFF5AC8FA),
+    this.colorA = const Color(0xFFFF7A18),
+    this.colorB = const Color(0xFFFF5A1F),
     this.trackColor,
     this.center,
     this.duration = const Duration(milliseconds: 1250),
@@ -31,7 +28,7 @@ class ProgressRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final target = pct.clamp(0.0, 1.0);
+    final target = pct.clamp(0.0, 1.0).toDouble();
     final ring = TweenAnimationBuilder<double>(
       tween: Tween<double>(begin: animate ? 0 : target, end: target),
       duration: duration,
@@ -83,40 +80,20 @@ class _RingPainter extends CustomPainter {
     canvas.drawArc(rect, 0, math.pi * 2, false, trackPaint);
     if (value <= 0) return;
 
-    // Rotate so the sweep starts at 12 o'clock (Apple's ring convention) and the
-    // gradient angle lines up with the arc.
-    canvas.save();
-    canvas.translate(rect.center.dx, rect.center.dy);
-    canvas.rotate(-math.pi / 2);
-    canvas.translate(-rect.center.dx, -rect.center.dy);
-
+    // Start at 12 o'clock and use one solid semantic color. The older gradient and
+    // halo were decorative rather than information-bearing and competed with data.
     final sweep = math.pi * 2 * value;
-    final shader = ui.Gradient.sweep(rect.center, [a, b]);
-
     canvas.drawArc(
       rect,
-      0,
+      -math.pi / 2,
       sweep,
       false,
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = stroke
         ..strokeCap = StrokeCap.round
-        ..color = b.withOpacity(.35)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, stroke * .8),
+        ..color = a,
     );
-    canvas.drawArc(
-      rect,
-      0,
-      sweep,
-      false,
-      Paint()
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = stroke
-        ..strokeCap = StrokeCap.round
-        ..shader = shader,
-    );
-    canvas.restore();
   }
 
   @override

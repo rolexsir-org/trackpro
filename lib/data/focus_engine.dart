@@ -11,12 +11,12 @@ import '../util/day_key.dart';
 ///
 /// The three rules that matter most, all enforced here rather than in the UI:
 ///
-///  1. **Enforcement is proved, not assumed.** [enforcementFor] will not return
-///     [FocusEnforcement.verified] without evidence that the foreground-app
-///     detector actually reported something, and [outcomeFor] will not return a
-///     clean completion for a blocking session whose enforcement was never
-///     confirmed. "We asked for permission and started a service" is not evidence
-///     that anything was blocked.
+  ///  1. **Enforcement is proved, not assumed.** [enforcementFor] will not return
+  ///     [FocusEnforcement.verified] until the foreground-app detector has reported
+  ///     activity and Android accepted a coverage-panel launch for a selected app.
+  ///     [outcomeFor] will not return a clean completion for a blocking session whose
+  ///     enforcement was never confirmed. "We asked for permission and started a
+  ///     service" is not evidence that anything was blocked.
 ///  2. **Time is monotonic first.** [recover] uses the platform's monotonic clock
 ///     (Android `SystemClock.elapsedRealtime()`) as the source of truth, falls back
 ///     to the wall clock only when it must, and treats a *backwards* monotonic clock
@@ -58,7 +58,7 @@ class FocusEngine {
       };
 
   static int clampMinutes(int minutes) =>
-      minutes.clamp(minCustomMinutes, maxCustomMinutes);
+      minutes.clamp(minCustomMinutes, maxCustomMinutes).toInt();
 
   // ------------------------------------------------------------- enforcement
   /// What actually happened to enforcement, derived from what the platform
@@ -70,13 +70,14 @@ class FocusEngine {
   ///     [FocusEnforcement.lost] (the rest of the session was unprotected);
   ///   * a required permission is missing → [FocusEnforcement.unavailable]
   ///     (nothing is being enforced at all);
-  ///   * service alive, permissions held, and at least one foreground event has
-  ///     been observed → [FocusEnforcement.verified];
+  ///   * service alive, permissions held, a foreground event observed, and a
+  ///     coverage panel successfully launched → [FocusEnforcement.verified];
   ///   * otherwise → [FocusEnforcement.armed]: set up, unproven.
   ///
-  /// `detectionEvents` is the count of foreground-app events the monitor reported
-  /// during this session. It is the single piece of evidence that separates "the
-  /// mechanism is running" from "the mechanism works".
+  /// `detectionEvents` proves the monitor observed foreground activity. That alone
+  /// does not prove it could cover a selected app: Android/OEM policy can refuse a
+  /// background activity launch. `overlayShows` is incremented only after that launch
+  /// succeeds, so it is required before the UI can say "blocking verified".
   static FocusEnforcement enforcementFor({
     required bool blockingRequested,
     required bool serviceAlive,
@@ -84,11 +85,12 @@ class FocusEngine {
     required bool overlayGranted,
     required bool usageAccessGranted,
     required int detectionEvents,
+    required int overlayShows,
   }) {
     if (!blockingRequested) return FocusEnforcement.timerOnly;
     if (permissionLostMidSession || !serviceAlive) return FocusEnforcement.lost;
     if (!overlayGranted || !usageAccessGranted) return FocusEnforcement.unavailable;
-    return detectionEvents > 0 ? FocusEnforcement.verified : FocusEnforcement.armed;
+    return detectionEvents > 0 && overlayShows > 0 ? FocusEnforcement.verified : FocusEnforcement.armed;
   }
 
   /// Whether the enforcement state that ended the session should downgrade a
@@ -123,7 +125,7 @@ class FocusEngine {
       return FocusRecovery(
         session: session,
         elapsedMs: session.focusMs,
-        remainingMs: (planned - session.focusMs).clamp(0, planned),
+        remainingMs: (planned - session.focusMs).clamp(0, planned).toInt(),
         expired: session.focusMs >= planned,
         rebooted: false,
         monotonicTrusted: session.timingVerified,
@@ -141,7 +143,7 @@ class FocusEngine {
       final fromCheckpoint = session.state == FocusSessionState.paused || back;
       final estimate =
           fromCheckpoint ? session.focusMs : session.focusMs + (wallDelta - session.wallSpanMs);
-      final elapsed = estimate.clamp(session.focusMs, planned);
+      final elapsed = estimate.clamp(session.focusMs, planned).toInt();
       return FocusRecovery(
         session: session,
         elapsedMs: elapsed,
@@ -165,7 +167,7 @@ class FocusEngine {
       return FocusRecovery(
         session: session,
         elapsedMs: session.focusMs,
-        remainingMs: (planned - session.focusMs).clamp(0, planned),
+        remainingMs: (planned - session.focusMs).clamp(0, planned).toInt(),
         expired: false,
         rebooted: true,
         monotonicTrusted: true,
@@ -558,7 +560,7 @@ String focusDurationLabel(int milliseconds) {
 /// `18:42` — the countdown, floored so it never shows a second that has not
 /// elapsed, and capped at a day so a corrupt row cannot print nonsense.
 String focusCountdownLabel(int milliseconds) {
-  final total = (milliseconds / 1000).floor().clamp(0, 24 * 3600);
+  final total = (milliseconds / 1000).floor().clamp(0, 24 * 3600).toInt();
   final m = total ~/ 60;
   final s = total % 60;
   return '$m:${s < 10 ? '0$s' : s}';
@@ -597,9 +599,9 @@ extension FocusModeText on FocusMode {
           'A quiet timer. Track Pro holds its own reminders while a session runs; nothing outside '
               'the app is touched.',
         FocusMode.blocking =>
-          'Covers the apps you pick while the session runs. It is best-effort, not a lock.',
+          'Requests a coverage panel for the apps you pick while the session runs. It is best-effort, not a lock.',
         FocusMode.deep =>
-          'App covering with stricter rules: a smaller pause budget, and a press-and-hold to end.',
+          'Requested app coverage with stricter rules: a smaller pause budget, and a press-and-hold to end.',
       };
 
   /// The honest limitation, shown on the setup sheet *before* a mode is chosen. A
@@ -634,11 +636,11 @@ extension FocusEnforcementText on FocusEnforcement {
           'Not blocking: a permission this mode needs is not granted, so nothing is being '
               'restricted.',
         FocusEnforcement.armed =>
-          'Blocking is running, but this device has not yet reported which app you opened, so '
-              'Track Pro cannot confirm it is working.',
+          'The coverage service is running, but Track Pro has not yet seen Android accept a coverage-panel '
+              'launch for a selected app, so it cannot confirm coverage is working.',
         FocusEnforcement.verified =>
-          'Blocking is working: this device is reporting the app you open, and selected apps are '
-              'covered.',
+          'A selected app was detected and Track Pro launched its coverage panel. This remains '
+              'best-effort: Android can always leave an app through Home or system controls.',
         FocusEnforcement.lost =>
           'Blocking stopped during this session. The rest of the time was not enforced.',
       };

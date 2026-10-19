@@ -34,7 +34,7 @@ class MiniChart extends StatelessWidget {
               child: Padding(
                 padding: EdgeInsets.only(right: i == values.length - 1 ? 0 : 3),
                 child: _Bar(
-                  fraction: max <= 0 ? .06 : (values[i] / max).clamp(.06, 1.0),
+                  fraction: max <= 0 ? .06 : (values[i] / max).clamp(.06, 1.0).toDouble(),
                   color: color,
                   radius: barRadius,
                   dim: !todayTint && i == values.length - 1,
@@ -75,17 +75,11 @@ class _Bar extends StatelessWidget {
       builder: (context, v, _) => Align(
         alignment: Alignment.bottomCenter,
         child: FractionallySizedBox(
-          heightFactor: v.clamp(.04, 1.0),
+          heightFactor: v.clamp(.04, 1.0).toDouble(),
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(radius),
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: dim
-                    ? [Colors.white.withOpacity(.9), color.withOpacity(.4)]
-                    : [Color.lerp(color, Colors.white, .18)!, color],
-              ),
+              color: dim ? color.withOpacity(.4) : color,
             ),
             child: const SizedBox.expand(),
           ),
@@ -168,11 +162,7 @@ class _LinePainter extends CustomPainter {
     canvas.drawPath(
       area,
       Paint()
-        ..shader = LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [a.withOpacity(.32), a.withOpacity(0)],
-        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+        ..color = a.withOpacity(.14),
     );
     canvas.drawPath(
       path,
@@ -181,11 +171,11 @@ class _LinePainter extends CustomPainter {
         ..strokeWidth = 3
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
-        ..shader = LinearGradient(colors: [a, b]).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+        ..color = a,
     );
     canvas.restore();
 
-    canvas.drawCircle(pts.last, 5, Paint()..color = b);
+    canvas.drawCircle(pts.last, 5, Paint()..color = a);
     canvas.drawCircle(pts.last, 5, Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3

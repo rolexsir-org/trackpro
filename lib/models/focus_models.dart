@@ -26,10 +26,10 @@ import 'dart:ui' show Color;
 /// How strict a session is.
 ///
 /// [standard] is a timer: it reduces in-app distraction and stays quiet, and it
-/// makes no claim about other applications. [blocking] additionally covers the
-/// apps the user selected. [deep] applies the stricter rule set the user
-/// configured (a smaller pause budget, a hold to end) — it is not a kiosk and it
-/// does not lock the device.
+/// makes no claim about other applications. [blocking] requests a coverage panel
+/// for apps the user selected; Android may still refuse a background launch. [deep]
+/// applies the stricter rule set the user configured (a smaller pause budget, a hold
+/// to end) — it is not a kiosk and it does not lock the device.
 enum FocusMode {
   standard,
   blocking,
@@ -123,9 +123,9 @@ enum FocusEnforcement {
   /// refuses to report usage looks like. Enforcement is **not confirmed**.
   armed,
 
-  /// Service alive, permissions held, and the detector has demonstrably reported
-  /// foreground activity during this session. This is the only value that supports
-  /// the sentence "blocking was working".
+  /// Service alive, permissions held, the detector has seen foreground activity,
+  /// and Android accepted a coverage-panel launch for a selected app. This is the
+  /// only value that supports the sentence "blocking was working".
   verified,
 
   /// Enforcement stopped mid-session (the service went away or a permission was
@@ -404,7 +404,7 @@ class FocusRecovery {
   Duration get remaining => Duration(milliseconds: remainingMs);
 
   double get progress =>
-      session.plannedMs <= 0 ? 1 : (elapsedMs / session.plannedMs).clamp(0.0, 1.0);
+      session.plannedMs <= 0 ? 1 : (elapsedMs / session.plannedMs).clamp(0.0, 1.0).toDouble();
 }
 
 /// A reusable rule set: mode + duration + the apps to restrict. Pro.

@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -13,6 +12,7 @@ import '../util/day_key.dart';
 import '../util/format.dart';
 import '../widgets/glass.dart';
 import '../widgets/large_title_header.dart';
+import '../widgets/ios_tab_bar.dart';
 import '../widgets/tracker_card.dart';
 import 'commitment_sheets.dart';
 import 'detail_screen.dart';
@@ -31,50 +31,30 @@ class TodayScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final trackers = state.visibleTrackers;
+    // The floating tab bar is above Android's navigation inset. Keep the last
+    // card beyond both instead of relying on a fixed 130px value that can be too
+    // small on gesture/navigation variants with a larger bottom inset.
+    final requiredBottomPadding = IosTabBar.scrollClearance(context);
+    final scrollBottomPadding = requiredBottomPadding > 130 ? requiredBottomPadding : 130.0;
     if (trackers.isEmpty) return const _NoTrackers();
 
     final hero = trackers.firstWhere((t) => t.hero, orElse: () => trackers.first);
     final grid = trackers.where((t) => t.id != hero.id).toList();
 
-    return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+    return RefreshIndicator(
+      color: Editorial.accent,
+      backgroundColor: Editorial.surface,
+      onRefresh: () => _refresh(context),
+      child: CustomScrollView(
+        physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       slivers: [
         LargeTitleHeader(
           title: greetingFor(DateTime.now()),
           subtitle: longDate(DateTime.now()),
           trailing: _Avatar(onTap: () => context.read<AppState>().setTab(4)),
         ),
-        CupertinoSliverRefreshControl(
-          onRefresh: () async {
-            final state = context.read<AppState>();
-            final stopwatch = Stopwatch()..start();
-            var written = 0;
-            try {
-              written = await state.syncHealth();
-            } catch (_) {
-              written = 0;
-            }
-            // A refresh that finishes in 80ms should still feel like it did
-            // something: hold the spinner for a beat, like iOS does.
-            final remaining = 900 - stopwatch.elapsedMilliseconds;
-            if (remaining > 0) await Future<void>.delayed(Duration(milliseconds: remaining));
-            if (!context.mounted) return;
-            // Every code gets its own sentence, because they need different actions.
-            // A free user was told "permission needed" (permissions were not the
-            // problem), and a connected user with nothing new was told the same thing.
-            final message = switch (written) {
-              -2 => 'Health sync is a Pro feature — nothing was read',
-              -1 => 'Health Connect permission was not granted',
-              0 => state.healthConnected
-                  ? 'Up to date · nothing new from Health Connect'
-                  : 'Everything here is local · Health Connect is not connected',
-              _ => 'Synced · $written days from Health Connect',
-            };
-            showTrackToast(context, message);
-          },
-        ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+          padding: EdgeInsets.fromLTRB(Editorial.s5, Editorial.s1, Editorial.s5, scrollBottomPadding),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               // One quiet sentence when something the user asked for cannot currently
@@ -140,7 +120,28 @@ class TodayScreen extends StatelessWidget {
           ),
         ),
       ],
+      ),
     );
+  }
+
+  Future<void> _refresh(BuildContext context) async {
+    final state = context.read<AppState>();
+    var written = 0;
+    try {
+      written = await state.syncHealth();
+    } catch (_) {
+      written = 0;
+    }
+    if (!context.mounted) return;
+    final message = switch (written) {
+      -2 => 'Health sync is a Pro feature — nothing was read',
+      -1 => 'Health Connect permission was not granted',
+      0 => state.healthConnected
+          ? 'Up to date · nothing new from Health Connect'
+          : 'Everything here is local · Health Connect is not connected',
+      _ => 'Synced · $written days from Health Connect',
+    };
+    showTrackToast(context, message);
   }
 
   /// Observations, or an honest account of why there are none.
@@ -158,7 +159,7 @@ class TodayScreen extends StatelessWidget {
       final plan = state.momentumFor(c.id)?.restart;
       if (plan == null) continue;
       cards.add(InsightCard(
-        emoji: '🔁',
+        emoji: 'restart',
         title: '${c.name} has gone quiet — here is a restart plan.',
         body: '${plan.reason} ${plan.steps.first.title}: ${plan.steps.first.detail}',
         accent: TrackTheme.orange,
@@ -188,7 +189,7 @@ class TodayScreen extends StatelessWidget {
     if (moodDays > 0 && state.today('mood') > 0) {
       final avg = state.avg('mood', 7);
       cards.add(InsightCard(
-        emoji: '😊',
+        emoji: 'mood',
         title: 'Mood averaged ${avg.toStringAsFixed(1)} over the last 7 days.',
         body: 'From $moodDays day${moodDays == 1 ? '' : 's'} with a mood logged. '
             'Days you skipped are left out rather than counted as zero.',
@@ -201,7 +202,7 @@ class TodayScreen extends StatelessWidget {
 
     return [
       const InsightCard(
-        emoji: '🌱',
+        emoji: 'growth',
         title: 'Nothing to report yet',
         body: 'Log a few days and your patterns, averages and streaks will appear here.',
         accent: TrackTheme.green,
@@ -239,7 +240,7 @@ class _CommitmentQueue extends StatelessWidget {
                   height: 38,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(color: Editorial.accent.withOpacity(.16), borderRadius: BorderRadius.circular(12)),
-                  child: const Text('🎯', style: TextStyle(fontSize: 18)),
+                  child: const Icon(Icons.track_changes_outlined, size: 20, color: Editorial.accent),
                 ),
                 const SizedBox(width: Editorial.s3),
                 Expanded(
@@ -253,7 +254,7 @@ class _CommitmentQueue extends StatelessWidget {
                     ],
                   ),
                 ),
-                Icon(CupertinoIcons.chevron_right, size: 15, color: Editorial.inkTertiary),
+                Icon(Icons.chevron_right_rounded, size: 20, color: Editorial.inkTertiary),
               ],
             ),
           ),
@@ -270,18 +271,21 @@ class _CommitmentQueue extends StatelessWidget {
         children: [
           Padding(
             padding: const EdgeInsets.only(bottom: Editorial.s2),
-            child: Row(
+            child: Wrap(
+              spacing: Editorial.s2,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text('TODAY', style: Editorial.label),
-                const SizedBox(width: Editorial.s2),
                 Text(
                   open == 0 ? 'everything logged' : '$open still open',
                   style: Editorial.caption,
                 ),
-                const Spacer(),
                 if (state.overallMomentum?.rate != null)
-                  Text('${state.overallMomentum!.rate!.round()}% momentum',
-                      style: Editorial.caption.copyWith(color: Editorial.inkSecondary)),
+                  Text(
+                    '${state.overallMomentum!.rate!.round()}% momentum',
+                    style: Editorial.caption.copyWith(color: Editorial.inkSecondary),
+                  ),
               ],
             ),
           ),
@@ -314,16 +318,34 @@ class _CommitmentTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(c.emoji, style: const TextStyle(fontSize: 18)),
+              TrackRecordIcon(label: c.name, color: c.color, size: 30, iconSize: 17),
               const SizedBox(width: Editorial.s2),
               Expanded(
-                child: Text(c.name, style: Editorial.figure.copyWith(fontSize: 15), overflow: TextOverflow.ellipsis),
+                flex: 2,
+                child: Text(
+                  c.name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Editorial.figure.copyWith(fontSize: 15),
+                ),
               ),
-              if (item.paused)
-                Text('paused', style: Editorial.caption)
-              else if (snap != null && snap.keepGoingStreak > 0)
-                Text('${snap.keepGoingStreak} day${snap.keepGoingStreak == 1 ? '' : 's'} kept',
-                    style: Editorial.caption),
+              if (item.paused) ...[
+                const SizedBox(width: Editorial.s2),
+                Flexible(
+                  child: Text('paused', maxLines: 1, overflow: TextOverflow.ellipsis, style: Editorial.caption),
+                ),
+              ] else if (snap != null && snap.keepGoingStreak > 0) ...[
+                const SizedBox(width: Editorial.s2),
+                Flexible(
+                  child: Text(
+                    '${snap.keepGoingStreak} day${snap.keepGoingStreak == 1 ? '' : 's'} kept',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: Editorial.caption,
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: Editorial.s3),
@@ -364,7 +386,7 @@ class _CommitmentTile extends StatelessWidget {
                     width: 44,
                     alignment: Alignment.center,
                     decoration: Editorial.card(fill: Editorial.well),
-                    child: Icon(CupertinoIcons.ellipsis, size: 16, color: Editorial.inkTertiary),
+                    child: Icon(Icons.more_horiz_rounded, size: 20, color: Editorial.inkTertiary),
                   ),
                 ),
               ],
@@ -436,12 +458,13 @@ class _Avatar extends StatelessWidget {
         width: 34,
         height: 34,
         alignment: Alignment.center,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(colors: [Color(0xFF5AC8FA), Color(0xFF007AFF)]),
+          color: Editorial.well,
+          border: Border.all(color: Editorial.hairline, width: .5),
         ),
-        // No initials: this app has no account and no name to put here.
-        child: const Icon(CupertinoIcons.person_fill, size: 18, color: Colors.white),
+        // The app has no account profile, so this is a destination affordance.
+        child: const Icon(Icons.person_outline_rounded, size: 19, color: Editorial.accent),
       ),
     );
   }
@@ -455,12 +478,14 @@ class _NoTrackers extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final requiredBottomPadding = IosTabBar.scrollClearance(context);
+    final scrollBottomPadding = requiredBottomPadding > 130 ? requiredBottomPadding : 130.0;
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       slivers: [
         LargeTitleHeader(title: greetingFor(DateTime.now()), subtitle: longDate(DateTime.now())),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+          padding: EdgeInsets.fromLTRB(Editorial.s5, Editorial.s1, Editorial.s5, scrollBottomPadding),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               Container(
@@ -582,14 +607,14 @@ Future<void> _quickActions(BuildContext context, Tracker t) async {
     // dashboard" even for a tracker that was already hidden, so the one control that
     // could bring it back read as a second way to hide it.
     items: [
-      const ['Log now', CupertinoIcons.add],
-      const ['View history & insights', CupertinoIcons.arrow_right],
-      const ['Change goal', CupertinoIcons.target],
-      const ['Pin to top', CupertinoIcons.arrow_up],
+      const ['Log now', Icons.add_rounded],
+      const ['View history & insights', Icons.insights_outlined],
+      const ['Change goal', Icons.flag_outlined],
+      const ['Pin to top', Icons.vertical_align_top_rounded],
       if (t.hidden)
-        const ['Show on dashboard', CupertinoIcons.eye, true]
+        const ['Show on dashboard', Icons.visibility_outlined, true]
       else
-        const ['Hide from dashboard', CupertinoIcons.eye_slash, true],
+        const ['Hide from dashboard', Icons.visibility_off_outlined, true],
     ],
   );
   if (result == null || !context.mounted) return;
@@ -694,10 +719,13 @@ class _FocusCard extends StatelessWidget {
                               ? 'Apps are available until you resume.'
                               : enforcement.intendsToBlock && !enforcement.isConfirmed
                                   ? enforcement.detail
-                                  : live.blockedPackages.isEmpty
-                                      ? live.mode.label
-                                      : '${live.mode.label} · ${live.blockedPackages.length} app'
-                                          '${live.blockedPackages.length == 1 ? '' : 's'} covered',
+                                  : enforcement.isConfirmed && live.blockedPackages.isNotEmpty
+                                      ? '${live.mode.label} · coverage verified · ${live.blockedPackages.length} app'
+                                          '${live.blockedPackages.length == 1 ? '' : 's'} selected'
+                                      : live.blockedPackages.isEmpty
+                                          ? live.mode.label
+                                          : '${live.mode.label} · ${live.blockedPackages.length} app'
+                                              '${live.blockedPackages.length == 1 ? '' : 's'} selected',
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(fontSize: 11.5, height: 1.35, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
@@ -705,7 +733,7 @@ class _FocusCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Icon(CupertinoIcons.chevron_forward, size: 14, color: accent),
+                Icon(Icons.chevron_right_rounded, size: 20, color: accent),
               ],
             ),
           ),
@@ -721,15 +749,14 @@ class _FocusCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: TrackTheme.surface(dark),
           borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-          boxShadow: TrackTheme.cardShadow(dark),
-          border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+          border: Border.all(color: TrackTheme.separator(dark), width: .5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Text('🎯', style: TextStyle(fontSize: 15)),
+                const Icon(Icons.timer_outlined, size: 19, color: TrackTheme.orange),
                 const SizedBox(width: 8),
                 Text('Focus',
                     style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w700, letterSpacing: -.25, color: TrackTheme.label(dark))),
@@ -764,7 +791,7 @@ class _FocusCard extends StatelessWidget {
                     label: 'History',
                     color: TrackTheme.indigo,
                     onTap: () => Navigator.of(context).push(
-                      CupertinoPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
+                      MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
                     ),
                   ),
                 ),

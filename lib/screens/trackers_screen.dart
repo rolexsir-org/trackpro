@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -32,7 +31,7 @@ class TrackersScreen extends StatelessWidget {
     final list = state.trackers.toList()..sort((a, b) => a.order.compareTo(b.order));
 
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       slivers: [
         LargeTitleHeader(
           // This screen is never a tab (the tab bar is the habit loop), so it is always
@@ -54,7 +53,7 @@ class TrackersScreen extends StatelessWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               GlassList(children: [
@@ -71,7 +70,7 @@ class TrackersScreen extends StatelessWidget {
               Row(children: [
                 // "Reorder / remove" is gone: the header's Edit toggle is the same action,
                 // and two controls for one mode read as two different modes. Edit stays in
-                // the header, where iOS puts it.
+                // the header, where the Android editing action remains easy to reach.
                 GestureDetector(
                   onTap: () => openGoalsSheet(context),
                   child: Container(
@@ -104,7 +103,7 @@ class TrackersScreen extends StatelessWidget {
                   GlassRow(
                     title: e.name,
                     subtitle: e.blurb,
-                    leading: Text(e.emoji, style: const TextStyle(fontSize: 15)),
+                    leading: Icon(Icons.add_circle_outline_rounded, size: 18, color: Color(e.accent)),
                     accent: Color(e.accent),
                     showChevron: false,
                     onTap: () {
@@ -124,13 +123,13 @@ class TrackersScreen extends StatelessWidget {
                       );
                     },
                     trailing: state.added.contains(e.id)
-                        ? Text('✓ Added',
+                        ? Text('Added',
                             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.green))
                         : state.canAddTracker()
-                            ? Text('＋ Add',
+                            ? Text('Add',
                                 style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue))
                             : const Row(mainAxisSize: MainAxisSize.min, children: [
-                                Icon(CupertinoIcons.lock_fill, size: 12, color: ProPalette.goldDeep),
+                                Icon(Icons.lock_outline_rounded, size: 14, color: ProPalette.goldDeep),
                                 SizedBox(width: 5),
                                 ProChip(compact: true),
                               ]),
@@ -138,7 +137,7 @@ class TrackersScreen extends StatelessWidget {
               ]),
               const SizedBox(height: 14),
               InsightCard(
-                emoji: '🧩',
+                emoji: 'trackers',
                 // Real counts and a real start date, or an honest "nothing yet".
                 // The previous line, "1,284 entries … since 17 Sep.", was typed
                 // into the source: every user saw the same invented history.
@@ -188,13 +187,7 @@ class _TrackerRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
       child: Row(
         children: [
-          Container(
-            width: 29,
-            height: 29,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(color: tracker.accent.withOpacity(.15), borderRadius: BorderRadius.circular(9)),
-            child: Text(tracker.emoji, style: const TextStyle(fontSize: 15)),
-          ),
+          TrackRecordIcon(label: tracker.name, color: tracker.accent, size: 29, iconSize: 16),
           const SizedBox(width: 12),
           Expanded(
             child: GestureDetector(
@@ -206,7 +199,7 @@ class _TrackerRow extends StatelessWidget {
                 children: [
                   Text(tracker.name,
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
-                  Text('${fmtGoalLong(tracker)} · ${fmtValue(tracker, v)} today · 🔥 ${streakOf(tracker, values)}d',
+                  Text('${fmtGoalLong(tracker)} · ${fmtValue(tracker, v)} today · ${streakOf(tracker, values)}-day streak',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
@@ -216,12 +209,12 @@ class _TrackerRow extends StatelessWidget {
           ),
           if (editing)
             Row(children: [
-              _RowBtn(icon: CupertinoIcons.arrow_up, enabled: index > 0, onTap: () => state.move(tracker.id, -1)),
+              _RowBtn(icon: Icons.arrow_upward_rounded, enabled: index > 0, onTap: () => state.move(tracker.id, -1)),
               const SizedBox(width: 4),
-              _RowBtn(icon: CupertinoIcons.arrow_down, enabled: index < total - 1, onTap: () => state.move(tracker.id, 1)),
+              _RowBtn(icon: Icons.arrow_downward_rounded, enabled: index < total - 1, onTap: () => state.move(tracker.id, 1)),
               const SizedBox(width: 4),
               _RowBtn(
-                icon: CupertinoIcons.xmark,
+                icon: Icons.visibility_off_outlined,
                 color: TrackTheme.red,
                 onTap: () {
                   state.toggleHidden(tracker.id);

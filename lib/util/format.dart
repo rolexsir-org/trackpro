@@ -24,7 +24,7 @@ String fmtValue(Tracker t, double v) {
     case MetricKind.weight:
       return '${v.toStringAsFixed(1)} kg';
     case MetricKind.mood:
-      return const ['😖', '🙁', '😐', '🙂', '😄'][v.round().clamp(1, 5) - 1];
+      return const ['Poor', 'Fair', 'Okay', 'Good', 'Great'][v.round().clamp(1, 5).toInt() - 1];
     case MetricKind.cycle:
       return 'Day ${v.round()}';
     case MetricKind.habits:
@@ -109,13 +109,13 @@ double ringPct(Tracker t, double v) {
   if (v <= 0) return 0;
   switch (t.id) {
     case 'weight':
-      return (1 - (v - t.goal) / 6).clamp(0.0, 1.0);
+      return (1 - (v - t.goal) / 6).clamp(0.0, 1.0).toDouble();
     case 'period':
-      return (v / 28).clamp(0.0, 1.0);
+      return (v / 28).clamp(0.0, 1.0).toDouble();
     case 'mood':
-      return (v / 5).clamp(0.0, 1.0);
+      return (v / 5).clamp(0.0, 1.0).toDouble();
     default:
-      return (v / t.goal).clamp(0.0, 1.14);
+      return (v / t.goal).clamp(0.0, 1.14).toDouble();
   }
 }
 
@@ -205,7 +205,7 @@ double activityScore(List<Tracker> trackers, Map<String, List<double>> data, int
       // nothing at all looked partly productive.
       hits += v > 0 ? 1 : 0;
     } else {
-      hits += ringPct(t, v).clamp(0.0, 1.0);
+      hits += ringPct(t, v).clamp(0.0, 1.0).toDouble();
     }
   }
   return trackers.isEmpty ? 0 : hits / trackers.length;
@@ -254,9 +254,10 @@ String greetingFor(DateTime now) {
 }
 
 /// Soft, low-saturation variants used for tinted chips/rings.
-Color tint(Color c, double amount) => Color.lerp(c, Colors.white, amount.clamp(0.0, 1.0))!.withOpacity(.9);
+Color tint(Color c, double amount) =>
+    Color.lerp(c, Colors.white, amount.clamp(0.0, 1.0).toDouble())!.withOpacity(.9);
 
-Color alpha(Color c, double a) => c.withOpacity(a.clamp(0.0, 1.0));
+Color alpha(Color c, double a) => c.withOpacity(a.clamp(0.0, 1.0).toDouble());
 
 double lerp(double a, double b, double t) => a + (b - a) * t;
 

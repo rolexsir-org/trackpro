@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 
 import '../services/haptics.dart';
@@ -7,6 +6,7 @@ import '../main.dart' show Pressable, TrackTheme;
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../util/format.dart';
+import 'glass.dart';
 import 'mini_chart.dart';
 import 'progress_ring.dart';
 
@@ -57,7 +57,7 @@ class TrackerCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(tracker.emoji, style: const TextStyle(fontSize: 15)),
+                TrackRecordIcon(label: tracker.name, color: tracker.accent, size: 28, iconSize: 16),
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(tracker.name,
@@ -69,8 +69,14 @@ class TrackerCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(color: tracker.accent.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
-                    child: Text('🔥 ${streak}d',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: tracker.accent)),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.local_fire_department_outlined, size: 12, color: tracker.accent),
+                        const SizedBox(width: 2),
+                        Text('${streak}d', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: tracker.accent)),
+                      ],
+                    ),
                   ),
               ],
             ),
@@ -121,7 +127,7 @@ class TrackerCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  d.direction > 0 ? CupertinoIcons.arrow_up : d.direction < 0 ? CupertinoIcons.arrow_down : CupertinoIcons.minus,
+                  d.direction > 0 ? Icons.arrow_upward_rounded : d.direction < 0 ? Icons.arrow_downward_rounded : Icons.remove_rounded,
                   size: 10,
                   color: d.goodness > 0 ? TrackTheme.green : d.goodness < 0 ? TrackTheme.orange : TrackTheme.label3(dark),
                 ),
@@ -142,7 +148,7 @@ class TrackerCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: _LogButton(label: '＋ Log today', color: tracker.accent, onTap: onLog),
+                  child: _LogButton(label: 'Log today', color: tracker.accent, onTap: onLog),
                 ),
                 const SizedBox(width: 7),
                 _ChevronButton(color: tracker.accent, onTap: onTap),
@@ -188,15 +194,10 @@ class _LogButtonState extends State<_LogButton> {
           alignment: Alignment.center,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color.lerp(widget.color, Colors.white, .06)!, widget.color],
-            ),
-            boxShadow: [BoxShadow(color: widget.color.withOpacity(.55), blurRadius: 14, offset: const Offset(0, 6), spreadRadius: -8)],
+            color: widget.color,
           ),
           child: Text(widget.label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -.08, color: Colors.white)),
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -.08, color: Colors.black)),
         ),
       ),
     );
@@ -219,7 +220,7 @@ class _ChevronButton extends StatelessWidget {
         height: 32,
         alignment: Alignment.center,
         decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(10)),
-        child: Icon(CupertinoIcons.chevron_forward, size: 14, color: color),
+        child: Icon(Icons.chevron_right_rounded, size: 19, color: color),
       ),
     );
   }
@@ -259,8 +260,9 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
     final t = widget.tracker;
     final v = widget.values.isEmpty ? 0.0 : widget.values.last;
     final pct = ringPct(t, v);
-    final cups = (v / 250).round().clamp(0, 10);
+    final units = (t.kind == MetricKind.volume ? v / 250 : pct * 10).round().clamp(0, 10).toInt();
     final step = t.step;
+    final stepLabel = fmtValue(t, step);
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
@@ -269,16 +271,14 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
           // Reveal layer behind the card, exposed as you drag.
           Positioned.fill(
             child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [TrackTheme.green, Color(0xFF2AA049), Color(0x00FFFFFF), TrackTheme.orange]),
-              ),
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
+              decoration: BoxDecoration(color: TrackTheme.fill(dark)),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('− 250 ml', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
-                    Text('+ 250 ml', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15)),
+                    Text('− $stepLabel', style: TextStyle(color: TrackTheme.label(dark), fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text('+ $stepLabel', style: TextStyle(color: TrackTheme.label(dark), fontWeight: FontWeight.w700, fontSize: 13)),
                   ],
                 ),
               ),
@@ -289,7 +289,7 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
             curve: TrackTheme.spring,
             transform: Matrix4.translationValues(_dx, 0, 0),
             child: GestureDetector(
-              onHorizontalDragUpdate: (d) => setState(() => _dx = (_dx + d.delta.dx).clamp(-120, 120)),
+              onHorizontalDragUpdate: (d) => setState(() => _dx = (_dx + d.delta.dx).clamp(-120, 120).toDouble()),
               onHorizontalDragEnd: (d) {
                 final dx = _dx;
                 setState(() => _dx = 0);
@@ -316,26 +316,26 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                               children: [
                                 Row(
                                   children: [
-                                    Text(t.emoji, style: const TextStyle(fontSize: 15)),
+                                    TrackRecordIcon(label: t.name, color: t.accent, size: 28, iconSize: 16),
                                     const SizedBox(width: 7),
                                     Text(t.name,
                                         style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
-                                Row(
-                                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                                  textBaseline: TextBaseline.alphabetic,
-                                  children: [
-                                    Text((v / 1000).toStringAsFixed(2).replaceAll(RegExp(r'0$'), ''),
-                                        style: TextStyle(
-                                            fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -1.1, color: TrackTheme.label(dark))),
-                                    const SizedBox(width: 4),
-                                    Text('L', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
-                                  ],
+                                Text(
+                                  fmtValue(t, v),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -1.0,
+                                    color: TrackTheme.label(dark),
+                                  ),
                                 ),
                                 const SizedBox(height: 3),
-                                Text('$cups of 10 cups · ${(pct * 100).round()}% of ${fmtGoalLong(t)}',
+                                Text('$units of 10 steps · ${(pct * 100).round()}% of ${fmtGoalLong(t)}',
                                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
                               ],
                             ),
@@ -369,12 +369,7 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                               width: 17,
                               height: 23,
                               decoration: BoxDecoration(
-                                color: i < cups ? null : TrackTheme.fill(dark),
-                                gradient: i < cups && dark == false
-                                    ? const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF5AC8FA), Color(0xFF0A84FF)])
-                                    : i < cups
-                                        ? const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF5AC8FA), Color(0xFF0A84FF)])
-                                        : null,
+                                color: i < units ? t.accent : TrackTheme.fill(dark),
                                 borderRadius: const BorderRadius.only(
                                   topLeft: Radius.circular(3),
                                   topRight: Radius.circular(3),
@@ -388,18 +383,18 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                       const SizedBox(height: 9),
                       Row(
                         children: [
-                          Icon(CupertinoIcons.arrow_left_right, size: 11, color: TrackTheme.label3(dark).withOpacity(.8)),
+                          Icon(Icons.swipe_rounded, size: 15, color: TrackTheme.label3(dark)),
                           const SizedBox(width: 5),
-                          Text('swipe the card to log a cup',
+                          Text('Swipe to log one step',
                               style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark).withOpacity(.8))),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: _LogButton(label: '＋ Add 250 ml', color: t.accent, onTap: () => widget.onStep(250))),
+                          Expanded(child: _LogButton(label: '+ $stepLabel', color: t.accent, onTap: () => widget.onStep(step))),
                           const SizedBox(width: 7),
-                          _LogButton(label: '＋ 500', color: Color.lerp(t.accent, Colors.black, .05)!, onTap: () => widget.onStep(500)),
+                          _LogButton(label: '+ 2×', color: Color.lerp(t.accent, Colors.black, .05)!, onTap: () => widget.onStep(step * 2)),
                           const SizedBox(width: 7),
                           _ChevronButton(color: t.accent, onTap: widget.onTap),
                         ],

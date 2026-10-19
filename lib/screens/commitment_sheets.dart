@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -271,7 +270,7 @@ class _OutcomeTile extends StatelessWidget {
                   ],
                 ),
               ),
-              if (selected) Icon(CupertinoIcons.checkmark_alt, size: 18, color: _tint),
+              if (selected) Icon(Icons.check_rounded, size: 20, color: _tint),
             ],
           ),
         ),
@@ -399,7 +398,7 @@ class _TemplateBody extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(horizontal: Editorial.s4, vertical: Editorial.s3),
                   child: Row(
                     children: [
-                      Text(t.emoji, style: const TextStyle(fontSize: 22)),
+                      TrackRecordIcon(label: t.name, color: Editorial.accent, size: 38, iconSize: 20),
                       const SizedBox(width: Editorial.s3),
                       Expanded(
                         child: Column(
@@ -412,7 +411,7 @@ class _TemplateBody extends StatelessWidget {
                           ],
                         ),
                       ),
-                      Icon(CupertinoIcons.add, size: 18, color: Editorial.inkTertiary),
+                      Icon(Icons.add_rounded, size: 20, color: Editorial.inkTertiary),
                     ],
                   ),
                 ),
@@ -454,7 +453,22 @@ class _EditorBody extends StatefulWidget {
 }
 
 class _EditorBodyState extends State<_EditorBody> {
-  static const _emojis = ['🚶', '🏋️', '📚', '🌙', '📖', '🧘', '💧', '📝', '🗂️', '🏃', '🫁', '🧹'];
+  // Keys remain the persisted emoji values used by existing databases, exports and
+  // templates. The editor renders stable Material icons for them instead of glyphs.
+  static const _iconChoices = <String, IconData>{
+    '🚶': Icons.directions_walk_outlined,
+    '🏋️': Icons.fitness_center_outlined,
+    '📚': Icons.menu_book_outlined,
+    '🌙': Icons.bedtime_outlined,
+    '📖': Icons.auto_stories_outlined,
+    '🧘': Icons.self_improvement_outlined,
+    '💧': Icons.water_drop_outlined,
+    '📝': Icons.edit_note_outlined,
+    '🗂️': Icons.folder_outlined,
+    '🏃': Icons.directions_run_outlined,
+    '🫁': Icons.air_outlined,
+    '🧹': Icons.cleaning_services_outlined,
+  };
   static const _colors = [
     Color(0xFF5B7CFA), Color(0xFF3FB27F), Color(0xFFE0A44A), Color(0xFFE5484D),
     Color(0xFF8B5CF6), Color(0xFF22B8CF),
@@ -583,19 +597,19 @@ class _EditorBodyState extends State<_EditorBody> {
           spacing: Editorial.s2,
           runSpacing: Editorial.s2,
           children: [
-            for (final e in _emojis)
+            for (final choice in _iconChoices.entries)
               GestureDetector(
-                onTap: () => setState(() => _emoji = e),
+                onTap: () => setState(() => _emoji = choice.key),
                 child: Container(
                   width: 40,
                   height: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _emoji == e ? _color.withOpacity(.18) : Editorial.well,
+                    color: _emoji == choice.key ? _color.withOpacity(.18) : Editorial.well,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _emoji == e ? _color : Editorial.hairline, width: .5),
+                    border: Border.all(color: _emoji == choice.key ? _color : Editorial.hairline, width: .5),
                   ),
-                  child: Text(e, style: const TextStyle(fontSize: 19)),
+                  child: Icon(choice.value, size: 20, color: _emoji == choice.key ? _color : Editorial.inkSecondary),
                 ),
               ),
           ],
@@ -641,7 +655,7 @@ class _EditorBodyState extends State<_EditorBody> {
               subtitle: state.isCommitmentPaused(existing.id)
                   ? 'Days are counted again, starting today'
                   : 'Paused days are not counted, and are not judged as misses',
-              leading: const Text('⏸️', style: TextStyle(fontSize: 15)),
+              leading: const Icon(Icons.pause_circle_outline_rounded, size: 18, color: Editorial.minimum),
               accent: Editorial.minimum,
               showChevron: false,
               onTap: () async {
@@ -658,7 +672,7 @@ class _EditorBodyState extends State<_EditorBody> {
               subtitle: existing.archived
                   ? 'Returns to your active routines with its history intact'
                   : 'Stops counting, keeps every recorded day',
-              leading: const Text('📦', style: TextStyle(fontSize: 15)),
+              leading: const Icon(Icons.archive_outlined, size: 18, color: Editorial.accent),
               accent: Editorial.accent,
               showChevron: false,
               onTap: () async {
@@ -669,7 +683,7 @@ class _EditorBodyState extends State<_EditorBody> {
             GlassRow(
               title: 'Delete for good',
               subtitle: 'Removes the routine and every day recorded against it',
-              leading: const Text('🗑️', style: TextStyle(fontSize: 15)),
+              leading: const Icon(Icons.delete_outline_rounded, size: 18, color: Editorial.danger),
               accent: Editorial.danger,
               showChevron: false,
               onTap: () async {
@@ -808,7 +822,6 @@ class _FocusLink extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final live = app.activeFocusSession;
-    final dark = Theme.of(context).brightness == Brightness.dark;
 
     return GlassList(children: [
       GlassRow(
@@ -816,7 +829,7 @@ class _FocusLink extends StatelessWidget {
         subtitle: live == null
             ? 'Timer, blocking or deep focus — linked to ${commitment.name}'
             : '${live.goalLabel} · ${live.mode.label}',
-        leading: const Text('🎯', style: TextStyle(fontSize: 14)),
+        leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
         accent: commitment.color,
         onTap: () async {
           // This sheet is closing, so the follow-up runs through the navigator's own
@@ -839,10 +852,7 @@ class _FocusLink extends StatelessWidget {
                   .toList(),
             );
           } else {
-            await navigator.push(CupertinoPageRoute<void>(
-              fullscreenDialog: true,
-              builder: (_) => const FocusSessionScreen(),
-            ));
+            await openFocusSession(host);
           }
         },
       ),
@@ -852,12 +862,12 @@ class _FocusLink extends StatelessWidget {
             ? 'Nothing recorded yet'
             : '${app.focusStats.endedSessions} session${app.focusStats.endedSessions == 1 ? '' : 's'} · '
                 '${app.focusStats.minutesTotal} minutes',
-        leading: const Text('📈', style: TextStyle(fontSize: 14)),
+        leading: const Icon(Icons.history_rounded, size: 18, color: TrackTheme.orange),
         accent: TrackTheme.indigo,
         onTap: () {
           final navigator = Navigator.of(context);
           navigator.pop();
-          navigator.push(CupertinoPageRoute<void>(builder: (_) => const FocusHistoryScreen()));
+          navigator.push(MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()));
         },
       ),
       if (!app.hasFocusSupport)

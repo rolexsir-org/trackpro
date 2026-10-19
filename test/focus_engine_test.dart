@@ -73,6 +73,7 @@ void main() {
         overlayGranted: true,
         usageAccessGranted: true,
         detectionEvents: 12,
+        overlayShows: 0,
       );
       expect(e, FocusEnforcement.timerOnly);
       expect(e.intendsToBlock, isFalse);
@@ -87,6 +88,7 @@ void main() {
         overlayGranted: true,
         usageAccessGranted: true,
         detectionEvents: 0,
+        overlayShows: 0,
       );
       expect(e, FocusEnforcement.armed);
       // The important assertion: armed is *not* a claim that blocking worked.
@@ -94,7 +96,7 @@ void main() {
       expect(e.needsAttention, isTrue);
     });
 
-    test('one observed foreground event upgrades armed to verified', () {
+    test('a foreground event without a launched panel remains armed', () {
       final e = FocusEngine.enforcementFor(
         blockingRequested: true,
         serviceAlive: true,
@@ -102,6 +104,21 @@ void main() {
         overlayGranted: true,
         usageAccessGranted: true,
         detectionEvents: 1,
+        overlayShows: 0,
+      );
+      expect(e, FocusEnforcement.armed);
+      expect(e.isConfirmed, isFalse);
+    });
+
+    test('a detected selected app with a launched coverage panel upgrades to verified', () {
+      final e = FocusEngine.enforcementFor(
+        blockingRequested: true,
+        serviceAlive: true,
+        permissionLostMidSession: false,
+        overlayGranted: true,
+        usageAccessGranted: true,
+        detectionEvents: 1,
+        overlayShows: 1,
       );
       expect(e, FocusEnforcement.verified);
       expect(e.isConfirmed, isTrue);
@@ -121,6 +138,7 @@ void main() {
           overlayGranted: grants.overlay,
           usageAccessGranted: grants.usage,
           detectionEvents: 40,
+          overlayShows: 0,
         );
         expect(e, FocusEnforcement.unavailable, reason: 'grants=$grants');
         expect(e.isConfirmed, isFalse);
@@ -135,6 +153,7 @@ void main() {
         overlayGranted: true,
         usageAccessGranted: true,
         detectionEvents: 40,
+        overlayShows: 0,
       );
       expect(e, FocusEnforcement.lost);
       expect(e.isConfirmed, isFalse);
@@ -149,6 +168,7 @@ void main() {
         overlayGranted: true,
         usageAccessGranted: true,
         detectionEvents: 9,
+        overlayShows: 0,
       );
       expect(e, FocusEnforcement.lost);
       expect(e.isConfirmed, isFalse);

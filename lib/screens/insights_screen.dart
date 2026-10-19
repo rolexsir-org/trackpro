@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -10,6 +9,7 @@ import '../state/app_state.dart';
 import '../util/format.dart';
 import '../widgets/glass.dart';
 import '../widgets/large_title_header.dart';
+import '../widgets/ios_tab_bar.dart';
 import '../widgets/mini_chart.dart';
 import '../widgets/pro_gate.dart';
 import 'paywall_screen.dart';
@@ -23,6 +23,11 @@ class InsightsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
     final dark = Theme.of(context).brightness == Brightness.dark;
+    // Keep the final card clear of both the floating tab bar and Android's
+    // variable navigation inset; fixed-only padding caused the reported bottom
+    // overflow on devices with a larger system gesture/navigation area.
+    final requiredBottomPadding = IosTabBar.scrollClearance(context);
+    final scrollBottomPadding = requiredBottomPadding > 130 ? requiredBottomPadding : 130.0;
     // Requested window from the segmented control; the series in memory is the
     // ceiling. `range` is already clamped to 'week' for free users by AppState, so
     // this cannot expose paid depth.
@@ -40,7 +45,7 @@ class InsightsScreen extends StatelessWidget {
     final moodSleep = state.paired('mood', 'sleep', 14, (m, s) => m * 2 + s);
 
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       slivers: [
         LargeTitleHeader(
           title: 'Insights',
@@ -49,7 +54,7 @@ class InsightsScreen extends StatelessWidget {
               : '${state.trackedDays} days tracked · ${state.entryCount} entries',
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+          padding: EdgeInsets.fromLTRB(20, 4, 20, scrollBottomPadding),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               _StreakCard(state: state),
@@ -77,19 +82,32 @@ class InsightsScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: TrackTheme.surface(dark),
                   borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-                  boxShadow: TrackTheme.cardShadow(dark),
-                  border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+                  border: Border.all(color: TrackTheme.separator(dark), width: .5),
                 ),
                 child: Column(
                   children: [
                     MiniChart(values: scores, color: TrackTheme.indigo, height: 120, barRadius: 6, todayTint: false),
                     const SizedBox(height: 9),
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('$days days ago',
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
-                        Text('Today', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
+                        Expanded(
+                          child: Text(
+                            '$days days ago',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Today',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -108,7 +126,7 @@ class InsightsScreen extends StatelessWidget {
                   for (final t in state.visibleTrackers)
                     if (state.series(t.id, 7).any((v) => v > 0))
                       _AvgRow(
-                        emoji: t.emoji,
+                        label: t.name,
                         name: '${t.name} (7-day)',
                         color: t.accent,
                         value: _avgText(t, state.avg(t.id, 7)),
@@ -187,7 +205,10 @@ class InsightsScreen extends StatelessWidget {
                     Opacity(
                       opacity: b.unlocked ? 1 : .45,
                       child: SizedBox(
-                        width: (MediaQuery.sizeOf(context).width - 32 - 20) / 3,
+                        // The content already has 20px gutters on both sides and
+                        // 10px gaps between three cards. Account for both so this
+                        // row cannot overrun on narrow Android devices.
+                        width: (MediaQuery.sizeOf(context).width - 40 - 20) / 3,
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
                           decoration: BoxDecoration(
@@ -197,7 +218,11 @@ class InsightsScreen extends StatelessWidget {
                           ),
                           child: Column(
                             children: [
-                              Text(b.emoji, style: const TextStyle(fontSize: 24)),
+                              Icon(
+                                b.unlocked ? Icons.workspace_premium_outlined : Icons.lock_outline_rounded,
+                                size: 24,
+                                color: b.unlocked ? TrackTheme.orange : TrackTheme.label3(dark),
+                              ),
                               const SizedBox(height: 7),
                               Text(b.title,
                                   textAlign: TextAlign.center,
@@ -215,7 +240,7 @@ class InsightsScreen extends StatelessWidget {
               ),
               const SizedBox(height: 14),
               InsightCard(
-                emoji: '📈',
+                emoji: 'trend',
                 title: state.bestStreak > 0
                     ? 'Your longest current streak is ${state.bestStreak} days.'
                     : 'No streak running yet — log today to start one.',
@@ -270,7 +295,7 @@ class _InsufficientData extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('🧪', style: TextStyle(fontSize: 20)),
+          const Icon(Icons.science_outlined, size: 21, color: TrackTheme.orange),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -343,21 +368,36 @@ class _RangeSegmented extends StatelessWidget {
                         ? [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 8, offset: const Offset(0, 3))]
                         : null,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
+                  // Keep each third of the control independently bounded. A
+                  // lock beside a scaled "90 days" label used to overflow on
+                  // narrow Android devices; the icon now sits in its own slot
+                  // and the label can grow to two centered lines.
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      if (lockedRanges.containsKey(o[0]) && !state.isPro) ...[
-                        Icon(Icons.lock, size: 10, color: TrackTheme.label3(dark)),
-                        const SizedBox(width: 3),
-                      ],
-                      Text(o[1],
+                      Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: lockedRanges.containsKey(o[0]) && !state.isPro ? 14 : 5,
+                        ),
+                        child: Text(
+                          o[1],
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             fontSize: 13,
+                            height: 1.15,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -.1,
                             color: TrackTheme.label(dark),
-                          )),
+                          ),
+                        ),
+                      ),
+                      if (lockedRanges.containsKey(o[0]) && !state.isPro)
+                        Positioned(
+                          left: 5,
+                          child: Icon(Icons.lock, size: 10, color: TrackTheme.label3(dark)),
+                        ),
                     ],
                   ),
                 ),
@@ -379,26 +419,22 @@ class _StreakCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
+        color: TrackTheme.surface(Theme.of(context).brightness == Brightness.dark),
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0A84FF), Color(0xFF5856D6), Color(0xFFAF52DE)],
-        ),
-        boxShadow: [BoxShadow(color: TrackTheme.indigo.withOpacity(.5), blurRadius: 40, offset: const Offset(0, 18), spreadRadius: -14)],
+        border: Border.all(color: TrackTheme.separator(Theme.of(context).brightness == Brightness.dark), width: .5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('${state.bestStreak}',
-              style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w700, letterSpacing: -1.6, height: 1, color: Colors.white)),
+              style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w700, letterSpacing: -1.6, height: 1, color: TrackTheme.orange)),
           const SizedBox(height: 6),
           Text(
             state.bestStreak == 0
                 ? 'No streak running. Log anything today and this starts at 1.'
                 : 'day streak on your most consistent tracker. '
                     '${state.loggedFlags(7).last ? 'Today is logged.' : 'Log today to extend it.'}',
-            style: const TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: Colors.white),
+            style: TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(Theme.of(context).brightness == Brightness.dark)),
           ),
           const SizedBox(height: 15),
           Row(
@@ -412,8 +448,7 @@ class _StreakCard extends StatelessWidget {
                       height: 11,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: logged ? Colors.white : Colors.white.withOpacity(.28),
-                        boxShadow: logged ? [BoxShadow(color: Colors.white.withOpacity(.7), blurRadius: 10)] : null,
+                        color: logged ? TrackTheme.orange : TrackTheme.fill(Theme.of(context).brightness == Brightness.dark),
                       ),
                     ),
                   ),
@@ -455,9 +490,9 @@ String _avgText(Tracker t, double v) => switch (t.kind) {
     };
 
 class _AvgRow extends StatelessWidget {
-  const _AvgRow({required this.emoji, required this.name, required this.color, required this.value});
+  const _AvgRow({required this.label, required this.name, required this.color, required this.value});
 
-  final String emoji;
+  final String label;
   final String name;
   final Color color;
   final String value;
@@ -467,12 +502,23 @@ class _AvgRow extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return GlassRow(
       title: name,
-      leading: Text(emoji, style: const TextStyle(fontSize: 15)),
+      leading: Icon(_insightAverageIcon(label), size: 17, color: color),
       accent: color,
       showChevron: false,
       trailing: Text(value, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
     );
   }
+}
+
+IconData _insightAverageIcon(String label) {
+  final value = label.toLowerCase();
+  if (value.contains('water')) return Icons.water_drop_outlined;
+  if (value.contains('mood')) return Icons.sentiment_satisfied_alt_outlined;
+  if (value.contains('sleep')) return Icons.bedtime_outlined;
+  if (value.contains('step')) return Icons.directions_walk_outlined;
+  if (value.contains('screen')) return Icons.phone_android_outlined;
+  if (value.contains('weight')) return Icons.monitor_weight_outlined;
+  return Icons.bar_chart_rounded;
 }
 
 /// One composite line: mood (scaled) plus sleep hours, drawn only over days that
@@ -501,13 +547,28 @@ class _MoodSleepChart extends StatelessWidget {
         children: [
           TrendLine(values: points, colorA: TrackTheme.orange, colorB: TrackTheme.indigo),
           const SizedBox(height: 8),
-          Row(children: [
-            Text('mood ×2 + sleep h',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: TrackTheme.orange)),
-            const Spacer(),
-            Text('${points.length} paired day${points.length == 1 ? '' : 's'}',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'mood ×2 + sleep h',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: TrackTheme.orange),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${points.length} paired day${points.length == 1 ? '' : 's'}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                  style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

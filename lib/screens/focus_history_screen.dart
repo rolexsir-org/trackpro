@@ -1,4 +1,3 @@
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +28,12 @@ import 'paywall_screen.dart';
 /// reading limit, never a storage limit: every session is kept, exported and shown
 /// again the moment the tier changes. (And the session that just finished is always
 /// shown immediately to whoever ran it.)
+IconData _historyModeIcon(FocusMode mode) => switch (mode) {
+      FocusMode.standard => Icons.timer_outlined,
+      FocusMode.blocking => Icons.block_outlined,
+      FocusMode.deep => Icons.do_not_disturb_on_outlined,
+    };
+
 class FocusHistoryScreen extends StatelessWidget {
   const FocusHistoryScreen({super.key});
 
@@ -45,7 +50,7 @@ class FocusHistoryScreen extends StatelessWidget {
         children: [
           AmbientBackground(accent: TrackTheme.indigo, accent2: TrackTheme.purple),
           CustomScrollView(
-            physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+            physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
             slivers: [
               LargeTitleHeader(
                 title: 'Focus history',
@@ -59,12 +64,12 @@ class FocusHistoryScreen extends StatelessWidget {
                     : null,
               ),
               SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 60),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 60),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     if (!app.hasFocusSupport) ...[
                       const InsightCard(
-                        emoji: '⏱️',
+                        emoji: 'timer',
                         title: 'Focus sessions are not available in this build.',
                         body: 'The timer, the goal and the reflection all live in the app, but this build has '
                             'no platform channel behind them, so no session can be started here.',
@@ -95,7 +100,7 @@ class FocusHistoryScreen extends StatelessWidget {
                       ),
                       if (app.focusHistory.isEmpty)
                         const InsightCard(
-                          emoji: '🎯',
+                          emoji: 'focus',
                           title: 'Nothing to look back on yet.',
                           body: 'Start a session from Today or from inside a routine. When it ends, what '
                               'actually happened is recorded here — including the sessions that did not go '
@@ -112,7 +117,7 @@ class FocusHistoryScreen extends StatelessWidget {
                             subtitle: 'Your history is stored in full — free shows the last '
                                 '${ProConfig.freeFocusHistorySessions}. Pro reads the whole record and the '
                                 'patterns in it.',
-                            emoji: '📈',
+                            emoji: 'history',
                             accent: TrackTheme.indigo,
                             onTap: () => showPaywall(context, trigger: PaywallTrigger.focusAnalytics),
                           ),
@@ -122,16 +127,16 @@ class FocusHistoryScreen extends StatelessWidget {
                         GlassRow(
                           title: 'Profiles and schedules',
                           subtitle: 'Set a rule set up once, or put deep focus on a schedule',
-                          leading: const Text('⚙️', style: TextStyle(fontSize: 14)),
+                          leading: const Icon(Icons.settings_outlined, size: 18, color: TrackTheme.orange),
                           accent: TrackTheme.purple,
                           onTap: () => Navigator.of(context).push(
-                            CupertinoPageRoute<void>(builder: (_) => const FocusProfilesScreen()),
+                            MaterialPageRoute<void>(builder: (_) => const FocusProfilesScreen()),
                           ),
                         ),
                         GlassRow(
                           title: 'How covering works, and where it stops',
                           subtitle: 'Permissions, limits, and what Track Pro cannot see',
-                          leading: const Text('🛡️', style: TextStyle(fontSize: 14)),
+                          leading: const Icon(Icons.security_outlined, size: 18, color: TrackTheme.orange),
                           accent: TrackTheme.orange,
                           onTap: () => openFocusPermissionSheet(context),
                         ),
@@ -234,7 +239,7 @@ class _SessionRow extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(session.mode.emoji, style: const TextStyle(fontSize: 14)),
+                  Icon(_historyModeIcon(session.mode), size: 18, color: accent),
                   const SizedBox(width: 7),
                   Expanded(
                     child: Text(session.goalLabel,
@@ -263,8 +268,8 @@ class _SessionRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   session.enforcement.isConfirmed
-                      ? 'Covered ${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} · '
-                          '${session.blockedAttempts} open${session.blockedAttempts == 1 ? '' : 's'} detected'
+                      ? 'Coverage verified · ${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected · '
+                          '${session.overlayShows} panel launch${session.overlayShows == 1 ? '' : 'es'} accepted'
                       : '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected · '
                           'enforcement not confirmed (${session.enforcement.label.toLowerCase()})',
                   style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w500, color: accent.withOpacity(.95)),
@@ -300,7 +305,7 @@ class _HeaderAction extends StatelessWidget {
         decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(TrackTheme.radiusPill)),
         child: Row(
           children: [
-            const Icon(CupertinoIcons.play_fill, size: 12, color: TrackTheme.blue),
+            const Icon(Icons.play_arrow_rounded, size: 16, color: TrackTheme.blue),
             const SizedBox(width: 6),
             Text('Focus',
                 style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),

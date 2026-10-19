@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
@@ -37,11 +37,11 @@ class SettingsScreen extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     return CustomScrollView(
-      physics: const AlwaysScrollableScrollPhysics(parent: BouncingScrollPhysics()),
+      physics: const AlwaysScrollableScrollPhysics(parent: ClampingScrollPhysics()),
       slivers: [
-        const LargeTitleHeader(title: 'Profile', subtitle: 'Routines, data, appearance, Pro'),
+        const LargeTitleHeader(title: 'Profile', subtitle: 'Your settings and data'),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(16, 4, 16, 130),
+          padding: const EdgeInsets.fromLTRB(20, 4, 20, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               _ProfileCard(state: state),
@@ -54,19 +54,17 @@ class SettingsScreen extends StatelessWidget {
                           '${state.archivedCommitments.isEmpty ? '' : ' · ${state.archivedCommitments.length} archived'}'
                           ' · ${state.overallMomentum?.rate == null ? 'gathering evidence' : '${state.overallMomentum!.rate!.round()}% momentum'}'
                       : 'None yet — the habit engine starts empty',
-                  leading: const Text('🎯', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.repeat_rounded, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.green,
                   onTap: () => state.setTab(1),
                 ),
               ]),
-              const SectionLabel('Pro'),
-              _ProSection(state: state),
               const SectionLabel('Trackers'),
               GlassList(children: [
                 GlassRow(
                   title: 'All trackers',
                   subtitle: 'Measurements, reorder, hide or add',
-                  leading: const Text('🧩', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.tune_rounded, size: 18, color: TrackTheme.orange),
                   trailing: Text('${state.visibleTrackers.length} active',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
                   // One destination, one row: this used to be two rows ("Measurements"
@@ -81,7 +79,7 @@ class SettingsScreen extends StatelessWidget {
                 for (final t in state.trackers.take(4))
                   GlassRow(
                     title: '${t.name} goal',
-                    leading: Text(t.emoji, style: const TextStyle(fontSize: 15)),
+                    leading: Icon(Icons.flag_outlined, size: 18, color: t.accent),
                     accent: t.accent,
                     trailing: Text(fmtGoalLong(t),
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
@@ -99,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
                         Text('Theme',
                             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
                       ]),
-                      Text('iOS light surfaces or true-black dark',
+                      Text('Light surfaces or true-black dark',
                           style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
                       const SizedBox(height: 10),
                       Container(
@@ -173,7 +171,7 @@ class SettingsScreen extends StatelessWidget {
                   ProLockedRow(
                     title: 'Streak saver + weekly report',
                     subtitle: 'Rescue a streak before it breaks · Pro',
-                    emoji: '🔥',
+                    emoji: 'streak',
                     accent: TrackTheme.orange,
                     onTap: () {
                       state.analytics?.log('pro_gate_tapped', {'gate': 'notifications'});
@@ -184,7 +182,7 @@ class SettingsScreen extends StatelessWidget {
                   GlassRow(
                     title: 'Notifications are off',
                     subtitle: 'Android is blocking them, so none of the above can arrive',
-                    leading: const Text('🔕', style: TextStyle(fontSize: 15)),
+                    leading: const Icon(Icons.notifications_off_outlined, size: 18, color: TrackTheme.orange),
                     accent: TrackTheme.orange,
                     trailing: Text('Turn on',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue)),
@@ -223,9 +221,9 @@ class SettingsScreen extends StatelessWidget {
                 GlassRow(
                   title: 'App covering',
                   subtitle: state.focusPermissions.canBlock
-                      ? 'Ready to cover apps'
+                      ? 'Ready to request app coverage'
                       : 'Needs ${state.focusPermissions.missingForBlockingLabel}',
-                  leading: const Text('🛡️', style: TextStyle(fontSize: 15)),
+                  leading: Icon(Icons.shield_outlined, size: 18, color: state.focusPermissions.canBlock ? TrackTheme.green : TrackTheme.orange),
                   accent: state.focusPermissions.canBlock ? TrackTheme.green : TrackTheme.orange,
                   trailing: state.focusPermissions.canBlock
                       ? null
@@ -240,27 +238,27 @@ class SettingsScreen extends StatelessWidget {
                       : '${state.focusStats.endedSessions} session'
                           '${state.focusStats.endedSessions == 1 ? '' : 's'} · '
                           '${state.focusStats.minutesLast7Days} min in the last 7 days',
-                  leading: const Text('📈', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.history_rounded, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.indigo,
                   onTap: () => Navigator.of(context).push(
-                    CupertinoPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
+                    MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
                   ),
                 ),
                 if (state.canUseFocusProfiles || state.canUseFocusSchedules)
                   GlassRow(
                     title: 'Profiles & schedules',
                     subtitle: 'Reusable rule sets, and reminders for deep focus',
-                    leading: const Text('⚙️', style: TextStyle(fontSize: 15)),
+                    leading: const Icon(Icons.schedule_outlined, size: 18, color: TrackTheme.orange),
                     accent: TrackTheme.purple,
                     onTap: () => Navigator.of(context).push(
-                      CupertinoPageRoute<void>(builder: (_) => const FocusProfilesScreen()),
+                      MaterialPageRoute<void>(builder: (_) => const FocusProfilesScreen()),
                     ),
                   )
                 else
                   ProLockedRow(
                     title: 'Profiles & schedules',
                     subtitle: 'One-tap sessions, and deep focus at a time you choose. Every mode stays free.',
-                    emoji: '⚙️',
+                    emoji: 'settings',
                     accent: TrackTheme.purple,
                     onTap: () {
                       state.analytics?.log('pro_gate_tapped', {'gate': 'focus_profiles'});
@@ -275,7 +273,7 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: state.entryCount == 0
                       ? 'Nothing to export yet'
                       : 'JSON or CSV · ${state.entryCount} ${state.entryCount == 1 ? 'entry' : 'entries'}',
-                  leading: const Text('📤', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.file_upload_outlined, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.green,
                   trailing: Text('Export',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue)),
@@ -285,7 +283,7 @@ class SettingsScreen extends StatelessWidget {
                   ProLockedRow(
                     title: 'Health Connect sync',
                     subtitle: 'Steps, sleep and weight filled in for you — Pro',
-                    emoji: '❤️',
+                    emoji: 'health',
                     accent: TrackTheme.green,
                     onTap: () {
                       state.analytics?.log('pro_gate_tapped', {'gate': 'health_sync'});
@@ -310,7 +308,7 @@ class SettingsScreen extends StatelessWidget {
                       'Health Connect is not installed on this device',
                     HealthPermissionState.unknown => 'Not checked yet this session',
                   },
-                  leading: const Text('❤️', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.favorite_border_rounded, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.pink,
                   trailing: Text(
                     state.healthPermission == HealthPermissionState.granted ? 'Sync now' : 'Connect',
@@ -361,7 +359,7 @@ class SettingsScreen extends StatelessWidget {
                   // Export (above) is the real way to keep a copy.
                   title: 'Where your data lives',
                   subtitle: 'On this device only · ${state.entryCount} entries · export to keep a copy',
-                  leading: const Text('📦', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.phone_android_outlined, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.indigo,
                   showChevron: false,
                   trailing: const Text('Local', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -369,7 +367,7 @@ class SettingsScreen extends StatelessWidget {
                 GlassRow(
                   title: 'Recalculate insights',
                   subtitle: 'Rebuild patterns from all history',
-                  leading: const Text('🧮', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.refresh_rounded, size: 18, color: TrackTheme.orange),
                   accent: TrackTheme.orange,
                   trailing: Text('Run',
                       style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
@@ -401,7 +399,7 @@ class SettingsScreen extends StatelessWidget {
                   GlassRow(
                     title: 'Remove sample data',
                     subtitle: 'Deletes the ${state.demoRowCount} seeded rows, keeps everything you logged',
-                    leading: const Text('🧪', style: TextStyle(fontSize: 15)),
+                    leading: const Icon(Icons.science_outlined, size: 18, color: TrackTheme.orange),
                     accent: TrackTheme.orange,
                     showChevron: false,
                     trailing: Text('Remove',
@@ -417,7 +415,7 @@ class SettingsScreen extends StatelessWidget {
                   // empty state that follows is honest about being empty.
                   title: 'Delete all data',
                   subtitle: 'Erases your entries, routines and focus sessions. Nothing is recreated.',
-                  leading: const Text('🗑', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red),
                   accent: TrackTheme.red,
                   showChevron: false,
                   trailing: Text('Delete',
@@ -460,7 +458,7 @@ class SettingsScreen extends StatelessWidget {
                     GlassRow(
                       title: 'Storage needs attention',
                       subtitle: 'Export a copy of your data, then reinstall if problems continue.',
-                      leading: const Text('⚠️', style: TextStyle(fontSize: 15)),
+                      leading: const Icon(Icons.warning_amber_rounded, size: 18, color: TrackTheme.orange),
                       accent: TrackTheme.orange,
                       showChevron: false,
                     ),
@@ -469,18 +467,20 @@ class SettingsScreen extends StatelessWidget {
                       title: 'Last save problem',
                       subtitle: '${state.writeFailure!.action} was not saved. '
                           'Your previous value is unchanged.',
-                      leading: const Text('⚠️', style: TextStyle(fontSize: 15)),
+                      leading: const Icon(Icons.warning_amber_rounded, size: 18, color: TrackTheme.orange),
                       accent: TrackTheme.orange,
                       showChevron: false,
                     ),
                 ]),
               ],
-              const SectionLabel('About'),
+              const SectionLabel('Premium'),
+              _ProSection(state: state),
+              const SectionLabel('Help & support'),
               GlassList(children: [
                 GlassRow(
                   title: 'Manage subscription',
                   subtitle: state.isPro ? 'Cancel or change plan in Google Play' : 'Nothing to manage yet',
-                  leading: const Text('💳', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.credit_card_outlined, size: 18, color: TrackTheme.orange),
                   onTap: () async {
                     final url = state.billing?.manageUrl(packageName: state.packageName);
                     state.analytics?.log('manage_opened');
@@ -490,21 +490,24 @@ class SettingsScreen extends StatelessWidget {
                 GlassRow(
                   title: 'Restore purchases',
                   subtitle: 'Already subscribed on another install?',
-                  leading: const Text('🔄', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.restore_rounded, size: 18, color: TrackTheme.orange),
                   onTap: () => restoreFromSettings(context, state),
                 ),
                 GlassRow(
                   title: 'Rate Track Pro',
                   subtitle: 'Helps other people find it',
-                  leading: const Text('⭐️', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.star_outline_rounded, size: 18, color: TrackTheme.orange),
                   onTap: () => launchPlayListing(context, state.packageName),
                 ),
+              ]),
+              const SectionLabel('Privacy & security'),
+              GlassList(children: [
                 GlassRow(
                   title: 'Privacy',
                   subtitle: AppEnvironment.hasHostedPolicies
                       ? 'How your data is stored and handled'
                       : 'In-app summary · no external URL configured in this build',
-                  leading: const Text('🔒', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.lock_outline_rounded, size: 18, color: TrackTheme.orange),
                   accent: const Color(0xFF8E8E93),
                   onTap: () => openPolicy(context, AppEnvironment.privacyUrl, 'Privacy policy'),
                 ),
@@ -513,18 +516,46 @@ class SettingsScreen extends StatelessWidget {
                   subtitle: AppEnvironment.hasHostedPolicies
                       ? 'Subscription terms and product disclosures'
                       : 'In-app summary · no external URL configured in this build',
-                  leading: const Text('📄', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.description_outlined, size: 18, color: TrackTheme.orange),
                   accent: const Color(0xFF8E8E93),
                   onTap: () => openPolicy(context, AppEnvironment.termsUrl, 'Terms of service'),
                 ),
                 GlassRow(
                   title: 'Version',
-                  leading: const Text('ℹ️', style: TextStyle(fontSize: 15)),
+                  leading: const Icon(Icons.info_outline_rounded, size: 18, color: TrackTheme.orange),
                   accent: const Color(0xFF8E8E93),
                   showChevron: false,
                   trailing: const _VersionTrailing(),
                 ),
               ]),
+              if (kDebugMode) ...[
+                const SectionLabel('Developer options'),
+                GlassList(children: [
+                  GlassRow(
+                    title: 'Refresh device state',
+                    subtitle: 'Re-check Focus and Health permissions without changing them',
+                    leading: const Icon(Icons.refresh_rounded, size: 18, color: TrackTheme.orange),
+                    onTap: () async {
+                      await state.refreshFocusPermissions();
+                      await state.refreshHealthPermission();
+                      if (context.mounted) showTrackToast(context, 'Device state refreshed');
+                    },
+                  ),
+                  GlassRow(
+                    title: 'Build configuration',
+                    subtitle: 'Show release configuration checks for this debug build',
+                    leading: const Icon(Icons.bug_report_outlined, size: 18, color: TrackTheme.orange),
+                    onTap: () {
+                      final problems = AppEnvironment.validate();
+                      showTrackDialog(
+                        context,
+                        title: 'Build configuration',
+                        body: problems.isEmpty ? 'No configuration problems reported.' : problems.join('\n\n'),
+                      );
+                    },
+                  ),
+                ]),
+              ],
               const SizedBox(height: 22),
               Text('Track Pro · everything stays on this device',
                   textAlign: TextAlign.center,
@@ -582,7 +613,7 @@ class _ConfirmingCardState extends State<_ConfirmingCard> {
         children: [
           Row(
             children: [
-              Icon(CupertinoIcons.time, size: 17, color: ProPalette.goldDeep),
+              Icon(Icons.schedule_outlined, size: 18, color: ProPalette.goldDeep),
               const SizedBox(width: 8),
               Text('Confirming with Google Play',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.3, color: TrackTheme.label(dark))),
@@ -643,24 +674,24 @@ class _ProSection extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.fromLTRB(16, 15, 16, 16),
         decoration: BoxDecoration(
-          gradient: ProPalette.gradient,
+          color: ProPalette.surface,
           borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-          boxShadow: ProPalette.glow(opacity: .35),
+          border: Border.all(color: ProPalette.gold.withOpacity(.55), width: .5),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(CupertinoIcons.sparkles, size: 17, color: ProPalette.goldText),
+                const Icon(Icons.auto_awesome_rounded, size: 18, color: ProPalette.gold),
                 const SizedBox(width: 8),
-                const Text('Pro',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.3, color: ProPalette.goldText)),
+                Text('Pro',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.3, color: TrackTheme.label(dark))),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: ProPalette.goldText.withOpacity(.16),
+                    color: ProPalette.gold,
                     borderRadius: BorderRadius.circular(7),
                   ),
                   child: Text(state.visibleTrackers.length >= ProConfig.freeTrackerLimit ? 'LIMIT REACHED' : '${ProConfig.trialDays} DAYS FREE',
@@ -669,8 +700,8 @@ class _ProSection extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            const Text('Every tracker, your whole history, and the patterns that need both.',
-                style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: ProPalette.goldText)),
+            Text('Every tracker, your whole history, and the patterns that need both.',
+                style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
             const SizedBox(height: 13),
             Row(
               children: [
@@ -691,7 +722,7 @@ class _ProSection extends StatelessWidget {
             Text(
               'Free plan: ${ProConfig.freeTrackerLimit} trackers · ${ProConfig.freeHistoryDays} days of history. '
               'Everything you have already logged stays yours.',
-              style: TextStyle(fontSize: 11, height: 1.35, fontWeight: FontWeight.w500, color: ProPalette.goldText.withOpacity(.75)),
+              style: TextStyle(fontSize: 11, height: 1.35, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
             ),
           ],
         ),
@@ -715,7 +746,7 @@ class _ProSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(CupertinoIcons.checkmark_seal_fill, size: 17, color: ProPalette.goldDeep),
+              const Icon(Icons.verified_outlined, size: 18, color: ProPalette.goldDeep),
               const SizedBox(width: 8),
               Text(ent.planTitle,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: -.3, color: TrackTheme.label(dark))),
@@ -813,16 +844,24 @@ Future<bool> showTrackConfirm(
   required String body,
   required String confirmLabel,
 }) async {
-  final result = await showCupertinoDialog<bool>(
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final result = await showDialog<bool>(
     context: context,
-    builder: (context) => CupertinoAlertDialog(
-      title: Text(title),
-      content: Padding(padding: const EdgeInsets.only(top: 8), child: Text(body)),
+    builder: (dialogContext) => AlertDialog(
+      backgroundColor: TrackTheme.surface(dark),
+      surfaceTintColor: Colors.transparent,
+      title: Text(title, style: TextStyle(color: TrackTheme.label(dark))),
+      content: SingleChildScrollView(
+        child: Text(body, style: TextStyle(color: TrackTheme.label2(dark), height: 1.4)),
+      ),
       actions: [
-        CupertinoDialogAction(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-        CupertinoDialogAction(
-          isDestructiveAction: true,
-          onPressed: () => Navigator.pop(context, true),
+        TextButton(
+          onPressed: () => Navigator.of(dialogContext).pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          style: FilledButton.styleFrom(backgroundColor: TrackTheme.red, foregroundColor: Colors.white),
+          onPressed: () => Navigator.of(dialogContext).pop(true),
           child: Text(confirmLabel),
         ),
       ],
@@ -894,10 +933,9 @@ class _ProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: TrackTheme.surface(dark).withOpacity(.82),
+        color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-        boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+        border: Border.all(color: TrackTheme.separator(dark), width: .5),
       ),
       child: Row(
         children: [
@@ -905,13 +943,13 @@ class _ProfileCard extends StatelessWidget {
             width: 56,
             height: 56,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               shape: BoxShape.circle,
-              gradient: LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFF5AC8FA), Color(0xFF0A84FF), Color(0xFF5856D6)]),
+              color: TrackTheme.fill(dark),
+              border: Border.all(color: TrackTheme.separator(dark), width: .5),
             ),
-            // Was the literal initials "JD" — an invented user. There is no
-            // account here, so the mark is the app's own.
-            child: const Icon(CupertinoIcons.drop_fill, size: 26, color: Colors.white),
+            // There is no account profile, so this remains a neutral device mark.
+            child: const Icon(Icons.person_outline_rounded, size: 26, color: TrackTheme.orange),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -939,11 +977,11 @@ class _ProfileCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(colors: [Color(0xFFFFE08A), Color(0xFFFFC53D)]),
+                      color: ProPalette.gold,
                       borderRadius: BorderRadius.circular(7),
                     ),
-                    child: const Text('✨ TRACK PRO',
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: .3, color: Color(0xFF8A6A00))),
+                    child: const Text('TRACK PRO',
+                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: .3, color: ProPalette.goldText)),
                   )
                 else
                   Container(
@@ -960,7 +998,7 @@ class _ProfileCard extends StatelessWidget {
               ],
             ),
           ),
-          Icon(CupertinoIcons.chevron_forward, size: 13, color: TrackTheme.label3(dark).withOpacity(.6)),
+          Icon(Icons.chevron_right_rounded, size: 20, color: TrackTheme.label3(dark)),
         ],
       ),
     );
@@ -1005,7 +1043,7 @@ class _NotifyRow extends StatelessWidget {
               height: 29,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(9)),
-              child: const Text('🔔', style: TextStyle(fontSize: 14)),
+              child: const Icon(Icons.notifications_outlined, size: 17, color: TrackTheme.orange),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1170,7 +1208,7 @@ class _HapticRowState extends State<_HapticRow> {
               height: 29,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(9)),
-              child: const Text('📳', style: TextStyle(fontSize: 14)),
+              child: const Icon(Icons.vibration_rounded, size: 18, color: TrackTheme.orange),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1237,14 +1275,26 @@ Future<bool> _explainPermission(
       body,
       style: TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
     ),
+    // One responsive action row keeps this short rationale readable without
+    // turning two small choices into a needlessly tall, scrollable sheet. The
+    // shared buttons grow vertically at larger Android font scales if needed.
     actions: [
-      TrackTintedButton(
-        label: 'Not now',
-        onTap: () => Navigator.of(context).pop(false),
-      ),
-      TrackFilledButton(
-        label: confirm,
-        onTap: () => Navigator.of(context).pop(true),
+      Row(
+        children: [
+          Expanded(
+            child: TrackTintedButton(
+              label: 'Not now',
+              onTap: () => Navigator.of(context).pop(false),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TrackFilledButton(
+              label: confirm,
+              onTap: () => Navigator.of(context).pop(true),
+            ),
+          ),
+        ],
       ),
     ],
   );

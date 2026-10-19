@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -151,7 +150,7 @@ class _StartBodyState extends State<_StartBody> {
       packages: _mode == FocusMode.standard ? const <String>[] : _packages,
       commitmentId: _commitmentId,
       goalLabel: _goal,
-      accentArgb: 0xFF5B7CFA,
+      accentArgb: 0xFFFF7A18,
     );
     if (!mounted) return;
     setState(() => _busy = false);
@@ -192,7 +191,7 @@ class _StartBodyState extends State<_StartBody> {
                 onTap: () => _setMinutes(preset),
               ),
             _Chip(
-              label: '${_minutes} min ✎',
+              label: 'Custom: $_minutes min',
               selected: !FocusEngine.presetMinutes.contains(_minutes),
               onTap: () async {
                 final custom = await showFocusCustomMinutesSheet(context, initial: _minutes);
@@ -224,7 +223,7 @@ class _StartBodyState extends State<_StartBody> {
               subtitle: _packages.isEmpty
                   ? 'Nothing is covered until you pick something.'
                   : _packages.map(_shortName).take(4).join(', ') + (_packages.length > 4 ? '…' : ''),
-              leading: const Text('📵', style: TextStyle(fontSize: 14)),
+              leading: const Icon(Icons.block_outlined, size: 18, color: TrackTheme.orange),
               accent: TrackTheme.indigo,
               onTap: _pickApps,
             ),
@@ -233,7 +232,7 @@ class _StartBodyState extends State<_StartBody> {
                 title: 'Cover the whole list',
                 subtitle: 'Pro covers every app you open when you are avoiding work — free sessions cover '
                     '${ProConfig.freeBlockedApps}.',
-                emoji: '🎯',
+                emoji: 'focus',
                 accent: TrackTheme.indigo,
                 onTap: () => showPaywall(context, trigger: PaywallTrigger.focusApps),
               ),
@@ -246,13 +245,21 @@ class _StartBodyState extends State<_StartBody> {
         // Both end up in the same `goalLabel` column, and the routine link adds only the
         // id — the label is always the user's own words or their routine's name.
         _Label('What is this for?'),
-        CupertinoTextField(
+        TextField(
           controller: _goalController,
-          placeholder: 'Focus session',
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          textCapitalization: TextCapitalization.sentences,
           maxLength: 60,
           style: TextStyle(fontSize: 15, color: TrackTheme.label(dark)),
-          decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(11)),
+          decoration: InputDecoration(
+            hintText: 'Focus session',
+            filled: true,
+            fillColor: TrackTheme.fill(dark),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(11),
+              borderSide: BorderSide.none,
+            ),
+          ),
           onChanged: (v) => setState(() {
             _goal = v.trim().isEmpty ? 'Focus session' : v.trim();
             // Typing something else is how a user unlinks a routine. Leaving the
@@ -267,7 +274,7 @@ class _StartBodyState extends State<_StartBody> {
             subtitle: _commitmentId == null
                 ? 'Optional. The session keeps its own name either way.'
                 : 'Tap to change or remove the link',
-            leading: const Text('🔗', style: TextStyle(fontSize: 14)),
+            leading: const Icon(Icons.link_rounded, size: 18, color: TrackTheme.orange),
             accent: TrackTheme.green,
             onTap: _pickGoal,
           ),
@@ -311,7 +318,7 @@ class _StartBodyState extends State<_StartBody> {
     // When blocking was asked for and cannot happen, the button says so. A button
     // labelled "Start" that quietly delivers less is how trust in a feature like this
     // gets spent.
-    if (willBlock) return 'Start with $count app${count == 1 ? '' : 's'} covered';
+    if (willBlock) return 'Start with $count app${count == 1 ? '' : 's'} selected';
     return 'Start without blocking';
   }
 
@@ -364,12 +371,12 @@ class _ModeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Text(mode.emoji, style: const TextStyle(fontSize: 15)),
+                Icon(_focusModeIcon(mode), size: 19, color: accent),
                 const SizedBox(width: 8),
                 Text(mode.label,
                     style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -.25, color: TrackTheme.label(dark))),
                 const Spacer(),
-                if (selected) Icon(CupertinoIcons.checkmark_circle_fill, size: 18, color: accent),
+                if (selected) Icon(Icons.check_circle_rounded, size: 19, color: accent),
                 if (!selected && mode != FocusMode.standard && !canBlock)
                   Text('needs setup',
                       style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: TrackTheme.orange)),
@@ -382,7 +389,7 @@ class _ModeCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(CupertinoIcons.info, size: 12, color: TrackTheme.label3(dark)),
+                Icon(Icons.info_outline_rounded, size: 15, color: TrackTheme.label3(dark)),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(mode.limitation,
@@ -396,6 +403,12 @@ class _ModeCard extends StatelessWidget {
     );
   }
 }
+
+IconData _focusModeIcon(FocusMode mode) => switch (mode) {
+      FocusMode.standard => Icons.timer_outlined,
+      FocusMode.blocking => Icons.block_outlined,
+      FocusMode.deep => Icons.do_not_disturb_on_outlined,
+    };
 
 /// The plain-language state of enforcement, before the session starts.
 class _PermissionSummary extends StatelessWidget {
@@ -422,8 +435,8 @@ class _PermissionSummary extends StatelessWidget {
           'The timer, the goal and the reflection all work; covering other apps does not.';
       accent = TrackTheme.orange;
     } else if (willBlock) {
-      headline = 'Track Pro can cover the apps you chose. It will say so during the session once it has '
-          'actually seen one of them open — until then the status reads "armed", not "blocking".';
+      headline = 'Track Pro can request coverage for the apps you chose. It says coverage is verified only after '
+          'it sees a selected app and Android accepts the coverage-panel launch; until then the status reads "armed".';
       accent = TrackTheme.green;
     } else if (permissions.canBlock) {
       headline = 'Track Pro can cover apps, but none are chosen.';
@@ -518,7 +531,7 @@ class _PermissionBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _PermissionRow(
-          emoji: '📊',
+          icon: Icons.query_stats_outlined,
           title: 'Usage access',
           granted: p.usageAccess,
           reason: 'Lets Track Pro notice when a covered app comes to the front, so it can step in. It reads '
@@ -528,7 +541,7 @@ class _PermissionBody extends StatelessWidget {
           onOpen: app.openUsageAccessSettings,
         ),
         _PermissionRow(
-          emoji: '🪟',
+          icon: Icons.open_in_new_rounded,
           title: 'Display over other apps',
           granted: p.overlay,
           reason: 'Lets Track Pro draw the "this is covered" panel over the app you opened. The panel has '
@@ -537,7 +550,7 @@ class _PermissionBody extends StatelessWidget {
           onOpen: app.openOverlaySettings,
         ),
         _PermissionRow(
-          emoji: '🔔',
+          icon: Icons.notifications_outlined,
           title: 'Notifications',
           granted: p.notifications,
           reason: 'Used for the running-session notice Android requires while the detector is active, and '
@@ -547,7 +560,7 @@ class _PermissionBody extends StatelessWidget {
           onOpen: app.openNotificationSettings,
         ),
         _PermissionRow(
-          emoji: '🔋',
+          icon: Icons.battery_saver_outlined,
           title: 'Battery optimisation',
           granted: p.batteryOptimised,
           reason: 'If Android is optimising Track Pro, it can suspend the detector mid-session, and covering '
@@ -591,7 +604,7 @@ class _PermissionBody extends StatelessWidget {
 
 class _PermissionRow extends StatelessWidget {
   const _PermissionRow({
-    required this.emoji,
+    required this.icon,
     required this.title,
     required this.granted,
     required this.reason,
@@ -599,7 +612,7 @@ class _PermissionRow extends StatelessWidget {
     required this.onOpen,
   });
 
-  final String emoji;
+  final IconData icon;
   final String title;
   final bool granted;
   final String reason;
@@ -622,7 +635,7 @@ class _PermissionRow extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(emoji, style: const TextStyle(fontSize: 15)),
+              Icon(icon, size: 19, color: TrackTheme.orange),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(title,
@@ -679,7 +692,7 @@ Future<List<String>?> showFocusAppPicker(
     subtitle: apps.isEmpty
         ? 'This device did not report any apps to Track Pro. Without usage access, the list cannot be read — '
             'that permission is also what makes covering possible.'
-        : 'Only the apps you pick are covered, and only while a session runs.',
+        : 'Only the apps you pick are selected for coverage, and only while a session runs.',
     accent: TrackTheme.indigo,
     scrollable: true,
     body: _AppPickerBody(apps: apps, selected: selected, mode: mode),
@@ -724,13 +737,19 @@ class _AppPickerBodyState extends State<_AppPickerBody> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CupertinoTextField(
-          placeholder: 'Search apps',
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        TextField(
+          textInputAction: TextInputAction.search,
           style: TextStyle(fontSize: 14.5, color: TrackTheme.label(dark)),
-          decoration: BoxDecoration(
-            color: TrackTheme.fill(dark),
-            borderRadius: BorderRadius.circular(11),
+          decoration: InputDecoration(
+            hintText: 'Search apps',
+            prefixIcon: const Icon(Icons.search_rounded),
+            filled: true,
+            fillColor: TrackTheme.fill(dark),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(11),
+              borderSide: BorderSide.none,
+            ),
           ),
           onChanged: (v) => setState(() => _query = v),
         ),
@@ -762,21 +781,21 @@ class _AppPickerBodyState extends State<_AppPickerBody> {
             title: 'Cover more than ${ProConfig.freeBlockedApps} apps',
             subtitle: 'Pro removes the ceiling on the app list. Every mode, the timer and your session '
                 'history stay free.',
-            emoji: '🎯',
+            emoji: 'focus',
             accent: TrackTheme.indigo,
             onTap: () => showPaywall(context, trigger: PaywallTrigger.focusApps),
           ),
         ],
         const SizedBox(height: 12),
         TrackFilledButton(
-          label: _selected.isEmpty ? 'Nothing covered' : 'Cover ${_selected.length} app${_selected.length == 1 ? '' : 's'}',
+          label: _selected.isEmpty ? 'No apps selected' : 'Select ${_selected.length} app${_selected.length == 1 ? '' : 's'}',
           color: TrackTheme.indigo,
           onTap: () => Navigator.of(context).pop(_selected.toList()),
         ),
         const SizedBox(height: 8),
         Text(
-          'These apps are covered only while a ${widget.mode.label.toLowerCase()} session is running '
-          '${FocusEngine.pauseSuspendsEnforcement(widget.mode) ? '— and a pause stops covering them until you resume' : '— a paused session keeps covering them'}.',
+          'Track Pro requests coverage for these apps only while a ${widget.mode.label.toLowerCase()} session is running '
+          '${FocusEngine.pauseSuspendsEnforcement(widget.mode) ? '— and a pause stops coverage until you resume' : '— a paused session keeps coverage requested'}.',
           style: TextStyle(fontSize: 11.8, height: 1.45, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
         ),
         const SizedBox(height: 4),
@@ -848,12 +867,12 @@ class _AppRow extends StatelessWidget {
               ),
             ),
             if (info.protectedFromBlocking)
-              Icon(CupertinoIcons.lock_fill, size: 14, color: TrackTheme.label3(dark))
+              Icon(Icons.lock_outline_rounded, size: 16, color: TrackTheme.label3(dark))
             else if (locked)
               ProChip(compact: true)
             else
               Icon(
-                selected ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
+                selected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
                 size: 21,
                 color: selected ? TrackTheme.indigo : TrackTheme.label3(dark).withOpacity(.5),
               ),
@@ -901,13 +920,13 @@ class _GoalBody extends StatelessWidget {
           GlassRow(
             title: 'Focus session',
             subtitle: 'A plain session with no routine attached',
-            leading: const Text('🎯', style: TextStyle(fontSize: 14)),
+            leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
             accent: TrackTheme.blue,
             onTap: () => onDone((id: null, label: 'Focus session')),
           ),
           for (final c in commitments)
             GlassRow(
-              title: '${c.emoji}  ${c.name}',
+              title: c.name,
               subtitle: c.fullAction.isEmpty ? 'Link this session to your routine' : c.fullAction,
               accent: TrackTheme.green,
               onTap: () => onDone((id: c.id, label: c.name)),
@@ -968,11 +987,12 @@ class _CustomMinutesBodyState extends State<_CustomMinutesBody> {
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 30, fontWeight: FontWeight.w700, letterSpacing: -.8, color: TrackTheme.label(dark))),
         const SizedBox(height: 8),
-        CupertinoSlider(
+        Slider(
           value: _minutes.toDouble(),
           min: FocusEngine.minCustomMinutes.toDouble(),
           max: FocusEngine.maxCustomMinutes.toDouble(),
           divisions: FocusEngine.maxCustomMinutes - FocusEngine.minCustomMinutes,
+          activeColor: TrackTheme.blue,
           onChanged: (v) => setState(() => _minutes = FocusEngine.clampMinutes(v.round())),
         ),
         const SizedBox(height: 6),
