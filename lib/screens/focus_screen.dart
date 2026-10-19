@@ -29,13 +29,23 @@ import 'log_sheets.dart';
 /// `focus_setup_sheets.dart`), and the exit is present on this screen at all times.
 /// Deep Focus makes the exit deliberate — a press-and-hold — never hidden, never
 /// behind a fake screen, and never absent.
-Future<void> openFocusSession(BuildContext context) {
-  return Navigator.of(context).push(
-    CupertinoPageRoute<void>(
-      fullscreenDialog: true,
-      builder: (_) => const FocusSessionScreen(),
-    ),
-  );
+bool _sessionRouteOpen = false;
+
+Future<void> openFocusSession(BuildContext context) async {
+  // One route for one session. Tapping the live card twice used to push a second
+  // copy of this screen — and, in the old build, a second countdown timer with it.
+  if (_sessionRouteOpen) return;
+  _sessionRouteOpen = true;
+  try {
+    await Navigator.of(context).push(
+      CupertinoPageRoute<void>(
+        fullscreenDialog: true,
+        builder: (_) => const FocusSessionScreen(),
+      ),
+    );
+  } finally {
+    _sessionRouteOpen = false;
+  }
 }
 
 class FocusSessionScreen extends StatefulWidget {
@@ -46,29 +56,25 @@ class FocusSessionScreen extends StatefulWidget {
 }
 
 class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBindingObserver {
-  Timer? _ticker;
-  bool _finishing = false;
-  String? _endedId;
-
   /// The session this screen was opened for / is currently showing. A summary is
   /// only ever opened for an id we have actually seen live here — never for whatever
   /// happens to be the newest row, which could belong to an earlier session.
   String? _trackedId;
 
+  /// Guards the summary so a rebuild between the ending and the sheet cannot open it
+  /// twice, and so a second "End" tap is a no-op.
+  String? _endedId;
+  bool _ending = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    // 1 Hz. The countdown is drawn from a monotonic clock, so a tick that arrives
-    // late still produces the correct number — the screen never drifts, and never
-    // runs ahead of the truth.
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => _tick());
-    WidgetsBinding.instance.addPostFrameCallback((_) => _tick());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncOnce());
   }
 
   @override
   void dispose() {
-    _ticker?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -77,39 +83,35 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
   void didChangeAppLifecycleState(AppLifecycleState state) {
     // Coming back after the screen was off is exactly when a session's numbers need
     // re-deriving: the platform may have ended it, or the device may have rebooted.
-    if (state == AppLifecycleState.resumed) unawaited(_tick());
+    if (state == AppLifecycleState.resumed) unawaited(_syncOnce());
   }
 
-  Future<void> _tick() async {
-    if (!mounted || _finishing) return;
-    final app = context.read<AppState>();
-    await app.tickFocus();
+  Future<void> _syncOnce() async {
     if (!mounted) return;
+    await context.read<AppState>().tickFocus();
+    if (!mounted) return;
+    _maybeShowSummary(context.read<AppState>());
+  }
 
-    final session = app.activeFocusSession;
-    if (session == null) {
-      // The repository resolved the session underneath us (it expired while we were
-      // backgrounded, or the platform reported the service gone). Show the summary
-      // once, for the session this screen was actually showing.
-      final ended = _endedId ?? _trackedId;
-      if (ended != null && ended != _endedId) {
-        _endedId = ended;
-        _ticker?.cancel();
-        if (mounted) await showFocusSummary(context, ended, popOnClose: true);
-      }
+  /// Opens the summary once, when the live session this screen was showing has gone.
+  ///
+  /// There is deliberately no second timer here: `HomeShell` owns the one ticker for
+  /// the whole app, and the repository decides when a session ends. Two tickers used
+  /// to reconcile the same row at the same moment, which is how an ending can be
+  /// written twice.
+  void _maybeShowSummary(AppState app) {
+    final live = app.activeFocusSession;
+    if (live != null) {
+      _trackedId = live.id;
       return;
     }
-    _trackedId = session.id;
-
-    if (app.focusRemainingMs <= 0) {
-      _finishing = true;
-      _ticker?.cancel();
-      final ended = await app.completeFocus();
+    final ended = _trackedId;
+    if (ended == null || ended == _endedId) return;
+    _endedId = ended;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final id = ended?.id ?? session.id;
-      _endedId = id;
-      await showFocusSummary(context, id, popOnClose: true);
-    }
+      await showFocusSummary(context, ended, popOnClose: true);
+    });
   }
 
   Future<void> _pause() async {
@@ -127,6 +129,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
   }
 
   Future<void> _end() async {
+    if (_ending) return;
     final app = context.read<AppState>();
     final session = app.activeFocusSession;
     if (session == null) return;
@@ -134,8 +137,10 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
     final confirmed = await _confirmEnd(session);
     if (!confirmed || !mounted) return;
 
-    _finishing = true;
-    _ticker?.cancel();
+    _ending = true;
+    // Marked before the write: the ending notifies listeners while it is in flight,
+    // and the rebuild must not schedule a second summary for the same session.
+    _endedId = session.id;
     final ended = await app.endFocus();
     if (!mounted) return;
     await showFocusSummary(context, ended?.id ?? session.id, popOnClose: true);
@@ -170,9 +175,18 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
     final app = context.watch<AppState>();
     final session = app.activeFocusSession;
     final dark = Theme.of(context).brightness == Brightness.dark;
+    _maybeShowSummary(app);
 
     if (session == null) {
-      // One frame between the session ending and the summary opening.
+      // Nothing live and nothing this screen ever showed: the route outlived its
+      // session (a state restore, or a start that failed after the push). Leave
+      // instead of presenting a blank full-screen page with no way back.
+      if (_trackedId == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).maybePop();
+        });
+      }
+      // Otherwise this is the one frame between the ending and the summary opening.
       return Scaffold(backgroundColor: TrackTheme.bg(dark), body: const SizedBox.shrink());
     }
 
@@ -367,8 +381,12 @@ class _StatusBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final (accent, accent2) = _colors(enforcement.tone);
-    final blocking = session.blockedPackages.isNotEmpty;
+    // A paused session is not "blocking stopped": the user stopped it, on purpose,
+    // and the setup sheet promised the apps would be reachable again. The card says
+    // that instead of reusing the wording for a failure.
+    final paused = session.isPaused && FocusEngine.pauseSuspendsEnforcement(session.mode);
+    final accent = paused ? TrackTheme.orange : _colors(enforcement.tone).$1;
+    final blocking = session.blockedPackages.isNotEmpty && !paused;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -388,26 +406,29 @@ class _StatusBlock extends StatelessWidget {
                   Container(width: 8, height: 8, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(enforcement.label,
+                    child: Text(paused ? 'Paused' : enforcement.label,
                         style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, letterSpacing: -.2, color: TrackTheme.label(dark))),
                   ),
                 ],
               ),
               const SizedBox(height: 6),
-              Text(enforcement.detail,
+              Text(
+                  paused
+                      ? 'Your covered apps are available again. Resume to cover them for the time that is left.'
+                      : enforcement.detail,
                   style: TextStyle(fontSize: 12.8, fontWeight: FontWeight.w500, height: 1.45, color: TrackTheme.label2(dark))),
               if (blocking) ...[
                 const SizedBox(height: 8),
                 Text(
-                  '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected · '
-                  '${native.blockedAttempts} detected open${native.blockedAttempts == 1 ? '' : 's'}',
+                  '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} covered · '
+                  '${native.blockedAttempts} opening${native.blockedAttempts == 1 ? '' : 's'} noticed',
                   style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w600, color: accent),
                 ),
               ],
             ],
           ),
         ),
-        if (enforcement.needsAttention) ...[
+        if (enforcement.needsAttention && !paused) ...[
           const SizedBox(height: 8),
           Pressable(
             onTap: onFix,
@@ -424,8 +445,8 @@ class _StatusBlock extends StatelessWidget {
                   Expanded(
                     child: Text(
                       !platformAvailable
-                          ? 'This device build has no focus channel — the timer still works.'
-                          : 'Fix permissions',
+                          ? 'This device cannot cover apps — the timer still works.'
+                          : 'Fix access',
                       style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
                     ),
                   ),
@@ -453,15 +474,10 @@ class _SessionFacts extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: StatTile(value: focusDurationLabel(shown), label: 'Focused')),
-        const SizedBox(width: 10),
-        Expanded(child: StatTile(value: focusDurationLabel(session.pausedMs), label: 'Paused')),
-        const SizedBox(width: 10),
-        Expanded(
-          child: StatTile(
-            value: session.timingVerified ? 'Monotonic' : 'Wall clock',
-            label: 'Timing',
-          ),
-        ),
+        if (session.pausedMs > 0) ...[
+          const SizedBox(width: 10),
+          Expanded(child: StatTile(value: focusDurationLabel(session.pausedMs), label: 'Paused')),
+        ],
       ],
     );
   }

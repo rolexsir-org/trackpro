@@ -164,10 +164,9 @@ class _StartBodyState extends State<_StartBody> {
     // exactly the kind of bug that only shows up on a slow frame.
     final navigator = Navigator.of(context);
     navigator.pop();
-    await navigator.push(CupertinoPageRoute<void>(
-      fullscreenDialog: true,
-      builder: (_) => const FocusSessionScreen(),
-    ));
+    // One entry point for the session route, so two taps cannot stack two screens
+    // (or two countdowns) for the same session.
+    await openFocusSession(navigator.context);
   }
 
   @override
@@ -430,7 +429,7 @@ class _PermissionSummary extends StatelessWidget {
       headline = 'Track Pro can cover apps, but none are chosen.';
       accent = TrackTheme.blue;
     } else {
-      headline = 'App covering needs ${permissions.missingForBlocking.join(' and ')}. '
+      headline = 'App covering needs ${permissions.missingForBlockingLabel}. '
           'Without ${permissions.missingForBlocking.length == 1 ? 'it' : 'them'} this session will be a timer, '
           'and Track Pro will say so rather than pretend.';
       accent = TrackTheme.orange;

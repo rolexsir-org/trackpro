@@ -534,16 +534,15 @@ class FocusEngine {
   /// mode so the setup sheet and the session screen cannot disagree.
   static String cancellationCopy(FocusMode mode) => switch (mode) {
         FocusMode.standard =>
-          'Ending is a tap away at any time. Nothing is blocked in this mode, so ending early '
-              'simply records a shortened session.',
+          'End it any time. Nothing is blocked in this mode, so ending early just records a '
+              'shorter session.',
         FocusMode.blocking =>
-          'Ending is a tap away at any time. While the session runs, the apps you selected are '
-              'covered when you open them; ending the session releases them immediately.',
+          'End it any time. The apps you picked are covered while the session runs, and released '
+              'the moment it ends.',
         FocusMode.deep =>
-          'Ending takes a deliberate press-and-hold, because "deep" is a rule you chose — not a '
-              'trap. If a pause pushes past the '
-              '${pauseBudgetFor(FocusMode.deep)!.inMinutes}-minute budget the session is still recorded, but '
-              'not as a clean completion.',
+          'Ending takes a deliberate press-and-hold — a rule you chose, not a trap. If a pause '
+              'goes past the ${pauseBudgetFor(FocusMode.deep)!.inMinutes}-minute budget, the '
+              'session is still saved, but not as a clean completion.',
       };
 }
 
@@ -595,28 +594,25 @@ extension FocusModeText on FocusMode {
   /// What the mode does, said plainly.
   String get blurb => switch (this) {
         FocusMode.standard =>
-          'A timer and a quiet screen. Track Pro holds its own reminders while a session runs. '
-              'Nothing outside the app is touched.',
+          'A quiet timer. Track Pro holds its own reminders while a session runs; nothing outside '
+              'the app is touched.',
         FocusMode.blocking =>
-          'The apps you choose are covered while the session runs, using the overlay access you '
-              'grant. Android has no public API that can prevent another app from opening, so this '
-              'is best-effort — read the limitations before you rely on it.',
+          'Covers the apps you pick while the session runs. It is best-effort, not a lock.',
         FocusMode.deep =>
-          'The stricter rules you configure: a smaller pause budget and a press-and-hold to end. '
-              'It is not a kiosk, and it never takes the device over.',
+          'App covering with stricter rules: a smaller pause budget, and a press-and-hold to end.',
       };
 
   /// The honest limitation, shown on the setup sheet *before* a mode is chosen. A
   /// user who finds out afterwards that "blocking" was advisory is a user who will
   /// never trust the feature again.
   String get limitation => switch (this) {
-        FocusMode.standard => 'No blocking. Notifications from other apps still arrive.',
+        FocusMode.standard => 'No blocking. Other apps can still notify you.',
         FocusMode.blocking =>
-          'Best-effort: needs two permissions, cannot stop an app launching, and pressing Home '
-              'leaves the blocked app.',
+          'Needs Usage access and Display over other apps. It cannot stop an app launching, and '
+              'pressing Home leaves a covered app.',
         FocusMode.deep =>
-          'Best-effort, plus a pause budget. It cannot cover the notification shade, system '
-              'dialogs, or the Home and Recents buttons.',
+          'Best-effort. It cannot cover the notification shade, system dialogs, or the Home and '
+              'Recents buttons.',
       };
 }
 

@@ -64,6 +64,19 @@ class FocusRepository {
 
   int _idCounter = 0;
 
+  /// Monotonic instant at which the live row was last written (or read back).
+  ///
+  /// The checkpoint rule is "write at most every [checkpointMs]", and it has to be
+  /// measured against what is *in the database*, not against the in-memory
+  /// projection — the projection moves every tick, which would make the comparison
+  /// permanently smaller than the interval and skip every write.
+  int? _lastCheckpointRealtimeMs;
+
+  /// One sync at a time. A foreground, a one-second tick and a lifecycle callback
+  /// can arrive together; letting two of them reconcile the same live row means two
+  /// writes and, at expiry, two endings for one session.
+  bool _syncing = false;
+
   /// Today, as the local day key every other part of the app uses.
   int get todayKey => dayKey(now());
 
@@ -148,6 +161,7 @@ class FocusRepository {
       ]);
 
     await _repairMultipleLiveSessions();
+    _lastCheckpointRealtimeMs = liveSession?.segmentStartedAtRealtimeMs;
   }
 
   /// The state that should be impossible: two open rows. It can only come from a
@@ -257,6 +271,7 @@ class FocusRepository {
     }
 
     _sessions.insert(0, session);
+    _lastCheckpointRealtimeMs = monotonic;
     return session;
   }
 
@@ -269,7 +284,16 @@ class FocusRepository {
   Future<FocusSession?> syncNative({bool force = false}) async {
     final live = liveSession;
     if (live == null) return null;
+    if (_syncing) return live;
+    _syncing = true;
+    try {
+      return await _syncNative(live, force: force);
+    } finally {
+      _syncing = false;
+    }
+  }
 
+  Future<FocusSession?> _syncNative(FocusSession live, {required bool force}) async {
     final monotonic = await enforcer.monotonicMs();
     final recovery = FocusEngine.recover(
       session: live,
@@ -314,8 +338,17 @@ class FocusRepository {
       detectionEvents: native.detectionEvents,
     );
 
+    // `recovery.elapsedMs` is `focusMs + (now - segmentStartedAtRealtimeMs)`.
+    // Banking it into `focusMs` while leaving the old segment start in place would
+    // make the *next* recovery add the same stretch again — which is why a session
+    // used to gain time on every checkpoint, and why reopening the app mid-session
+    // could jump the countdown forward by minutes. The segment restarts at the same
+    // instant the elapsed figure is banked, so the two always describe the same
+    // moment.
+    final rebased = live.state == FocusSessionState.running && monotonic != null;
     final updated = live.copyWith(
       focusMs: recovery.elapsedMs,
+      segmentStartedAtRealtimeMs: rebased ? monotonic : null,
       enforcement: enforcement,
       blockedAttempts: native.blockedAttempts,
       overlayShows: native.overlayShows,
@@ -326,11 +359,17 @@ class FocusRepository {
 
     // The row is only rewritten when something moved (or the caller forced it), so
     // a one-second UI tick is not a one-second database write.
-    final moved = (updated.focusMs - live.focusMs).abs() >= checkpointMs ||
+    final sinceCheckpoint = monotonic == null || _lastCheckpointRealtimeMs == null
+        ? checkpointMs
+        : monotonic - _lastCheckpointRealtimeMs!;
+    final moved = sinceCheckpoint >= checkpointMs ||
         updated.blockedAttempts != live.blockedAttempts ||
         updated.enforcement != live.enforcement ||
         force;
-    if (moved) await dao.upsert(_toRow(updated));
+    if (moved) {
+      await dao.upsert(_toRow(updated));
+      _lastCheckpointRealtimeMs = monotonic;
+    }
     return updated;
   }
 
@@ -353,7 +392,17 @@ class FocusRepository {
       clearSegment: true,
     );
     await dao.upsert(_toRow(paused));
+    _lastCheckpointRealtimeMs = monotonic;
     _replace(paused);
+
+    // The setup sheet promises that a pause stops covering the selected apps, and
+    // that promise was false: the service kept running on its own fixed end time, so
+    // apps stayed out of reach while the countdown stood still. Stopping the native
+    // session here is what makes the copy true; [resume] re-arms it for the time
+    // that is actually left.
+    if (live.mode != FocusMode.standard && paused.blockedPackages.isNotEmpty) {
+      await enforcer.stopSession();
+    }
     return paused;
   }
 
@@ -367,7 +416,7 @@ class FocusRepository {
     // The pause is banked here, not at the end: whatever happens next, the time the
     // user was not focusing is already accounted for and cannot be counted as focus.
     final sincePause = live.pausedAtWallMs == null ? 0 : (wall - live.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000);
-    final resumed = live.copyWith(
+    var resumed = live.copyWith(
       state: FocusSessionState.running,
       segmentStartedAtRealtimeMs: monotonic,
       clearSegment: monotonic == null,
@@ -375,7 +424,54 @@ class FocusRepository {
       pausedMs: live.pausedMs + sincePause,
     );
     await dao.upsert(_toRow(resumed));
+    _lastCheckpointRealtimeMs = monotonic;
     _replace(resumed);
+
+    // A long pause can outlive the platform's own end time: the service stops at
+    // start + planned minutes, because it counts wall time and knows nothing about
+    // pauses. Resuming used to leave a running timer with a dead detector, so the
+    // rest of the session was recorded as unenforced. The platform seam can start the
+    // same session id again for the time that is actually left.
+    if (monotonic != null && resumed.enforcement.intendsToBlock && resumed.blockedPackages.isNotEmpty) {
+      final native = await enforcer.state();
+      if (!native.running) {
+        final leftMs = (resumed.plannedMs - resumed.focusMs).clamp(0, resumed.plannedMs);
+        if (leftMs > 0) {
+          final started = await enforcer.startSession(
+            sessionId: resumed.id,
+            mode: resumed.mode.storage,
+            plannedMinutes: (leftMs / 60000).ceil().clamp(1, 24 * 60),
+            endsAtRealtimeMs: monotonic + leftMs,
+            packages: resumed.blockedPackages,
+            block: true,
+            label: resumed.goalLabel,
+            // The accent is presentation only; the session row is the record.
+            accentArgb: 0xFF5B7CFA,
+          );
+          // A restart the platform refused is not "still blocking": record what the
+          // platform reports, so the banner and the eventual verdict use the truth.
+          final native = await enforcer.state();
+          final enforcement = started
+              ? FocusEngine.enforcementFor(
+                  blockingRequested: true,
+                  serviceAlive: native.running,
+                  permissionLostMidSession: false,
+                  overlayGranted: native.overlay,
+                  usageAccessGranted: native.usageAccess,
+                  detectionEvents: native.detectionEvents,
+                )
+              : FocusEnforcement.unavailable;
+          resumed = resumed.copyWith(
+            enforcement: enforcement,
+            blockedAttempts: native.blockedAttempts,
+            overlayShows: native.overlayShows,
+            detectionEvents: native.detectionEvents,
+          );
+          await dao.upsert(_toRow(resumed));
+          _replace(resumed);
+        }
+      }
+    }
     return resumed;
   }
 
@@ -488,6 +584,7 @@ class FocusRepository {
     );
 
     _replace(ended);
+    _lastCheckpointRealtimeMs = null;
     if (stopEnforcement) await enforcer.stopSession();
     debugPrint(
       'FocusRepository: session ${ended.id} ended as ${outcome.storage} '

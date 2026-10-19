@@ -401,6 +401,37 @@ void main() {
       expect(resumed.pausedAtWallMs, isNull);
     });
 
+    test('a pause stops covering apps, and resume re-arms the service', () async {
+      // The setup sheet says a pause makes the selected apps available again. That
+      // sentence is only true if the native session is actually stopped here, and the
+      // only way to keep it true on resume is to start it again for the time left.
+      await start(minutes: 25);
+      expect(enforcer.startCalls, 1);
+      now = now.add(const Duration(minutes: 5));
+      enforcer.monotonic += 5 * 60 * 1000;
+
+      await repo.pause();
+      expect(enforcer.stopCalls, 1, reason: 'a paused session must not keep covering apps');
+      expect(enforcer.native.running, isFalse);
+
+      await repo.resume();
+      expect(enforcer.startCalls, 2, reason: 'the remaining time is covered again');
+      expect(enforcer.native.running, isTrue);
+    });
+
+    test('a resume the platform refuses is recorded as unavailable, not as blocking', () async {
+      await start(minutes: 25);
+      now = now.add(const Duration(minutes: 5));
+      enforcer.monotonic += 5 * 60 * 1000;
+      await repo.pause();
+
+      enforcer.startSucceeds = false;
+      final resumed = await repo.resume();
+      expect(resumed!.state, FocusSessionState.running);
+      expect(resumed.enforcement, FocusEnforcement.unavailable,
+          reason: 'the row must not claim a service that refused to start');
+    });
+
     test('pausing past the mode budget is recorded as a degraded completion', () async {
       await start(mode: FocusMode.deep, minutes: 25);
       now = now.add(const Duration(minutes: 5));
@@ -498,6 +529,80 @@ void main() {
       expect(repo.history, isEmpty);
       expect(repo.profiles.map((p) => p.name), ['Keep me'],
           reason: 'a profile is configuration, not history');
+    });
+  });
+
+  group('the countdown is arithmetic, not accumulation', () {
+    test('a checkpoint banks the time it measured and restarts the segment', () async {
+      final session = await start(minutes: 25);
+      enforcer.monotonic += 60 * 1000;
+      now = now.add(const Duration(minutes: 1));
+
+      final first = await repo.syncNative(force: true);
+      expect(first!.focusMs, closeTo(60 * 1000, 1000),
+          reason: 'one minute elapsed, and one minute is what is banked');
+
+      // Another minute passes with no forced write. The projection must read two
+      // minutes — the old code added the whole stretch since the start again here.
+      enforcer.monotonic += 60 * 1000;
+      now = now.add(const Duration(minutes: 1));
+      final second = await repo.syncNative();
+      expect(second!.focusMs, closeTo(120 * 1000, 1500),
+          reason: 'the segment restarts at each checkpoint, so elapsed cannot double');
+      expect(second.focusMs, lessThan(3 * 60 * 1000));
+      expect((await db.focusDao.byId(session.id))!.focusMs, lessThanOrEqualTo(120 * 1000));
+    });
+
+    test('reopening the app mid-session does not jump the countdown forward', () async {
+      await start(minutes: 25);
+      enforcer.monotonic += 60 * 1000;
+      now = now.add(const Duration(minutes: 1));
+      await repo.syncNative(force: true);
+
+      enforcer.monotonic += 60 * 1000;
+      now = now.add(const Duration(minutes: 1));
+
+      // A second launch: hydrate reads the persisted row, then recovery reconciles it
+      // with the monotonic clock. The persisted checkpoint and its segment start
+      // describe the same instant, so recovery adds only the minute since then.
+      final relaunched = FocusRepository(
+        db: db,
+        enforcer: enforcer,
+        now: () => now,
+        idFactory: _SequenceIds().next,
+      );
+      await relaunched.hydrate();
+      final recovered = await relaunched.recover();
+
+      expect(recovered, isNotNull);
+      expect(recovered!.focusMs, closeTo(120 * 1000, 1500),
+          reason: 'two minutes of a 25-minute session, not four minutes of it');
+      expect(recovered.state, FocusSessionState.running);
+    });
+
+    test('a paused session banks its pause and resumes from the banked total', () async {
+      await start(minutes: 25);
+      enforcer.monotonic += 5 * 60 * 1000;
+      now = now.add(const Duration(minutes: 5));
+      final paused = await repo.pause();
+      expect(paused!.focusMs, closeTo(5 * 60 * 1000, 1000));
+
+      // Ten minutes pass while paused: none of it is focus time.
+      now = now.add(const Duration(minutes: 10));
+      enforcer.monotonic += 10 * 60 * 1000;
+      final stillPaused = await repo.syncNative();
+      expect(stillPaused!.focusMs, closeTo(5 * 60 * 1000, 1000));
+
+      final resumed = await repo.resume();
+      expect(resumed!.state, FocusSessionState.running);
+      expect(resumed.focusMs, closeTo(5 * 60 * 1000, 1000));
+      expect(resumed.pausedMs, closeTo(10 * 60 * 1000, 1500),
+          reason: 'the pause is banked when it ends, not when the session does');
+
+      enforcer.monotonic += 2 * 60 * 1000;
+      now = now.add(const Duration(minutes: 2));
+      final ticking = await repo.syncNative();
+      expect(ticking!.focusMs, closeTo(7 * 60 * 1000, 1500));
     });
   });
 

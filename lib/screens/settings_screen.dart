@@ -48,7 +48,7 @@ class SettingsScreen extends StatelessWidget {
               const SectionLabel('Routines'),
               GlassList(children: [
                 GlassRow(
-                  title: 'Commitments',
+                  title: 'Routines',
                   subtitle: state.hasCommitments
                       ? '${state.commitments.length} active'
                           '${state.archivedCommitments.isEmpty ? '' : ' · ${state.archivedCommitments.length} archived'}'
@@ -189,6 +189,17 @@ class SettingsScreen extends StatelessWidget {
                     trailing: Text('Turn on',
                         style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue)),
                     onTap: () async {
+                      // The system prompt is a bare switch. This sheet is the sentence
+                      // before it: what will be sent, and what is never sent.
+                      final explained = await _explainPermission(
+                        context,
+                        title: 'Allow notifications?',
+                        body: 'Track Pro uses them for the daily check-in, a streak reminder and the '
+                            'running focus notice. They are built on this device and never include '
+                            'what you typed in a note.',
+                        confirm: 'Continue',
+                      );
+                      if (!explained || !context.mounted) return;
                       final ok = await state.notifications?.requestPermission() ?? false;
                       if (!context.mounted) return;
                       if (ok) {
@@ -212,8 +223,8 @@ class SettingsScreen extends StatelessWidget {
                 GlassRow(
                   title: 'App covering',
                   subtitle: state.focusPermissions.canBlock
-                      ? 'Ready — usage access and display-over-apps are granted'
-                      : 'Needs ${state.focusPermissions.missingForBlocking.join(' and ')}',
+                      ? 'Ready to cover apps'
+                      : 'Needs ${state.focusPermissions.missingForBlockingLabel}',
                   leading: const Text('🛡️', style: TextStyle(fontSize: 15)),
                   accent: state.focusPermissions.canBlock ? TrackTheme.green : TrackTheme.orange,
                   trailing: state.focusPermissions.canBlock
@@ -306,6 +317,17 @@ class SettingsScreen extends StatelessWidget {
                     style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue),
                   ),
                   onTap: () async {
+                    if (!state.healthConnected) {
+                      final explained = await _explainPermission(
+                        context,
+                        title: 'Connect Health Connect?',
+                        body: 'Track Pro reads steps, sleep and weight so those trackers can fill '
+                            'themselves in. It never writes to Health Connect, and nothing leaves '
+                            'this device.',
+                        confirm: 'Continue',
+                      );
+                      if (!explained || !context.mounted) return;
+                    }
                     final result = await state.syncHealth(askPermission: true);
                     if (!context.mounted) return;
                     switch (result) {
@@ -427,78 +449,32 @@ class SettingsScreen extends StatelessWidget {
                   },
                 ),
               ]),
-              SectionLabel(
-                'Diagnostics',
-                trailing: Text(
-                  state.integrityOk ? 'Healthy' : 'Check needed',
-                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
-                ),
-              ),
-              GlassList(children: [
-                GlassRow(
-                  title: 'Database integrity',
-                  subtitle: state.integrityOk
-                      ? 'PRAGMA integrity_check passed on the last startup'
-                      : 'The last integrity check reported a problem — export your data first',
-                  leading: Text(state.integrityOk ? '✅' : '⚠️', style: const TextStyle(fontSize: 15)),
-                  accent: state.integrityOk ? TrackTheme.green : TrackTheme.orange,
-                  showChevron: false,
-                ),
-                GlassRow(
-                  title: 'Rows by source',
-                  // Provenance is the audit trail: what the user typed, what a
-                  // wearable contributed, and what (if anything) a seeder wrote.
-                  subtitle: state.sourceCounts.isEmpty
-                      ? 'No rows yet'
-                      : state.sourceCounts.map((c) => '${c.label}: ${c.count}').join(' · '),
-                  leading: const Text('🔍', style: TextStyle(fontSize: 15)),
-                  accent: TrackTheme.indigo,
-                  showChevron: false,
-                ),
-                GlassRow(
-                  title: 'Routines and days recorded',
-                  subtitle: state.hasCommitments
-                      ? '${state.commitments.length} routine${state.commitments.length == 1 ? '' : 's'}, '
-                          '${state.commitments.map((c) => state.commitmentRepo.daysFor(c.id).length).fold<int>(0, (a, b) => a + b)} '
-                          'logged days'
-                      : 'No routines yet — nothing is created for you',
-                  leading: const Text('🎯', style: TextStyle(fontSize: 15)),
-                  accent: TrackTheme.green,
-                  showChevron: false,
-                ),
-                if (state.legacyImportReport != null && state.legacyImportReport!.didImport)
-                  GlassRow(
-                    title: 'Old habit checklist converted',
-                    subtitle: '${state.legacyImportReport!.habits} habits and '
-                        '${state.legacyImportReport!.days} ticked days were imported as routines. '
-                        '${state.legacyImportReport!.limitation ?? ''}',
-                    leading: const Text('📦', style: TextStyle(fontSize: 15)),
-                    accent: TrackTheme.indigo,
-                    showChevron: false,
-                  ),
-                if (state.writeFailure != null)
-                  GlassRow(
-                    // The banner on the shell is transient; this row is where someone
-                    // goes looking afterwards. It states the action, the reason and the
-                    // time, and it says what happened to the data — which is the part
-                    // that matters when a save does not land.
-                    title: 'Last save problem',
-                    subtitle: '${state.writeFailure!.action} was not saved '
-                        '(${state.writeFailure!.detail}) — your previous value is unchanged. '
-                        'That was the most recent write this session.',
-                    leading: const Text('⚠️', style: TextStyle(fontSize: 15)),
-                    accent: TrackTheme.orange,
-                    showChevron: false,
-                  ),
-                if (state.configurationProblems.isNotEmpty)
-                  GlassRow(
-                    title: 'Build configuration',
-                    subtitle: state.configurationProblems.join(' · '),
-                    leading: const Text('⚙️', style: TextStyle(fontSize: 15)),
-                    accent: TrackTheme.orange,
-                    showChevron: false,
-                  ),
-              ]),
+              // Storage health, in the only two states a person can act on. The
+              // SQL counts, migration bookkeeping and build flags that used to live
+              // here were for whoever was debugging this build, not for the person
+              // using it; the one thing worth surfacing is a save that did not land.
+              if (!state.integrityOk || state.writeFailure != null) ...[
+                const SectionLabel('Storage'),
+                GlassList(children: [
+                  if (!state.integrityOk)
+                    GlassRow(
+                      title: 'Storage needs attention',
+                      subtitle: 'Export a copy of your data, then reinstall if problems continue.',
+                      leading: const Text('⚠️', style: TextStyle(fontSize: 15)),
+                      accent: TrackTheme.orange,
+                      showChevron: false,
+                    ),
+                  if (state.writeFailure != null)
+                    GlassRow(
+                      title: 'Last save problem',
+                      subtitle: '${state.writeFailure!.action} was not saved. '
+                          'Your previous value is unchanged.',
+                      leading: const Text('⚠️', style: TextStyle(fontSize: 15)),
+                      accent: TrackTheme.orange,
+                      showChevron: false,
+                    ),
+                ]),
+              ],
               const SectionLabel('About'),
               GlassList(children: [
                 GlassRow(
@@ -550,7 +526,7 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ]),
               const SizedBox(height: 22),
-              Text('Track Pro · one dashboard for everything quantifiable\nMade for the 1M people still using 7 apps to do this',
+              Text('Track Pro · everything stays on this device',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, height: 1.6, color: TrackTheme.label3(dark))),
             ]),
@@ -1238,4 +1214,39 @@ class _HapticRowState extends State<_HapticRow> {
       ),
     );
   }
+}
+
+/// One short explanation before a system permission prompt.
+///
+/// Android's own dialogs are a single line and arrive without context; Play's policy
+/// asks for an in-app rationale before the prompt. This is that rationale — two
+/// sentences, with a way out — and it never asks on the app's behalf without the
+/// person tapping through it.
+Future<bool> _explainPermission(
+  BuildContext context, {
+  required String title,
+  required String body,
+  required String confirm,
+}) async {
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  final answer = await showGlassSheet<bool>(
+    context,
+    title: title,
+    accent: TrackTheme.blue,
+    body: Text(
+      body,
+      style: TextStyle(fontSize: 14, height: 1.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+    ),
+    actions: [
+      TrackTintedButton(
+        label: 'Not now',
+        onTap: () => Navigator.of(context).pop(false),
+      ),
+      TrackFilledButton(
+        label: confirm,
+        onTap: () => Navigator.of(context).pop(true),
+      ),
+    ],
+  );
+  return answer ?? false;
 }

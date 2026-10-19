@@ -10,6 +10,8 @@ import '../util/day_key.dart';
 import '../widgets/glass.dart';
 import '../widgets/large_title_header.dart';
 import 'commitment_sheets.dart';
+import 'focus_history_screen.dart';
+import 'focus_setup_sheets.dart';
 
 /// Momentum — the consistency record, and the screen that has to be honest.
 ///
@@ -38,35 +40,43 @@ class MomentumScreen extends StatelessWidget {
           child: LargeTitleHeader(
             title: 'Momentum',
             subtitle: commitments.isEmpty
-                ? 'Nothing to measure yet'
+                ? 'Your progress at a glance'
                 : '${commitments.length} routine${commitments.length == 1 ? '' : 's'} · '
-                    '${MomentumEngine.rateWindowDays}-day window',
+                    'last ${MomentumEngine.rateWindowDays} days',
           ),
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(Editorial.s4, Editorial.s1, Editorial.s4, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              if (commitments.isEmpty)
-                const _NoRoutines()
+              if (commitments.isEmpty && !state.focusStats.hasAny)
+                _EmptyMomentum(showFocus: state.hasFocusSupport)
               else ...[
-                _HeadlineCard(state: state, overall: overall),
-                const SizedBox(height: Editorial.s4),
+                if (overall != null) ...[
+                  _HeadlineCard(state: state, overall: overall),
+                  const SizedBox(height: Editorial.s4),
+                ],
+                if (state.focusStats.hasAny) ...[
+                  _FocusProgressCard(state: state),
+                  const SizedBox(height: Editorial.s4),
+                ],
                 if (state.needsRestart.isNotEmpty) ...[
                   _RestartCard(state: state),
                   const SizedBox(height: Editorial.s4),
                 ],
-                _Legend(),
-                const SizedBox(height: Editorial.s4),
-                for (final c in commitments) ...[
-                  _CommitmentCard(state: state, commitment: c),
-                  const SizedBox(height: Editorial.s3),
+                if (commitments.isNotEmpty) ...[
+                  _Legend(),
+                  const SizedBox(height: Editorial.s4),
+                  for (final c in commitments) ...[
+                    _CommitmentCard(state: state, commitment: c),
+                    const SizedBox(height: Editorial.s3),
+                  ],
+                  const SizedBox(height: Editorial.s1),
+                  _PatternsSection(state: state),
+                  const SizedBox(height: Editorial.s4),
+                  _WeeklyReviewCard(state: state),
+                  const SizedBox(height: Editorial.s4),
                 ],
-                const SizedBox(height: Editorial.s1),
-                _PatternsSection(state: state),
-                const SizedBox(height: Editorial.s4),
-                _WeeklyReviewCard(state: state),
-                const SizedBox(height: Editorial.s4),
                 GestureDetector(
                   onTap: () => showMomentumExplainer(context),
                   child: Container(
@@ -77,7 +87,7 @@ class MomentumScreen extends StatelessWidget {
                         Icon(CupertinoIcons.info_circle, size: 18, color: Editorial.inkTertiary),
                         const SizedBox(width: Editorial.s3),
                         Expanded(
-                          child: Text('How these numbers are calculated', style: Editorial.figure),
+                          child: Text('How momentum is calculated', style: Editorial.figure),
                         ),
                         Icon(CupertinoIcons.chevron_right, size: 16, color: Editorial.inkTertiary),
                       ],
@@ -115,7 +125,7 @@ class _HeadlineCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            enough ? 'MOMENTUM, LAST ${MomentumEngine.rateWindowDays} DAYS' : 'STILL GATHERING EVIDENCE',
+            enough ? 'MOMENTUM · LAST ${MomentumEngine.rateWindowDays} DAYS' : 'JUST GETTING STARTED',
             style: Editorial.label,
           ),
           const SizedBox(height: Editorial.s3),
@@ -126,30 +136,94 @@ class _HeadlineCard extends StatelessWidget {
               children: [
                 Text('${rate.round()}%', style: Editorial.display),
                 const SizedBox(width: Editorial.s3),
-                Text('across $decided decided days', style: Editorial.caption),
+                Text('$decided days counted', style: Editorial.caption),
               ],
             )
           else ...[
-            Text('$decided of ${MomentumEngine.minDecidedDaysForRate} decided days',
+            Text('$decided of ${MomentumEngine.minDecidedDaysForRate} days counted',
                 style: Editorial.display.copyWith(fontSize: 26)),
             const SizedBox(height: Editorial.s2),
             Text(
-              'A percentage over fewer than ${MomentumEngine.minDecidedDaysForRate} days is noise, so this '
-              'screen will not show one yet. Log a few more days and the figure appears — or not, if '
-              'your plan has more rest days than action days.',
+              'Momentum appears after ${MomentumEngine.minDecidedDaysForRate} days, so it reflects a habit '
+              'rather than a good week. Keep logging and it will show up here.',
               style: Editorial.body,
             ),
           ],
           const SizedBox(height: Editorial.s4),
           _FigureRow(label: 'Full days', value: '${o.fullDays}', tint: Editorial.full),
-          _FigureRow(label: 'Days that only hit the minimum', value: '${o.minimumDays}', tint: Editorial.minimum),
-          _FigureRow(label: 'Planned days missed', value: '${o.missedDays}', tint: Editorial.missed),
-          _FigureRow(label: 'Rest or skipped (not counted)', value: '${o.excludedDays}', tint: Editorial.rest),
+          _FigureRow(label: 'Minimum days', value: '${o.minimumDays}', tint: Editorial.minimum),
+          _FigureRow(label: 'Missed days', value: '${o.missedDays}', tint: Editorial.missed),
+          _FigureRow(label: 'Rest or skipped', value: '${o.excludedDays}', tint: Editorial.rest),
           const SizedBox(height: Editorial.s3),
           Text(
-            'Credit ${o.credit.toStringAsFixed(1)} ÷ $decided decided days. A minimum is worth '
-            '${MomentumEngine.minimumCredit} of a day, a full completion 1.0, a miss 0.',
+            'A minimum day keeps your streak going and counts partly. Rest days do not count against you.',
             style: Editorial.caption,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+
+/// Real focus time, from the sessions the user actually finished. This is the same
+/// record the Focus history screen reads, shown where progress is expected to live;
+/// it is hidden entirely until there is a session to report.
+class _FocusProgressCard extends StatelessWidget {
+  const _FocusProgressCard({required this.state});
+
+  final AppState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = state.focusStats;
+    final endedEarly = stats.cancelled + stats.interrupted;
+    return Container(
+      decoration: Editorial.card(),
+      padding: const EdgeInsets.all(Editorial.s5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('FOCUS · LAST 7 DAYS', style: Editorial.label),
+          const SizedBox(height: Editorial.s3),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text('${stats.minutesLast7Days} min', style: Editorial.display),
+              const SizedBox(width: Editorial.s3),
+              Text('${stats.endedSessions} session${stats.endedSessions == 1 ? '' : 's'}', style: Editorial.caption),
+            ],
+          ),
+          const SizedBox(height: Editorial.s3),
+          Text(
+            '${stats.completed} completed · ${stats.degraded} with a caveat'
+            '${endedEarly > 0 ? ' · $endedEarly ended early' : ''}',
+            style: Editorial.body.copyWith(fontSize: 14),
+          ),
+          if (stats.cleanShare != null) ...[
+            const SizedBox(height: Editorial.s2),
+            Text('${stats.cleanShare!.round()}% of sessions ran exactly as planned.', style: Editorial.caption),
+          ],
+          const SizedBox(height: Editorial.s4),
+          Row(
+            children: [
+              Expanded(
+                child: TrackFilledButton(
+                  label: 'Start a session',
+                  onTap: () => showFocusStartSheet(context),
+                ),
+              ),
+              const SizedBox(width: Editorial.s2),
+              Expanded(
+                child: TrackTintedButton(
+                  label: 'Focus history',
+                  onTap: () => Navigator.of(context).push(
+                    CupertinoPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -219,7 +293,7 @@ class _RestartCard extends StatelessWidget {
               onTap: () => showCommitmentEditor(context, existing: first),
             )
           else
-            Text('Each routine below carries its own numbers.', style: Editorial.caption),
+            const SizedBox.shrink(),
         ],
       ),
     );
@@ -290,24 +364,17 @@ class _CommitmentCard extends StatelessWidget {
                   // No sample, no number.
                   value: snap?.rate == null ? '—' : '${snap!.rate!.round()}%',
                   detail: snap == null
-                      ? 'No data'
+                      ? 'No days yet'
                       : (snap.rate == null
                           ? '${snap.decidedDays} of ${MomentumEngine.minDecidedDaysForRate} days'
-                          : '${snap.decidedDays} decided days'),
+                          : '${snap.decidedDays} days counted'),
                 ),
               ),
               Expanded(
                 child: _MiniStat(
-                  label: 'FULL STREAK',
-                  value: '${snap?.fullStreak ?? 0}',
-                  detail: 'minimums do not extend it',
-                ),
-              ),
-              Expanded(
-                child: _MiniStat(
-                  label: 'KEPT GOING',
+                  label: 'STREAK',
                   value: '${snap?.keepGoingStreak ?? 0}',
-                  detail: 'minimum or full',
+                  detail: 'days in a row',
                 ),
               ),
             ],
@@ -539,10 +606,10 @@ class _PatternsSection extends StatelessWidget {
       for (final p in state.patternsFor(c.id)) {
         rows.add(_Finding(
           title: '${c.name} is missed most on ${weekdayName(p.weekday)}',
-          body: 'Missed ${p.missed} of ${p.decided} ${weekdayName(p.weekday, short: true)}s '
-              '(${(p.missRate * 100).round()}%), against ${(p.overallMissRate * 100).round()}% across all '
-              'your planned days. Sample: ${p.decided} decided ${weekdayName(p.weekday, short: true)}s.',
-          hint: 'A scheduling observation, not a cause. A smaller target or dropping that day is the usual fix.',
+          body: 'Missed ${p.missed} of ${p.decided} ${weekdayName(p.weekday, short: true)}s'
+              ' (${(p.missRate * 100).round()}%), against ${(p.overallMissRate * 100).round()}% on your '
+              'other planned days.',
+          hint: 'This is about timing, not willpower. A smaller target for that day usually helps.',
           color: Editorial.minimum,
         ));
       }
@@ -550,11 +617,10 @@ class _PatternsSection extends StatelessWidget {
       if (imp != null) {
         rows.add(_Finding(
           title: '${c.name} is improving',
-          body: '${imp.recentRate.round()}% over the last ${imp.windowDays} days, against '
-              '${imp.previousRate.round()}% in the ${imp.windowDays} before it '
-              '(+${imp.delta.round()} points). Samples: ${imp.recentDays} and ${imp.previousDays} decided days.',
-          hint: 'Both windows had at least ${MomentumEngine.improvementMinSample} decided days, which is the '
-              'floor this app reports from.',
+          body: '${imp.recentRate.round()}% in the last ${imp.windowDays} days, against '
+              '${imp.previousRate.round()}% in the ${imp.windowDays} before '
+              '(+${imp.delta.round()} points).',
+          hint: 'Both periods had enough logged days to compare.',
           color: Editorial.full,
         ));
       }
@@ -572,13 +638,11 @@ class _PatternsSection extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Nothing to report yet — and that is the honest answer', style: Editorial.figure),
+                Text('No patterns yet', style: Editorial.figure),
                 const SizedBox(height: Editorial.s2),
                 Text(
-                  'Patterns need a minimum sample before they mean anything: '
-                  '${MomentumEngine.weekdayMinSample} decided days on a weekday before that day can be '
-                  'called out, and ${MomentumEngine.improvementMinSample} decided days in each window before '
-                  'progress can be claimed. Until then this section stays empty rather than guessing.',
+                  'Patterns appear after a few weeks of logged days, so they describe a habit rather '
+                  'than a single week.',
                   style: Editorial.caption,
                 ),
               ],
@@ -648,11 +712,7 @@ class _WeeklyReviewCard extends StatelessWidget {
           Text('THIS WEEK · $range'.toUpperCase(), style: Editorial.label),
           const SizedBox(height: Editorial.s3),
           if (review.decidedDays == 0)
-            Text(
-              'No planned days have come up yet this week. Nothing to review — which is different from '
-              'a week of misses, and is reported as nothing.',
-              style: Editorial.body,
-            )
+            Text('No routine days this week yet.', style: Editorial.body)
           else ...[
             if (review.rate case final rate) ...[
               Row(
@@ -661,14 +721,13 @@ class _WeeklyReviewCard extends StatelessWidget {
                 children: [
                   Text('${rate.round()}%', style: Editorial.title.copyWith(fontSize: 26)),
                   const SizedBox(width: Editorial.s2),
-                  Text('over ${review.decidedDays} decided days', style: Editorial.caption),
+                  Text('over ${review.decidedDays} days counted', style: Editorial.caption),
                 ],
               ),
             ] else ...[
               Text(
-                '${review.decidedDays} of ${MomentumEngine.minDecidedDaysForRate} decided days so far. '
-                'A week needs more of them before it can be summarised as a rate — below is what has '
-                'actually happened.',
+                '${review.decidedDays} of ${MomentumEngine.minDecidedDaysForRate} days counted this week. '
+                'The percentage appears once there are enough.',
                 style: Editorial.body,
               ),
             ],
@@ -680,8 +739,7 @@ class _WeeklyReviewCard extends StatelessWidget {
             ),
             if (!review.complete) ...[
               const SizedBox(height: Editorial.s2),
-              Text('The week is still running, so this is a partial reading of it.',
-                  style: Editorial.caption),
+              Text('This week is still in progress.', style: Editorial.caption),
             ],
             const SizedBox(height: Editorial.s4),
             for (final line in review.commitments)
@@ -755,8 +813,11 @@ class _FigureRow extends StatelessWidget {
 
 /// First-run state. Describes what the screen will do, and offers the one action
 /// that starts it — no sample data, no anonymous streak.
-class _NoRoutines extends StatelessWidget {
-  const _NoRoutines();
+class _EmptyMomentum extends StatelessWidget {
+  const _EmptyMomentum({required this.showFocus});
+
+  /// Focus Lock is Android-only; offering the button elsewhere would be a dead end.
+  final bool showFocus;
 
   @override
   Widget build(BuildContext context) {
@@ -766,26 +827,28 @@ class _NoRoutines extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Nothing to measure yet', style: Editorial.title),
+          Text('Nothing to show yet', style: Editorial.title),
           const SizedBox(height: Editorial.s3),
           Text(
-            'Momentum is built from commitments: a thing you decided to do, and the smallest version of it '
-            'you would still count. Once you have one and a week of days behind it, this screen shows your '
-            'rate, the days it came from, and where it is slipping.',
+            'Momentum is built from your own routines: the days you said you would and the days you did. '
+            'Start one and this screen fills in as you log.',
             style: Editorial.body,
           ),
           const SizedBox(height: Editorial.s5),
           TrackFilledButton(
-            label: 'Set up a routine',
+            label: 'Create a routine',
             onTap: () => showTemplatePicker(context),
           ),
-          const SizedBox(height: Editorial.s3),
-          Text(
-            'No starter data is added for you. The first square on that strip is the first day you log.',
-            style: Editorial.caption,
-          ),
+          if (showFocus) ...[
+            const SizedBox(height: Editorial.s2),
+            TrackTintedButton(
+              label: 'Start a focus session',
+              onTap: () => showFocusStartSheet(context),
+            ),
+          ],
         ],
       ),
     );
   }
 }
+

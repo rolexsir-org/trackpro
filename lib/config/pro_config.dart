@@ -154,8 +154,8 @@ class ProConfig {
   /// Copy shown when a commitment gate is hit. States the ceiling in the user's
   /// terms and repeats the promise that their records are never withheld.
   static const String commitmentCeilingCopy =
-      'Free runs $freeCommitmentLimit commitments at once. Pro adds advanced routines '
-      'and recovery planning — your existing records and their history stay yours either way.';
+      'Pro removes the routine limit and adds recovery planning. Your existing routines and '
+      'every logged day stay yours either way.';
 
   static const List<String> trustLines = <String>[
     'Cancel anytime in Google Play — no email, no hoops',

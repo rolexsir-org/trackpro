@@ -52,11 +52,19 @@ class FocusPermissions {
   /// Both permissions that blocking genuinely requires.
   bool get canBlock => usageAccess && overlay;
 
-  /// What is missing, in the order worth fixing.
+  /// What is missing, in the order worth fixing — the wire names, for logic.
   List<String> get missingForBlocking => <String>[
         if (!usageAccess) 'usageAccess',
         if (!overlay) 'overlay',
       ];
+
+  /// The same list in the words the system settings use, for the UI. The raw
+  /// identifiers used to be printed in Settings and in the setup sheet, which is a
+  /// sentence written for whoever wrote the channel, not for the person reading it.
+  String get missingForBlockingLabel => <String>[
+        if (!usageAccess) 'Usage access',
+        if (!overlay) 'Display over other apps',
+      ].join(' and ');
 
   static const FocusPermissions none = FocusPermissions();
 }

@@ -14,6 +14,7 @@ import '../util/day_key.dart';
 import '../widgets/glass.dart';
 import 'focus_history_screen.dart';
 import 'focus_setup_sheets.dart';
+import 'log_sheets.dart';
 import 'paywall_screen.dart';
 
 /// Everything a commitment needs from the user: recording a day, defining one,
@@ -78,21 +79,34 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
     setState(() => _busy = true);
     Haptics.light();
     final state = context.read<AppState>();
-    await state.logCommitmentDay(
+    final saved = await state.logCommitmentDay(
       widget.commitment.id,
       outcome,
       day: widget.day,
       value: _amount,
       note: _note.text.trim().isEmpty ? null : _note.text.trim(),
     );
-    if (mounted) Navigator.of(context).pop();
+    if (!mounted) return;
+    if (!saved) {
+      // The sheet stays open on a failed write, so the tap cannot look like a save.
+      setState(() => _busy = false);
+      showTrackToast(context, 'That did not save. Nothing about this day changed.');
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   Future<void> _clear() async {
     if (_busy) return;
     setState(() => _busy = true);
-    await context.read<AppState>().clearCommitmentDay(widget.commitment.id, day: widget.day);
-    if (mounted) Navigator.of(context).pop();
+    final cleared = await context.read<AppState>().clearCommitmentDay(widget.commitment.id, day: widget.day);
+    if (!mounted) return;
+    if (!cleared) {
+      setState(() => _busy = false);
+      showTrackToast(context, 'That day could not be cleared. It is still recorded.');
+      return;
+    }
+    Navigator.of(context).pop();
   }
 
   @override
@@ -102,11 +116,11 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
     // What the engine will do with whatever is chosen here, said out loud. This is
     // the sentence that stops "minimum" being mistaken for "done".
     final consequence = <DayOutcome, String>{
-      DayOutcome.full: 'Counts as a full completion — 1.0 of the day.',
-      DayOutcome.minimum: 'Counts as partial (0.6 of the day). It keeps the chain alive; it is not a full completion.',
-      DayOutcome.rest: 'Not counted at all. A planned rest is part of the plan, not a lapse.',
-      DayOutcome.skipped: 'Not counted at all, and the streak is not broken.',
-      DayOutcome.missed: 'Counted as a decided day with no credit, which is what a miss is.',
+      DayOutcome.full: 'You did the whole thing.',
+      DayOutcome.minimum: 'You did the minimum. It keeps your streak going, but it is not a full day.',
+      DayOutcome.rest: 'A planned rest day. It does not count for or against you.',
+      DayOutcome.skipped: 'Skipped on purpose. It does not break your streak.',
+      DayOutcome.missed: 'You did not do it. This counts as a missed day.',
     };
 
     return Column(
@@ -117,8 +131,7 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
         _DefinitionRow(label: 'MINIMUM', text: c.minimumAction, color: Editorial.minimum),
         if (c.outcome.trim().isNotEmpty) ...[
           const SizedBox(height: Editorial.s3),
-          Text('Why this exists: ${c.outcome}',
-              style: Editorial.caption.copyWith(color: Editorial.inkSecondary)),
+          Text(c.outcome, style: Editorial.caption.copyWith(color: Editorial.inkSecondary)),
         ],
         const SizedBox(height: Editorial.s5),
         for (final o in const [
@@ -142,7 +155,7 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
         const SizedBox(height: Editorial.s4),
         _FocusLink(commitment: c),
         const SizedBox(height: Editorial.s4),
-        Text('HOW MUCH, IF YOU WANT TO RECORD IT', style: Editorial.label),
+        Text('AMOUNT (OPTIONAL)', style: Editorial.label),
         const SizedBox(height: Editorial.s2),
         _AmountField(
           initial: _amount,
@@ -150,7 +163,7 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
           onChanged: (v) => _amount = v,
         ),
         const SizedBox(height: Editorial.s4),
-        Text('A NOTE FOR YOURSELF (OPTIONAL)', style: Editorial.label),
+        Text('NOTE (OPTIONAL)', style: Editorial.label),
         const SizedBox(height: Editorial.s2),
         Container(
           decoration: Editorial.card(fill: Editorial.well),
@@ -171,8 +184,9 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
           TrackTintedButton(label: 'Clear this day', color: Editorial.danger, onTap: _busy ? null : _clear),
           const SizedBox(height: Editorial.s2),
           Text(
-            'Clearing removes the record for this day. Momentum goes back to treating it as '
-            '${isToday ? 'open, with the day still running' : 'unlogged, which counts as a miss unless you mark a rest day'}.',
+            isToday
+                ? 'Clearing leaves today open.'
+                : 'Clearing makes this day unlogged again.',
             style: Editorial.caption,
           ),
         ],
@@ -323,7 +337,7 @@ Future<void> showTemplatePicker(BuildContext context) async {
   await showGlassSheet<void>(
     context,
     title: 'Start a routine',
-    subtitle: 'These are templates, not history. Nothing is marked done until you mark it.',
+    subtitle: 'Pick a starter. You can change everything after.',
     accent: Editorial.accent,
     body: _TemplateBody(canAdd: state.canAddCommitment()),
     actions: const [],
@@ -419,7 +433,7 @@ Future<void> showCommitmentEditor(BuildContext context, {Commitment? existing}) 
   final state = context.read<AppState>();
   await showGlassSheet<void>(
     context,
-    title: existing == null ? 'New commitment' : existing.name,
+    title: existing == null ? 'New routine' : existing.name,
     subtitle: existing == null
         ? 'Name the outcome, then the smallest version you would still count.'
         : 'Changes apply from today. Earlier days keep the plan they had.',
@@ -473,7 +487,7 @@ class _EditorBodyState extends State<_EditorBody> {
     if (_name.text.trim().isEmpty) errors.add('Give it a name you will recognise.');
     if (_full.text.trim().isEmpty) errors.add('The full target cannot be empty — that is the thing being kept.');
     if (_minimum.text.trim().isEmpty) {
-      errors.add('Add a minimum. A commitment without a fallback is the one people abandon.');
+      errors.add('Add a minimum. A routine without a fallback is the one people abandon.');
     }
     if (_days.isEmpty) errors.add('Pick at least one day.');
 
@@ -483,28 +497,34 @@ class _EditorBodyState extends State<_EditorBody> {
     Haptics.light();
     final state = widget.state;
     final existing = widget.existing;
-    if (existing == null) {
-      await state.addCommitment(
-        name: _name.text,
-        emoji: _emoji,
-        color: _color,
-        outcome: _outcome.text,
-        minimumAction: _minimum.text,
-        fullAction: _full.text,
-        weekdays: _days,
-      );
-    } else {
-      await state.updateCommitment(
-        existing.copyWith(
-          name: _name.text.trim(),
+    try {
+      if (existing == null) {
+        await state.addCommitment(
+          name: _name.text,
           emoji: _emoji,
           color: _color,
-          outcome: _outcome.text.trim(),
-          minimumAction: _minimum.text.trim(),
-          fullAction: _full.text.trim(),
-        ),
-        weekdays: _days,
-      );
+          outcome: _outcome.text,
+          minimumAction: _minimum.text,
+          fullAction: _full.text,
+          weekdays: _days,
+        );
+      } else {
+        await state.updateCommitment(
+          existing.copyWith(
+            name: _name.text.trim(),
+            emoji: _emoji,
+            color: _color,
+            outcome: _outcome.text.trim(),
+            minimumAction: _minimum.text.trim(),
+            fullAction: _full.text.trim(),
+          ),
+          weekdays: _days,
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      showTrackToast(context, 'That routine was not saved. Nothing was changed.');
+      return;
     }
     if (mounted) Navigator.of(context).pop();
   }
@@ -710,60 +730,40 @@ class _Field extends StatelessWidget {
 Future<void> showMomentumExplainer(BuildContext context) async {
   await showGlassSheet<void>(
     context,
-    title: 'How Momentum is calculated',
-    subtitle: 'The whole method, with the numbers it uses. Nothing here is a black box.',
+    title: 'How momentum works',
+    subtitle: 'Short, and the same rule for every routine.',
     accent: Editorial.accent,
     body: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _Rule(
-          title: 'Planned days',
-          body: 'A day whose weekday you selected, on or after the day you created the routine, '
-              'outside any pause. Nothing else is ever counted.',
+          title: 'Which days count',
+          body: 'The weekdays you picked for the routine. Rest days, pauses and days before you '
+              'created it never count for or against you.',
         ),
         _Rule(
-          title: 'Decided days',
-          body: 'A planned day you marked — plus every planned day in the past you left blank. '
-              'Silence on a day you said you would act counts as a miss. Today is never judged '
-              'until it is over, and rest days or deliberate skips are excluded entirely.',
+          title: 'What counts',
+          body: 'A full day counts fully. A minimum keeps your streak alive and counts partly. '
+              'A miss counts as a day you planned and did not do. Today is never judged until '
+              'it is over.',
         ),
         _Rule(
-          title: 'Credit',
-          body: 'Full = 1.0. Minimum = ${MomentumEngine.minimumCredit}. Missed = 0. This is why a '
-              'minimum is never shown as a completed day: it moves the figure, but it is worth '
-              'less than the thing you actually set out to do.',
+          title: 'The percentage',
+          body: 'Your kept days divided by the days you planned, over the last '
+              '${MomentumEngine.rateWindowDays} days. It appears once there are '
+              '${MomentumEngine.minDecidedDaysForRate} days to measure, because a percentage of '
+              'two days is noise.',
         ),
         _Rule(
-          title: 'Momentum',
-          body: 'Total credit ÷ decided days, as a percentage, over the last '
-              '${MomentumEngine.rateWindowDays} days. It is withheld until there are at least '
-              '${MomentumEngine.minDecidedDaysForRate} decided days — before that you get a count of '
-              'days, not a score, because a percentage of two days is noise dressed up as insight.',
-        ),
-        _Rule(
-          title: 'Streaks',
-          body: 'Two of them. The full streak counts consecutive planned days meeting the full '
-              'target; a minimum keeps the chain going but does not extend it. Rest days, skips '
-              'and unscheduled days neither extend nor break either streak.',
-        ),
-        _Rule(
-          title: 'Restart plans',
-          body: 'Generated when ${MomentumEngine.recoveryGap} planned days in a row go unlogged. '
-              'They are arithmetic, not encouragement: the plan names the next days, the action '
-              'to take on them, and the change to make if the same day keeps slipping.',
-        ),
-        _Rule(
-          title: 'Patterns',
-          body: 'A weekday is only called out when it has at least '
-              '${MomentumEngine.weekdayMinSample} decided days, at least half of them missed, and a '
-              'rate at least 25 points worse than your own average. Improvements are only reported '
-              'between two windows of ${MomentumEngine.improvementMinSample} or more decided days '
-              'each, and only past ${MomentumEngine.improvementMinPoints} points.',
+          title: 'Streaks and restarts',
+          body: 'A streak counts consecutive planned days you kept. After '
+              '${MomentumEngine.recoveryGap} planned days with nothing logged, Momentum suggests a '
+              'smaller way back in.',
         ),
         const SizedBox(height: Editorial.s2),
         Text(
-          'None of this is a measure of discipline, willpower or worth. It is the ratio of days you '
-          'did the thing to days you said you would, with rest excluded rather than punished.',
+          'None of this measures willpower or worth. It is the days you did the thing, against '
+          'the days you said you would.',
           style: Editorial.caption.copyWith(color: Editorial.inkSecondary),
         ),
       ],

@@ -99,8 +99,7 @@ class InsightsScreen extends StatelessWidget {
               if (state.loggedDaysInWindow(7) == 0)
                 GlassList(children: [
                   _EmptyRow(
-                    text: 'Nothing logged in the last 7 days, so there is no average to show. '
-                        'Averages here are computed over the days you logged — blank days are not counted as zero.',
+                    text: 'No averages yet. Log a few days and they will appear here.',
                   ),
                 ])
               else
@@ -134,8 +133,8 @@ class InsightsScreen extends StatelessWidget {
                   ProGate(
                     locked: true,
                     title: 'Cross-tracker patterns',
-                    body: 'Pro compares sleep, mood, spending and steps against each other — '
-                        'with the sample size shown, and only where your own days support it.',
+                    body: 'Pro compares sleep, mood, spending and steps against each other, '
+                        'and only where your own days support it.',
                     onUnlock: () {
                       state.analytics?.log('pro_gate_tapped', {'gate': 'insights_patterns'});
                       showPaywall(context, trigger: PaywallTrigger.insightsLock);
@@ -155,9 +154,8 @@ class InsightsScreen extends StatelessWidget {
               if (moodSleep.length < 4)
                 GlassList(children: [
                   _EmptyRow(
-                    text: 'A paired chart needs at least 4 days where you logged both sleep and mood. '
-                        'So far there ${moodSleep.length == 1 ? 'is 1 day' : 'are ${moodSleep.length} days'} — '
-                        'the chart appears when there is something real to draw, and stays away when there is not.',
+                    text: 'Log sleep and mood on at least 4 days to see them together. '
+                        'So far there ${moodSleep.length == 1 ? 'is 1 day' : 'are ${moodSleep.length} days'}.',
                   ),
                 ])
               else if (state.isPro)
@@ -222,8 +220,8 @@ class InsightsScreen extends StatelessWidget {
                     ? 'Your longest current streak is ${state.bestStreak} days.'
                     : 'No streak running yet — log today to start one.',
                 body: state.trackedDays == 0
-                    ? 'Streaks are computed from the days you log. Nothing to count yet, so nothing is claimed.'
-                    : 'Counted from ${state.trackedDays} tracked days. Unlike a headline number, this one moves when you skip a day.',
+                    ? 'Nothing logged yet, so there is no streak to count.'
+                    : 'Counted from ${state.trackedDays} days you logged.',
                 accent: TrackTheme.green,
                 accent2: TrackTheme.mint,
               ),
@@ -286,8 +284,7 @@ class _InsufficientData extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Patterns need about $needed days of your own history. Until then this section stays empty, '
-                  'because a pattern drawn from a handful of days is a guess wearing a chart.',
+                  'Patterns appear after about $needed days of your own history.',
                   style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
                 ),
               ],

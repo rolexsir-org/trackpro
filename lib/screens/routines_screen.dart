@@ -11,6 +11,7 @@ import '../widgets/glass.dart';
 import '../widgets/large_title_header.dart';
 import 'commitment_sheets.dart';
 import 'measurements_page.dart';
+import 'paywall_screen.dart';
 
 /// Routines — where commitments are created, edited, paused and retired.
 ///
@@ -49,39 +50,42 @@ class RoutinesScreen extends StatelessWidget {
                   _RoutineRow(state: state, commitment: c),
                   const SizedBox(height: Editorial.s3),
                 ],
-              const SizedBox(height: Editorial.s2),
-              Row(
-                children: [
-                  Expanded(
-                    child: TrackFilledButton(
-                      label: 'Start a routine',
-                      onTap: () {
-                        if (!state.canAddCommitment()) {
-                          showTemplatePicker(context);
-                          return;
-                        }
-                        showTemplatePicker(context);
-                      },
+              if (active.isNotEmpty) ...[
+                const SizedBox(height: Editorial.s2),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TrackFilledButton(
+                        label: 'Start a routine',
+                        onTap: () => state.canAddCommitment()
+                            ? showTemplatePicker(context)
+                            : showPaywall(context, trigger: PaywallTrigger.commitmentLimit),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: Editorial.s2),
-                  Expanded(
-                    child: TrackTintedButton(
-                      label: 'From scratch',
-                      onTap: () => showCommitmentEditor(context),
+                    const SizedBox(width: Editorial.s2),
+                    Expanded(
+                      child: TrackTintedButton(
+                        label: 'From scratch',
+                        // The other creation path used to skip the limit entirely, so
+                        // "Free includes 3 routines" was true on one button and false on
+                        // the one beside it.
+                        onTap: () => state.canAddCommitment()
+                            ? showCommitmentEditor(context)
+                            : showPaywall(context, trigger: PaywallTrigger.commitmentLimit),
+                      ),
                     ),
+                  ],
+                ),
+              ],
+              if (!state.isPro && !state.canAddCommitment())
+                Padding(
+                  padding: const EdgeInsets.only(top: Editorial.s3),
+                  child: Text(
+                    'Free includes ${ProConfig.freeCommitmentLimit} routines. Yours and every logged day '
+                    'stay put; Pro removes the limit.',
+                    style: Editorial.caption,
                   ),
-                ],
-              ),
-              const SizedBox(height: Editorial.s3),
-              Text(
-                state.isPro
-                    ? 'Pro: no ceiling on routines.'
-                    : 'Free runs ${state.commitments.length} of ${ProConfig.freeCommitmentLimit} routines. '
-                        'Past that, existing routines and every day you have logged stay put — only new ones '
-                        'are gated.',
-                style: Editorial.caption,
-              ),
+                ),
               if (archived.isNotEmpty) ...[
                 const SizedBox(height: Editorial.s6),
                 Text('ARCHIVED', style: Editorial.label),
@@ -131,10 +135,15 @@ class _RoutineRow extends StatelessWidget {
     final logged = state.commitmentDayLogged(c.id);
 
     final status = archived
-        ? 'Archived — history kept'
+        ? 'Archived · history kept'
         : paused
             ? 'Paused'
-            : '${c.scheduleLabel} · ${snap?.rate == null ? '${snap?.decidedDays ?? 0} of ${MomentumEngine.minDecidedDaysForRate} days' : '${snap!.rate!.round()}% over ${snap.decidedDays} days'}';
+            : snap?.rate != null
+                ? '${snap!.rate!.round()}% · ${snap.decidedDays} days counted'
+                : (snap?.decidedDays ?? 0) == 0
+                    ? '${c.scheduleLabel} · nothing logged yet'
+                    : '${c.scheduleLabel} · ${snap!.decidedDays} of '
+                        '${MomentumEngine.minDecidedDaysForRate} days';
 
     return GestureDetector(
       onTap: () => showCommitmentEditor(context, existing: c),
@@ -240,6 +249,10 @@ class _RoutineRow extends StatelessWidget {
   }
 }
 
+/// The first-run state, with the action inside it.
+///
+/// It used to be a paragraph and nothing else — the buttons that create a routine
+/// lived below it, so the empty screen read as a dead end even though it was not.
 class _EmptyRoutines extends StatelessWidget {
   const _EmptyRoutines();
 
@@ -254,13 +267,20 @@ class _EmptyRoutines extends StatelessWidget {
           Text('Start with one thing', style: Editorial.title),
           const SizedBox(height: Editorial.s3),
           Text(
-            'A commitment has two halves: the outcome you want, and the smallest version of it you would '
-            'still count as showing up. The minimum is what makes the routine survivable on a bad day — '
-            'without one, the first missed day usually ends the routine.',
+            'Pick something you want to do, and the smallest version of it that still counts. '
+            'The minimum is what keeps a routine alive on a bad day.',
             style: Editorial.body,
           ),
+          const SizedBox(height: Editorial.s5),
+          TrackFilledButton(
+            label: 'Create your first routine',
+            onTap: () => showTemplatePicker(context),
+          ),
           const SizedBox(height: Editorial.s2),
-          Text('Nothing is pre-filled and nothing is pre-completed.', style: Editorial.caption),
+          TrackTintedButton(
+            label: 'Build one yourself',
+            onTap: () => showCommitmentEditor(context),
+          ),
         ],
       ),
     );
