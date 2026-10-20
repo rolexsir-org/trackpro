@@ -105,15 +105,22 @@ flutter {
 }
 
 dependencies {
+    // AndroidX ceiling (2026-10-20): the newest core-ktx (1.19.x) and lifecycle
+    // (2.11.x) declare minCompileSdk 37 in their AAR metadata. API 37 requires
+    // AGP 9.2+/Gradle 9.4+, which is outside Flutter 3.47's verified matrix
+    // (AGP 9.1.0 / Gradle 9.3.1 / compileSdk 36), so those two are held at the
+    // newest API-36-compatible releases (1.18.0 / 2.10.0). Glance 1.2.0 and
+    // DataStore 1.2.1 were verified to carry no such floor. Revisit this cap
+    // together with the next Flutter/AGP matrix bump — never independently.
     // flutter_local_notifications requires desugar_jdk_libs >= 2.1.4; 2.1.5 is the latest stable.
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // ServiceCompat.startForeground (API 34 service-type call), NotificationCompat,
     // NotificationManagerCompat — used by the Focus Lock seam and MainActivity.
-    implementation("androidx.core:core-ktx:1.19.1")
+    implementation("androidx.core:core-ktx:1.18.0") // 1.19.x declares minCompileSdk 37; see the AndroidX ceiling note above
 
     // lifecycleScope for the widget refresh in MainActivity.
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0") // 2.11.x declares minCompileSdk 37; see the AndroidX ceiling note above
 
     // Home-screen widget (Glance draws the rings).
     implementation("androidx.glance:glance-appwidget:1.2.0")

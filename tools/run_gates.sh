@@ -4,7 +4,7 @@
 #   bash tools/run_gates.sh            # gates only
 #   bash tools/run_gates.sh --build    # gates + release APK/AAB + artifact check
 #
-# Run from the repository root on a machine with Flutter stable >= 3.44,
+# Run from the repository root on a machine with Flutter stable 3.47.7 (Dart 3.13.5),
 # JDK 17 and the Android SDK (flutter doctor -v must be clean for Android).
 # Every gate prints PASS or FAIL and the script exits non-zero on the first
 # failure, so partial output is always trustworthy.
