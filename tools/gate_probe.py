@@ -115,10 +115,10 @@ PROBES = [
          "import 'dart:convert';\nimport '../../test/fixtures/seed_rows.dart';"),
     ]),
     ('P-03', 'a fabricated headline number in shipped copy', [
-        ('lib/screens/settings_screen.dart', "                'Diagnostics',", "                '1,284 entries',"),
+        ('lib/screens/settings_screen.dart', "                  title: 'All trackers',", "                  title: '1,284 entries',"),
     ]),
     ('P-04', 'a placeholder legal URL compiled in', [
-        ('lib/screens/settings_screen.dart', "                'Diagnostics',", "                'https://track.app/terms',"),
+        ('lib/screens/settings_screen.dart', "                  title: 'All trackers',", "                  title: 'https://track.app/terms',"),
     ]),
     ('P-05', 'an unfinished-work marker in shipped code', [
         ('lib/util/format.dart', 'String fmtValue(Tracker t, double v) {',
@@ -179,7 +179,7 @@ PROBES = [
     ]),
     ('P-20', 'a dynamic dependency version', [
         ('re', 'android/app/build.gradle.kts',
-         r'implementation\("androidx\.glance:glance-appwidget:1\.1\.1"\)',
+         r'implementation\("androidx\.glance:glance-appwidget:1\.2\.0"\)',
          'implementation("androidx.glance:glance-appwidget:1.+")'),
     ]),
     ('P-21', 'a keep rule R8 needs removed', [
@@ -189,7 +189,7 @@ PROBES = [
     ]),
     ('P-22', 'a Glance artifact used but not declared', [
         ('re', 'android/app/build.gradle.kts',
-         r'implementation\("androidx\.glance:glance-appwidget:1\.1\.1"\)',
+         r'implementation\("androidx\.glance:glance-appwidget:1\.2\.0"\)',
          '// glance-appwidget arrives transitively from the Flutter plugin'),
     ]),
     ('P-23', 'an AppState constructed outside the provider', [

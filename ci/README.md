@@ -2,9 +2,12 @@
 
 The real location for these files is `.github/workflows/`, but the automation
 token used to prepare this branch is not allowed to push workflow files
-(GitHub requires the `workflows` permission for that path).
+(GitHub requires the `workflows` permission for that path — confirmed again
+2026-10-20: the push was rejected with exactly that error).
 
-To activate CI, do ONE of:
+Both files below are current (Flutter 3.47.7-pinned, with the doctor /
+env-check / debug-build / lockfile-artifact steps added in the 2026-10-20
+upgrade). To activate CI, do ONE of:
 
 1. **GitHub web UI**: on this branch, "Add file" → `.github/workflows/ci.yml`
    and `.github/workflows/normalize.yml`, pasting the contents of the files in

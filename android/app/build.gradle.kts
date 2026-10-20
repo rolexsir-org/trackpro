@@ -3,9 +3,13 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    // No `kotlin-android` here: with `android.builtInKotlin=false` (see
+    // gradle.properties) the Flutter Gradle Plugin applies the Kotlin plugin
+    // itself, and Flutter 3.47's template no longer applies it in the app
+    // module. Applying it twice is what AGP 9 rejects.
     // Glance (the home-screen widget) compiles Compose down to RemoteViews; this
     // plugin is the only reason Compose appears in an otherwise all-Flutter app.
+    // Its version must match the Kotlin version in settings.gradle.kts.
     id("org.jetbrains.kotlin.plugin.compose")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -24,7 +28,7 @@ if (hasReleaseKeystore) {
 
 android {
     namespace = "com.track.app"
-    compileSdk = 36
+    compileSdk = flutter.compileSdkVersion // 36 on Flutter 3.47; tracks the SDK's verified value
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -48,7 +52,7 @@ android {
         // runtime Glance pulls in, and java.time all assume API 26+. A lower
         // minSdk compiles and then crashes on old devices.
         minSdk = 26
-        targetSdk = 36
+        targetSdk = flutter.targetSdkVersion // 36 on Flutter 3.47; meets Play's 2026-08-31 API-36 floor
         // Read from pubspec.yaml `version: x.y.z+n` (n = versionCode).
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -101,23 +105,23 @@ flutter {
 }
 
 dependencies {
-    // flutter_local_notifications requires desugar_jdk_libs >= 2.1.4.
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // flutter_local_notifications requires desugar_jdk_libs >= 2.1.4; 2.1.5 is the latest stable.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // ServiceCompat.startForeground (API 34 service-type call), NotificationCompat,
     // NotificationManagerCompat — used by the Focus Lock seam and MainActivity.
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.19.1")
 
     // lifecycleScope for the widget refresh in MainActivity.
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.11.0")
 
     // Home-screen widget (Glance draws the rings).
-    implementation("androidx.glance:glance-appwidget:1.1.1")
-    implementation("androidx.glance:glance-material3:1.1.1")
+    implementation("androidx.glance:glance-appwidget:1.2.0")
+    implementation("androidx.glance:glance-material3:1.2.0")
     // TrackWidget state (PreferencesGlanceStateDefinition) uses these directly.
-    implementation("androidx.datastore:datastore-preferences-core:1.1.1")
+    implementation("androidx.datastore:datastore-preferences-core:1.2.1")
 
     // Wear OS data layer: pushes the widget snapshot to a paired watch
     // (android_overlay/wear/ documents the optional watch module).
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }

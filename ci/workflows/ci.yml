@@ -51,6 +51,11 @@ jobs:
       # a too-old runner diagnosable instead.
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned to the stable release this repository was upgraded and
+          # verified against (2026-10-20; see docs/UPGRADE_2026-10-20.md).
+          # `channel: stable` alone would silently move the verification
+          # target on the next Flutter release.
+          flutter-version: '3.47.7'
           channel: stable
           cache: true
 
@@ -65,8 +70,22 @@ jobs:
           # the question instead of on a re-implementation of it. docs/RELEASE.md §7 has
           # the matching troubleshooting row ("pub get fails: requires Flutter >= 3.44").
 
+      - name: flutter doctor -v
+        run: flutter doctor -v
+
+      - name: Android env sanity (ANDROID_PREFS_ROOT vs ANDROID_USER_HOME)
+        run: bash tools/check_android_env.sh
+
       - name: flutter pub get
         run: flutter pub get
+
+      - name: Upload resolved pubspec.lock
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pubspec-lock
+          path: pubspec.lock
+          if-no-files-found: ignore
 
       # Codegen freshness runs BEFORE format and before analyze, because every one of
       # those reads `database.g.dart`: a stale generated file produces analyzer errors
@@ -137,6 +156,9 @@ jobs:
               *) echo "::error::$v must be an https:// URL, got: $u"; exit 1 ;;
             esac
           done
+
+      - name: flutter build apk --debug
+        run: flutter build apk --debug
 
       - name: flutter build apk --release
         env:
