@@ -8,9 +8,10 @@ Studio is never required.
 
 | Tool | Version | Check |
 |---|---|---|
-| Flutter (stable) | ≥ 3.44 (Dart ≥ 3.12 — see `pubspec.lock` → `sdks:`) | `flutter --version` |
+| Flutter (stable) | 3.47.7 (Dart 3.13.5) — pinned in CI; see `docs/UPGRADE_2026-10-20.md` | `flutter --version` |
 | JDK | 17 | `java -version` |
-| Android SDK | Platform 36 + build-tools | `flutter doctor -v` |
+| Gradle / AGP / Kotlin | 9.3.1 / 9.1.0 / 2.4.0 (Flutter 3.47's verified matrix, in `android/settings.gradle.kts`) | `./gradlew --version` |
+| Android SDK | Platform 36 + build-tools 36 | `flutter doctor -v` |
 
 `flutter doctor -v` must show no Android issues before anything below.
 
@@ -140,7 +141,8 @@ Play requires a strictly increasing `versionCode` for every upload.
 | Symptom | Cause / fix |
 |---|---|
 | `flutter.sdk not set in local.properties` | Run any `flutter build …` once, or create `android/local.properties` with `flutter.sdk=/path/to/flutter`. Never commit it. |
-| `pub get` fails: "requires Flutter ≥ 3.44" | Your Flutter stable is older than the lockfile. `flutter upgrade`. |
+| `Failed to create service 'AndroidLocationsBuildService'` / "Several environment variables contain different paths to the Android Preferences folder" | `ANDROID_PREFS_ROOT` (and/or `ANDROID_SDK_HOME`, both deprecated) disagree with `ANDROID_USER_HOME`. AGP computes the `.android` folder from all three and refuses to build when they differ. **Fix:** keep only `ANDROID_USER_HOME` (`$HOME/.android`) and unset the other two. In VS Code this repo already does it for every new integrated terminal (`.vscode/settings.json` — open a *new* terminal to pick it up); in a plain bash shell remove the `ANDROID_PREFS_ROOT`/`ANDROID_SDK_HOME` exports from `~/.bashrc` and add `export ANDROID_USER_HOME="$HOME/.android"`. Verify with `bash tools/check_android_env.sh`. Do **not** delete `~/.android` or reinstall the SDK — neither is the problem, and `.android` holds your AVDs and debug key. |
+| `pub get` fails: "requires Flutter ≥ 3.47" | Your Flutter stable is older than the lockfile. `flutter upgrade`. |
 | Kotlin/Compose version error in `:app` | `org.jetbrains.kotlin.plugin.compose` must match the Kotlin version — both are pinned together in `android/settings.gradle.kts`. |
 | `database.g.dart` analyzer errors | Re-run `dart run build_runner build --delete-conflicting-outputs`. |
 | Widget/notifications/focus service missing **in release only** | An R8 keep rule was removed — restore `android/app/proguard-rules.pro`. |

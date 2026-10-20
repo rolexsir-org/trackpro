@@ -1,0 +1,37 @@
+{
+  // Track Pro — workspace settings.
+  //
+  // The terminal env block below is the persistent fix for the AGP 9
+  // `AndroidLocationsBuildService` failure ("Several environment variables
+  // contain different paths to the Android Preferences folder"): legacy
+  // ANDROID_PREFS_ROOT / ANDROID_SDK_HOME exports in a developer's shell
+  // profile disagree with ANDROID_USER_HOME, and AGP refuses to create its
+  // build service, so every Gradle task fails before compilation.
+  //
+  // VS Code applies `terminal.integrated.env.*` to every *new* integrated
+  // terminal: a `null` value unsets the variable, so fresh VS Code terminals
+  // get exactly one source of truth (ANDROID_USER_HOME) without editing
+  // ~/.bashrc, deleting ~/.android, or touching the SDK. Shells outside
+  // VS Code are covered in docs/RELEASE.md §7. Verify any terminal with:
+  //   bash tools/check_android_env.sh
+  "terminal.integrated.env.linux": {
+    "ANDROID_PREFS_ROOT": null,
+    "ANDROID_SDK_HOME": null,
+    "ANDROID_USER_HOME": "${env:HOME}/.android"
+  },
+  "terminal.integrated.env.osx": {
+    "ANDROID_PREFS_ROOT": null,
+    "ANDROID_SDK_HOME": null,
+    "ANDROID_USER_HOME": "${env:HOME}/.android"
+  },
+  "terminal.integrated.env.windows": {
+    "ANDROID_PREFS_ROOT": null,
+    "ANDROID_SDK_HOME": null,
+    "ANDROID_USER_HOME": "${env:USERPROFILE}/.android"
+  },
+  "editor.formatOnSave": false,
+  "dart.lineLength": 120,
+  "[dart]": {
+    "editor.rulers": [120]
+  }
+}

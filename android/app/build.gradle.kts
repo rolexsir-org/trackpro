@@ -3,9 +3,13 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("kotlin-android")
+    // No `kotlin-android` here: with `android.builtInKotlin=false` (see
+    // gradle.properties) the Flutter Gradle Plugin applies the Kotlin plugin
+    // itself, and Flutter 3.47's template no longer applies it in the app
+    // module. Applying it twice is what AGP 9 rejects.
     // Glance (the home-screen widget) compiles Compose down to RemoteViews; this
     // plugin is the only reason Compose appears in an otherwise all-Flutter app.
+    // Its version must match the Kotlin version in settings.gradle.kts.
     id("org.jetbrains.kotlin.plugin.compose")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
@@ -24,7 +28,7 @@ if (hasReleaseKeystore) {
 
 android {
     namespace = "com.track.app"
-    compileSdk = 36
+    compileSdk = flutter.compileSdkVersion // 36 on Flutter 3.47; tracks the SDK's verified value
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -48,7 +52,7 @@ android {
         // runtime Glance pulls in, and java.time all assume API 26+. A lower
         // minSdk compiles and then crashes on old devices.
         minSdk = 26
-        targetSdk = 36
+        targetSdk = flutter.targetSdkVersion // 36 on Flutter 3.47; meets Play's 2026-08-31 API-36 floor
         // Read from pubspec.yaml `version: x.y.z+n` (n = versionCode).
         versionCode = flutter.versionCode
         versionName = flutter.versionName
@@ -101,23 +105,30 @@ flutter {
 }
 
 dependencies {
-    // flutter_local_notifications requires desugar_jdk_libs >= 2.1.4.
-    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // AndroidX ceiling (2026-10-20): the newest core-ktx (1.19.x) and lifecycle
+    // (2.11.x) declare minCompileSdk 37 in their AAR metadata. API 37 requires
+    // AGP 9.2+/Gradle 9.4+, which is outside Flutter 3.47's verified matrix
+    // (AGP 9.1.0 / Gradle 9.3.1 / compileSdk 36), so those two are held at the
+    // newest API-36-compatible releases (1.18.0 / 2.10.0). Glance 1.2.0 and
+    // DataStore 1.2.1 were verified to carry no such floor. Revisit this cap
+    // together with the next Flutter/AGP matrix bump — never independently.
+    // flutter_local_notifications requires desugar_jdk_libs >= 2.1.4; 2.1.5 is the latest stable.
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     // ServiceCompat.startForeground (API 34 service-type call), NotificationCompat,
     // NotificationManagerCompat — used by the Focus Lock seam and MainActivity.
-    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.core:core-ktx:1.18.0") // 1.19.x declares minCompileSdk 37; see the AndroidX ceiling note above
 
     // lifecycleScope for the widget refresh in MainActivity.
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0") // 2.11.x declares minCompileSdk 37; see the AndroidX ceiling note above
 
     // Home-screen widget (Glance draws the rings).
-    implementation("androidx.glance:glance-appwidget:1.1.1")
-    implementation("androidx.glance:glance-material3:1.1.1")
+    implementation("androidx.glance:glance-appwidget:1.2.0")
+    implementation("androidx.glance:glance-material3:1.2.0")
     // TrackWidget state (PreferencesGlanceStateDefinition) uses these directly.
-    implementation("androidx.datastore:datastore-preferences-core:1.1.1")
+    implementation("androidx.datastore:datastore-preferences-core:1.2.1")
 
     // Wear OS data layer: pushes the widget snapshot to a paired watch
     // (android_overlay/wear/ documents the optional watch module).
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    implementation("com.google.android.gms:play-services-wearable:20.0.1")
 }

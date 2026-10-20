@@ -4,13 +4,17 @@ publish_to: 'none'
 version: 1.0.0+12
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
+  # Raised 2026-10-20 to the Flutter 3.47.7 / Dart 3.13.5 stable pair (see
+  # docs/UPGRADE_2026-10-20.md). Several dependencies below already require
+  # Dart >= 3.10-3.12; this states the toolchain the code is verified against.
+  sdk: ">=3.13.0 <4.0.0"
+  flutter: ">=3.47.0"
 
 dependencies:
   flutter:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^2.0.0
 
   # --- state ---
   provider: ^6.1.5
@@ -42,7 +46,7 @@ dependencies:
   # GooglePlayPurchaseParam directly (subscriptions WILL fail without an offer
   # token). Keep both in step with MONETIZATION.md.
   in_app_purchase: ^3.3.1
-  in_app_purchase_android: ^0.5.4
+  in_app_purchase_android: ^0.5.5
 
   # --- misc ---
   # package_info_plus feeds the version row in Settings. There is no intl entry:
@@ -55,6 +59,10 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   drift_dev: ^2.35.1
+  # build_runner is deliberately NOT at its newest release (2.17.x): that line
+  # requires package:build >= 5, while drift_dev 2.35.1 requires build < 5.
+  # 2.16.2 is the newest mutually resolvable version; revisit when drift_dev
+  # allows build 5.
   build_runner: ^2.16.2
 
 flutter:

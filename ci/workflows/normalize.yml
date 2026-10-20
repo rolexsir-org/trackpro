@@ -27,6 +27,11 @@ jobs:
 
       - uses: subosito/flutter-action@v2
         with:
+          # Pinned to the stable release this repository was upgraded and
+          # verified against (2026-10-20; see docs/UPGRADE_2026-10-20.md).
+          # `channel: stable` alone would silently move the verification
+          # target on the next Flutter release.
+          flutter-version: '3.47.7'
           channel: stable
           cache: true
 
