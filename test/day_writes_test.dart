@@ -54,38 +54,49 @@ void main() {
   Future<void> drain() => Future<void>.delayed(const Duration(milliseconds: 80));
 
   group('clearing a day means every source that wrote it', () {
-    test('a day whose only row came from Health Connect is still clearable', async () {
+    test('a day whose only row came from Health Connect is still clearable', () async {
       final today = todayKey();
       // A synced steps day: a rollup and its event row, both `health`, no manual row.
       await repo.dao.upsertDaily(trackerId: 'steps', day: today, value: 6200, source: 'health');
       await repo.dao.insertEvent(trackerId: 'steps', value: 6200, source: 'health');
-      expect(await repo.dao.dailyRowsFor('steps', days: 1), isNotEmpty,
-          reason: 'the row exists before the delete, or this test proves nothing');
+      expect(
+        await repo.dao.dailyRowsFor('steps', days: 1),
+        isNotEmpty,
+        reason: 'the row exists before the delete, or this test proves nothing',
+      );
 
       final removed = await repo.clearDay('steps', today);
       expect(removed, greaterThan(0), reason: 'the count is what the sheet reports back');
-      expect(await repo.dao.dailyRowsFor('steps', days: 1), isEmpty,
-          reason: 'the rollup must be gone from SQLite, not only from the cache');
+      expect(
+        await repo.dao.dailyRowsFor('steps', days: 1),
+        isEmpty,
+        reason: 'the rollup must be gone from SQLite, not only from the cache',
+      );
       final rows = await repo.dao.eventsForDay('steps', today);
-      expect(rows, isEmpty,
-          reason: 'and the event feed must not keep describing a day that was deleted');
+      expect(rows, isEmpty, reason: 'and the event feed must not keep describing a day that was deleted');
     });
 
-    test('a day with both a manual and a synced row loses both, in one pass', async () {
+    test('a day with both a manual and a synced row loses both, in one pass', () async {
       final today = todayKey();
       await repo.dao.upsertDaily(trackerId: 'weight', day: today, value: 81.2, source: 'manual');
       await repo.dao.upsertDaily(trackerId: 'weight', day: today, value: 80.9, source: 'health');
-      expect(await repo.dao.dailyRowsFor('weight', days: 1), hasLength(1),
-          reason: 'one rollup row per (tracker, day) — the second write replaced the first');
+      expect(
+        await repo.dao.dailyRowsFor('weight', days: 1),
+        hasLength(1),
+        reason: 'one rollup row per (tracker, day) — the second write replaced the first',
+      );
 
       final removed = await repo.clearDay('weight', today);
       expect(removed, greaterThan(0));
       expect(await repo.dao.dailyRowsFor('weight', days: 1), isEmpty);
     });
 
-    test('clearing a day that holds nothing is a no-op, not an error', async () {
-      expect(await repo.clearDay('water', dayKeyFromToday(9)), 0,
-          reason: 'the sheet distinguishes "nothing to delete" from "delete failed"');
+    test('clearing a day that holds nothing is a no-op, not an error', () async {
+      expect(
+        await repo.clearDay('water', dayKeyFromToday(9)),
+        0,
+        reason: 'the sheet distinguishes "nothing to delete" from "delete failed"',
+      );
     });
   });
 
@@ -100,14 +111,20 @@ void main() {
       await drain();
       final events = await repo.dao.eventsForDay('water', todayKey());
       expect(events, hasLength(2), reason: 'both the add and the removal are in the feed');
-      expect(events.map((e) => e.value).toSet(), {250.0, -250.0},
-          reason: 'the removal is stored as the change that happened, not as a positive value');
+      expect(
+        events.map((e) => e.value).toSet(),
+        {250.0, -250.0},
+        reason: 'the removal is stored as the change that happened, not as a positive value',
+      );
     });
 
     test('a removal below zero is refused, and the day keeps its value', () async {
       expect(state.logAdd('water', 250), isTrue);
-      expect(state.logAdd('water', -1000), isFalse,
-          reason: 'two cups cannot become minus three cups; refusing is the honest answer');
+      expect(
+        state.logAdd('water', -1000),
+        isFalse,
+        reason: 'two cups cannot become minus three cups; refusing is the honest answer',
+      );
       expect(state.today('water'), 250);
       await drain();
       final events = await repo.dao.eventsForDay('water', todayKey());
@@ -152,22 +169,27 @@ void main() {
       expect(state.addExpense(double.nan, 'Groceries'), isFalse);
       expect(state.today('expenses'), 0);
       await drain();
-      expect(await repo.dao.eventsForDay('expenses', todayKey()), isEmpty,
-          reason: 'the sheet reports "nothing was saved" from exactly this return value');
+      expect(
+        await repo.dao.eventsForDay('expenses', todayKey()),
+        isEmpty,
+        reason: 'the sheet reports "nothing was saved" from exactly this return value',
+      );
     });
 
     test('an unrecognised category lands in the bucket the chart colours', () async {
-      expect(state.addExpense(500, 'Flat rent'), isTrue,
-          reason: 'the *amount* is what is validated; an unknown category is bucketed, not refused');
+      expect(
+        state.addExpense(500, 'Flat rent'),
+        isTrue,
+        reason: 'the *amount* is what is validated; an unknown category is bucketed, not refused',
+      );
       await drain();
       final rows = await repo.dao.eventsForDay('expenses', todayKey());
       expect(rows, hasLength(1));
       final meta = jsonDecode(rows.single.meta!) as Map<String, dynamic>;
-      expect(meta['category'], 'Other',
-          reason: 'an unexpected spelling must not create an unlabelled slice');
+      expect(meta['category'], 'Other', reason: 'an unexpected spelling must not create an unlabelled slice');
       final totals = await repo.categoryTotals(days: 7);
-      expect(totals.map((t) => t.category), contains('Other'));
-      expect(totals.map((t) => t.category), isNot(contains('Flat rent')));
+      expect(totals.map((t) => t.name), contains('Other'));
+      expect(totals.map((t) => t.name), isNot(contains('Flat rent')));
     });
   });
 
@@ -196,10 +218,20 @@ void main() {
       final yesterday = dayKeyFromToday(1);
       await repo.dao.upsertDaily(trackerId: 'water', day: yesterday, value: 1000, source: 'manual');
       expect(await repo.dao.dailyRowsFor('water', days: 7), hasLength(1));
-      expect(await repo.dao.dailyRowsFor('water', days: 1), isEmpty,
-          reason: 'the boundary is the day key, not an elapsed-hours comparison');
-      expect(await repo.dao.series('water', days: 7), [0, 0, 0, 0, 0, 1000, 0],
-          reason: 'gap-filled, oldest first, today last');
+      expect(
+        await repo.dao.dailyRowsFor('water', days: 1),
+        isEmpty,
+        reason: 'the boundary is the day key, not an elapsed-hours comparison',
+      );
+      expect(await repo.dao.series('water', days: 7), [
+        0,
+        0,
+        0,
+        0,
+        0,
+        1000,
+        0,
+      ], reason: 'gap-filled, oldest first, today last');
     });
   });
 }

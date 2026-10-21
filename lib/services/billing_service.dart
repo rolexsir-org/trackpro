@@ -33,12 +33,12 @@ class BillingService extends ChangeNotifier {
     PurchaseVerifier? verifier,
     this.packageName = 'com.track.app',
     this.environmentLabel = 'production',
-  })  : _analytics = analytics,
-        // No default verifier: an unconfigured billing service cannot grant Pro.
-        // That is intentional — the previous default (a local stub that trusted
-        // product ids) is exactly the bug this replaces. Dev builds inject
-        // `LocalOnlyVerifier` explicitly, and it throws in release.
-        _verifier = verifier;
+  }) : _analytics = analytics,
+       // No default verifier: an unconfigured billing service cannot grant Pro.
+       // That is intentional — the previous default (a local stub that trusted
+       // product ids) is exactly the bug this replaces. Dev builds inject
+       // `LocalOnlyVerifier` explicitly, and it throws in release.
+       _verifier = verifier;
 
   final ProAnalytics? _analytics;
   final PurchaseVerifier? _verifier;
@@ -80,8 +80,7 @@ class BillingService extends ChangeNotifier {
   final StreamController<Entitlement> _updates = StreamController<Entitlement>.broadcast();
   Stream<Entitlement> get updates => _updates.stream;
 
-  ProPlan? get currentPlan =>
-      _entitlement.planId == null ? null : ProConfig.planForProduct(_entitlement.planId!);
+  ProPlan? get currentPlan => _entitlement.planId == null ? null : ProConfig.planForProduct(_entitlement.planId!);
 
   // ------------------------------------------------------------------ start-up
   Future<void> init({Entitlement? cached}) async {
@@ -152,7 +151,11 @@ class BillingService extends ChangeNotifier {
       }
 
       if (details is! GooglePlayProductDetails) {
-        byId[details.id] = base.copyWith(price: details.price, rawPrice: details.rawPrice, currencySymbol: details.currencySymbol);
+        byId[details.id] = base.copyWith(
+          price: details.price,
+          rawPrice: details.rawPrice,
+          currencySymbol: details.currencySymbol,
+        );
         continue;
       }
 
@@ -264,10 +267,7 @@ class BillingService extends ChangeNotifier {
     final param = GooglePlayPurchaseParam(
       productDetails: details,
       offerToken: target.offerToken,
-      changeSubscriptionParam: ChangeSubscriptionParam(
-        oldPurchaseDetails: currentPurchase,
-        replacementMode: mode,
-      ),
+      changeSubscriptionParam: ChangeSubscriptionParam(oldPurchaseDetails: currentPurchase, replacementMode: mode),
     );
     try {
       return await _iap.buyNonConsumable(purchaseParam: param);
@@ -406,20 +406,18 @@ class BillingService extends ChangeNotifier {
     }
 
     try {
-      final result = await verifier.verify(
-        productId: productId,
-        purchaseToken: token,
-        packageName: packageName,
-      );
+      final result = await verifier.verify(productId: productId, purchaseToken: token, packageName: packageName);
       lastVerifyOutcome = result.reason ?? (result.valid ? 'valid' : 'invalid');
 
       if (result.valid) {
-        final base = _awaitingVerification.remove(token) ?? Entitlement.provisional(
-          productId: productId,
-          purchaseToken: token,
-          purchasedAt: DateTime.now(),
-          trial: productId != 'track_pro_lifetime',
-        );
+        final base =
+            _awaitingVerification.remove(token) ??
+            Entitlement.provisional(
+              productId: productId,
+              purchaseToken: token,
+              purchasedAt: DateTime.now(),
+              trial: productId != 'track_pro_lifetime',
+            );
         _apply(
           base.copyWith(
             isPro: true,
@@ -499,17 +497,20 @@ class BillingService extends ChangeNotifier {
     lastVerifyOutcome = result.reason ?? (result.valid ? 'valid' : 'invalid');
 
     if (result.valid) {
-      _apply(_entitlement.copyWith(
-        isPro: true,
-        pending: false,
-        verified: true,
-        verifiedAt: DateTime.now(),
-        expiresAt: result.expiresAt ?? _entitlement.expiresAt,
-        trialEndsAt: result.trialEndsAt ?? _entitlement.trialEndsAt,
-        autoRenew: result.autoRenew ?? _entitlement.autoRenew,
-        inGracePeriod: result.inGracePeriod,
-        source: 'server',
-      ), persistNow: true);
+      _apply(
+        _entitlement.copyWith(
+          isPro: true,
+          pending: false,
+          verified: true,
+          verifiedAt: DateTime.now(),
+          expiresAt: result.expiresAt ?? _entitlement.expiresAt,
+          trialEndsAt: result.trialEndsAt ?? _entitlement.trialEndsAt,
+          autoRenew: result.autoRenew ?? _entitlement.autoRenew,
+          inGracePeriod: result.inGracePeriod,
+          source: 'server',
+        ),
+        persistNow: true,
+      );
       return;
     }
 
@@ -544,13 +545,7 @@ class BillingService extends ChangeNotifier {
     if (_entitlement.active) return;
     // Keep the token and the verified flag: this is an expiry, not a revocation,
     // and a re-subscribe should be able to restore instantly.
-    _apply(
-      _entitlement.copyWith(
-        isPro: _entitlement.isLifetime,
-        pending: false,
-      ),
-      persistNow: true,
-    );
+    _apply(_entitlement.copyWith(isPro: _entitlement.isLifetime, pending: false), persistNow: true);
   }
 
   // ------------------------------------------------------------------ plumbing
@@ -657,11 +652,7 @@ class VerifyResult {
   static const VerifyResult invalid = VerifyResult(valid: false, reason: 'invalid');
 
   /// The server was not reachable. Not a rejection — retry later.
-  static const VerifyResult unreachable = VerifyResult(
-    valid: false,
-    reachable: false,
-    reason: 'unreachable',
-  );
+  static const VerifyResult unreachable = VerifyResult(valid: false, reachable: false, reason: 'unreachable');
 
   /// The server reached its verdict but says the purchase is not (yet) good.
   static VerifyResult rejected(String reason) => VerifyResult(valid: false, reason: reason);
@@ -680,11 +671,7 @@ class VerifyResult {
 abstract class PurchaseVerifier {
   const PurchaseVerifier();
 
-  Future<VerifyResult> verify({
-    required String productId,
-    required String purchaseToken,
-    required String packageName,
-  });
+  Future<VerifyResult> verify({required String productId, required String purchaseToken, required String packageName});
 }
 
 /// **Development stub. Cannot run in a release build.**
@@ -775,11 +762,7 @@ class HttpPurchaseVerifier extends PurchaseVerifier {
         request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $bearer');
       }
 
-      request.write(jsonEncode({
-        'productId': productId,
-        'purchaseToken': purchaseToken,
-        'packageName': packageName,
-      }));
+      request.write(jsonEncode({'productId': productId, 'purchaseToken': purchaseToken, 'packageName': packageName}));
 
       final response = await request.close().timeout(timeout);
       final body = await response.transform(utf8.decoder).join().timeout(timeout);
@@ -825,10 +808,10 @@ class HttpPurchaseVerifier extends PurchaseVerifier {
 
 /// Snapshot of the current purchase for support ("what did I buy?").
 String purchaseDebugJson(PurchaseDetails p) => jsonEncode({
-      'product': p.productID,
-      'status': p.status.name,
-      'transactionDate': p.transactionDate,
-      'tokenTail': p.verificationData.serverVerificationData.length > 8
-          ? p.verificationData.serverVerificationData.substring(p.verificationData.serverVerificationData.length - 8)
-          : p.verificationData.serverVerificationData,
-    });
+  'product': p.productID,
+  'status': p.status.name,
+  'transactionDate': p.transactionDate,
+  'tokenTail': p.verificationData.serverVerificationData.length > 8
+      ? p.verificationData.serverVerificationData.substring(p.verificationData.serverVerificationData.length - 8)
+      : p.verificationData.serverVerificationData,
+});

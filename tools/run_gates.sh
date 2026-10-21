@@ -81,6 +81,7 @@ gate "release gate (structural)"        python3 tools/release_gate.py
 gate "gate probe (checks on the checks)" python3 tools/gate_probe.py
 gate "import / member audits"           bash -c 'python3 tools/import_audit.py && python3 tools/member_audit.py && python3 tools/symbol_clash_audit.py && python3 tools/test_api_audit.py && python3 tools/static_audit.py'
 gate "billing server test suite"        npm --prefix billing_server test
+gate "android env sanity"               bash tools/check_android_env.sh
 gate "flutter doctor (android toolchain)" flutter doctor -v
 gate "flutter pub get"                    flutter pub get
 gate "drift codegen fresh"                codegen_fresh

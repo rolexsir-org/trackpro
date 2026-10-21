@@ -35,13 +35,9 @@ import 'focus_engine.dart';
 ///  4. **Nothing here claims blocking.** Enforcement is whatever the platform
 ///     reported, funnelled through `FocusEngine.enforcementFor`.
 class FocusRepository {
-  FocusRepository(
-    this.db, {
-    this.now = DateTime.now,
-    FocusEnforcer? enforcer,
-    String Function()? idFactory,
-  })  : enforcer = enforcer ?? const NoFocusEnforcer(),
-        _idFactory = idFactory;
+  FocusRepository({required this.db, this.now = DateTime.now, FocusEnforcer? enforcer, String Function()? idFactory})
+    : enforcer = enforcer ?? const NoFocusEnforcer(),
+      _idFactory = idFactory;
 
   final TrackDatabase db;
   FocusDao get dao => db.focusDao;
@@ -104,8 +100,10 @@ class FocusRepository {
   }
 
   /// Ended sessions, newest first.
-  List<FocusSession> get history =>
-      [for (final s in _sessions) if (s.state == FocusSessionState.ended) s];
+  List<FocusSession> get history => [
+    for (final s in _sessions)
+      if (s.state == FocusSessionState.ended) s,
+  ];
 
   FocusSession? byId(String id) {
     for (final s in _sessions) {
@@ -123,9 +121,7 @@ class FocusRepository {
 
     _sessions
       ..clear()
-      ..addAll([
-        for (final row in await dao.allSessions(fromDay: from)) _toModel(row),
-      ]);
+      ..addAll([for (final row in await dao.allSessions(fromDay: from)) _toModel(row)]);
 
     _profiles
       ..clear()
@@ -169,7 +165,10 @@ class FocusRepository {
   /// happen — the older session is ended as interrupted, which is the truth about a
   /// session nothing was supervising, and both rows stay in the history.
   Future<void> _repairMultipleLiveSessions() async {
-    final live = [for (final s in _sessions) if (s.isLive) s];
+    final live = [
+      for (final s in _sessions)
+        if (s.isLive) s,
+    ];
     if (live.length < 2) return;
     live.sort((a, b) => a.startedAtWallMs.compareTo(b.startedAtWallMs));
     for (final stale in live.sublist(0, live.length - 1)) {
@@ -191,10 +190,7 @@ class FocusRepository {
   /// `armed` deliberately remains upgradeable to `verified`: it means the service
   /// and grants were present but no selected app had yet been observed, not that an
   /// unprotected interval is known to have happened.
-  FocusEnforcement _carryEnforcementHistory(
-    FocusEnforcement previous,
-    FocusEnforcement reported,
-  ) {
+  FocusEnforcement _carryEnforcementHistory(FocusEnforcement previous, FocusEnforcement reported) {
     if (previous == FocusEnforcement.lost) return FocusEnforcement.lost;
     if (previous == FocusEnforcement.unavailable &&
         reported != FocusEnforcement.unavailable &&
@@ -339,11 +335,7 @@ class FocusRepository {
     // from the stored evidence rather than blaming the intentionally stopped service.
     if (live.state == FocusSessionState.paused) {
       if (recovery.expired) {
-        return finish(
-          live,
-          reason: FocusEndReason.timer,
-          focusMs: live.plannedMs,
-        );
+        return finish(live, reason: FocusEndReason.timer, focusMs: live.plannedMs);
       }
       return live;
     }
@@ -353,7 +345,8 @@ class FocusRepository {
     // A session that began with a working/armed mechanism and then loses a required
     // grant is `lost`, not merely `unavailable`. The distinction records that some
     // portion of this very session was no longer enforced.
-    final permissionLostMidSession = blockingRequested &&
+    final permissionLostMidSession =
+        blockingRequested &&
         live.enforcement != FocusEnforcement.unavailable &&
         (!native.overlay || !native.usageAccess);
 
@@ -367,8 +360,7 @@ class FocusRepository {
       if (permissionLostMidSession) {
         return finish(live, reason: FocusEndReason.permissionRevoked, native: native, focusMs: live.plannedMs);
       }
-      if (live.enforcement == FocusEnforcement.lost ||
-          (blockingRequested && (!native.running || !native.blocking))) {
+      if (live.enforcement == FocusEnforcement.lost || (blockingRequested && (!native.running || !native.blocking))) {
         return finish(live, reason: FocusEndReason.serviceLost, native: native, focusMs: live.plannedMs);
       }
       return finish(
@@ -417,7 +409,8 @@ class FocusRepository {
     final sinceCheckpoint = monotonic == null || _lastCheckpointRealtimeMs == null
         ? checkpointMs
         : monotonic - _lastCheckpointRealtimeMs!;
-    final moved = sinceCheckpoint >= checkpointMs ||
+    final moved =
+        sinceCheckpoint >= checkpointMs ||
         updated.blockedAttempts != live.blockedAttempts ||
         updated.overlayShows != live.overlayShows ||
         updated.detectionEvents != live.detectionEvents ||
@@ -475,7 +468,9 @@ class FocusRepository {
     final wall = now().millisecondsSinceEpoch;
     // The pause is banked here, not at the end: whatever happens next, the time the
     // user was not focusing is already accounted for and cannot be counted as focus.
-    final sincePause = live.pausedAtWallMs == null ? 0 : (wall - live.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000).toInt();
+    final sincePause = live.pausedAtWallMs == null
+        ? 0
+        : (wall - live.pausedAtWallMs!).clamp(0, 24 * 3600 * 1000).toInt();
     // Focus time, unlike wall time, does not advance while paused. A session that
     // was paused exactly at its final focused second is already complete; do not
     // resurrect it into a zero-second running row.
@@ -532,8 +527,8 @@ class FocusRepository {
                 ? FocusEngine.enforcementFor(
                     blockingRequested: true,
                     serviceAlive: native.running && native.blocking,
-                    permissionLostMidSession: resumed.enforcement != FocusEnforcement.unavailable &&
-                        (!native.overlay || !native.usageAccess),
+                    permissionLostMidSession:
+                        resumed.enforcement != FocusEnforcement.unavailable && (!native.overlay || !native.usageAccess),
                     overlayGranted: native.overlay,
                     usageAccessGranted: native.usageAccess,
                     detectionEvents: native.detectionEvents,
@@ -614,10 +609,12 @@ class FocusRepository {
     // `pause()` intentionally stops the coverage service. Ending from that state
     // must preserve the evidence collected before the pause, rather than convert
     // an expected idle native state into a fictional service failure.
-    final enforcementSuspendedByPause = session.state == FocusSessionState.paused &&
+    final enforcementSuspendedByPause =
+        session.state == FocusSessionState.paused &&
         reason != FocusEndReason.permissionRevoked &&
         reason != FocusEndReason.serviceLost;
-    final permissionLostMidSession = !enforcementSuspendedByPause &&
+    final permissionLostMidSession =
+        !enforcementSuspendedByPause &&
         native != null &&
         session.enforcement.intendsToBlock &&
         session.enforcement != FocusEnforcement.unavailable &&
@@ -626,8 +623,7 @@ class FocusRepository {
         ? session.enforcement
         : FocusEngine.enforcementFor(
             blockingRequested: session.enforcement.intendsToBlock || native.blocking,
-            serviceAlive: native.running &&
-                (session.enforcement.intendsToBlock ? native.blocking : true),
+            serviceAlive: native.running && (session.enforcement.intendsToBlock ? native.blocking : true),
             permissionLostMidSession: permissionLostMidSession,
             overlayGranted: native.overlay,
             usageAccessGranted: native.usageAccess,
@@ -740,15 +736,17 @@ class FocusRepository {
       packages: sanitized.allowed,
       sort: _profiles.length,
     );
-    await dao.upsertProfile(FocusProfilesCompanion.insert(
-      id: profile.id,
-      name: profile.name,
-      mode: profile.mode.storage,
-      minutes: profile.minutes,
-      commitmentId: Value(profile.commitmentId),
-      packagesJson: Value(jsonEncode(profile.packages)),
-      sort: Value(profile.sort),
-    ));
+    await dao.upsertProfile(
+      FocusProfilesCompanion.insert(
+        id: profile.id,
+        name: profile.name,
+        mode: profile.mode.storage,
+        minutes: profile.minutes,
+        commitmentId: Value(profile.commitmentId),
+        packagesJson: Value(jsonEncode(profile.packages)),
+        sort: Value(profile.sort),
+      ),
+    );
     _profiles.removeWhere((p) => p.id == profile.id);
     _profiles.add(profile);
     return profile;
@@ -791,18 +789,20 @@ class FocusRepository {
       // than duplicates.
       notificationId: existing?.notificationId ?? _nextNotificationId(),
     );
-    await dao.upsertSchedule(FocusSchedulesCompanion.insert(
-      id: schedule.id,
-      mode: schedule.mode.storage,
-      minutes: schedule.minutes,
-      hour: schedule.hour,
-      minute: schedule.minute,
-      weekdaysJson: Value(jsonEncode(schedule.weekdays.toList()..sort())),
-      commitmentId: Value(schedule.commitmentId),
-      packagesJson: Value(jsonEncode(schedule.packages)),
-      enabled: Value(schedule.enabled),
-      notificationId: schedule.notificationId,
-    ));
+    await dao.upsertSchedule(
+      FocusSchedulesCompanion.insert(
+        id: schedule.id,
+        mode: schedule.mode.storage,
+        minutes: schedule.minutes,
+        hour: schedule.hour,
+        minute: schedule.minute,
+        weekdaysJson: Value(jsonEncode(schedule.weekdays.toList()..sort())),
+        commitmentId: Value(schedule.commitmentId),
+        packagesJson: Value(jsonEncode(schedule.packages)),
+        enabled: Value(schedule.enabled),
+        notificationId: schedule.notificationId,
+      ),
+    );
     _schedules.removeWhere((s) => s.id == schedule.id);
     _schedules.add(schedule);
     return schedule;
@@ -820,8 +820,7 @@ class FocusRepository {
   }
 
   // -------------------------------------------------------------------- stats
-  Future<FocusStats> stats({required int todayKey}) async =>
-      FocusEngine.statsFor(_sessions, todayKey: todayKey);
+  Future<FocusStats> stats({required int todayKey}) async => FocusEngine.statsFor(_sessions, todayKey: todayKey);
 
   /// Minutes focused today, from the rows. Used by Today's focus card so it cannot
   /// disagree with the history.
@@ -844,51 +843,51 @@ class FocusRepository {
   /// keeps only the package ids the user chose to restrict, plus a count. That
   /// restraint is the reason this export can be handed to anyone.
   Map<String, Object?> exportPayload() => {
-        'format': 'track.focus.v1',
-        'totals': {
-          'sessions': _sessions.length,
-          'ended': history.length,
-          'live': liveSession == null ? 0 : 1,
-          'profiles': _profiles.length,
-          'schedules': _schedules.length,
+    'format': 'track.focus.v1',
+    'totals': {
+      'sessions': _sessions.length,
+      'ended': history.length,
+      'live': liveSession == null ? 0 : 1,
+      'profiles': _profiles.length,
+      'schedules': _schedules.length,
+    },
+    'sessions': [
+      for (final s in _sessions)
+        {
+          'id': s.id,
+          'mode': s.mode.storage,
+          'goal': s.goalLabel,
+          'routine': s.commitmentId,
+          'date': isoDayKey(s.day),
+          'planned_minutes': s.plannedMinutes,
+          'focused_ms': s.focusMs,
+          'paused_ms': s.pausedMs,
+          'state': s.state.storage,
+          'outcome': s.outcome?.storage,
+          'end_reason': s.endReason?.storage,
+          'enforcement': s.enforcement.storage,
+          'timing_verified': s.timingVerified,
+          'blocked_attempts': s.blockedAttempts,
+          'blocked_apps': s.blockedPackages,
+          'reflection': s.reflection,
         },
-        'sessions': [
-          for (final s in _sessions)
-            {
-              'id': s.id,
-              'mode': s.mode.storage,
-              'goal': s.goalLabel,
-              'routine': s.commitmentId,
-              'date': isoDayKey(s.day),
-              'planned_minutes': s.plannedMinutes,
-              'focused_ms': s.focusMs,
-              'paused_ms': s.pausedMs,
-              'state': s.state.storage,
-              'outcome': s.outcome?.storage,
-              'end_reason': s.endReason?.storage,
-              'enforcement': s.enforcement.storage,
-              'timing_verified': s.timingVerified,
-              'blocked_attempts': s.blockedAttempts,
-              'blocked_apps': s.blockedPackages,
-              'reflection': s.reflection,
-            },
-        ],
-        'profiles': [
-          for (final p in _profiles)
-            {'id': p.id, 'name': p.name, 'mode': p.mode.storage, 'minutes': p.minutes, 'apps': p.packages},
-        ],
-        'schedules': [
-          for (final s in _schedules)
-            {
-              'id': s.id,
-              'mode': s.mode.storage,
-              'minutes': s.minutes,
-              'at': s.label,
-              'weekdays': s.weekdays.toList()..sort(),
-              'enabled': s.enabled,
-            },
-        ],
-      };
+    ],
+    'profiles': [
+      for (final p in _profiles)
+        {'id': p.id, 'name': p.name, 'mode': p.mode.storage, 'minutes': p.minutes, 'apps': p.packages},
+    ],
+    'schedules': [
+      for (final s in _schedules)
+        {
+          'id': s.id,
+          'mode': s.mode.storage,
+          'minutes': s.minutes,
+          'at': s.label,
+          'weekdays': s.weekdays.toList()..sort(),
+          'enabled': s.enabled,
+        },
+    ],
+  };
 
   /// One row per session. Readable in a spreadsheet, which is the point.
   String exportCsv() {
@@ -896,19 +895,21 @@ class FocusRepository {
       'date,mode,goal,planned_minutes,focused_minutes,paused_minutes,outcome,end_reason,enforcement,blocked_apps,reflection',
     ];
     for (final s in sessions) {
-      lines.add([
-        isoDayKey(s.day),
-        s.mode.storage,
-        _csv(s.goalLabel),
-        '${s.plannedMinutes}',
-        '${(s.focusMs / 60000).round()}',
-        '${(s.pausedMs / 60000).round()}',
-        s.outcome?.storage ?? 'live',
-        s.endReason?.storage ?? '',
-        s.enforcement.storage,
-        '${s.blockedPackages.length}',
-        _csv(s.reflection ?? ''),
-      ].join(','));
+      lines.add(
+        [
+          isoDayKey(s.day),
+          s.mode.storage,
+          _csv(s.goalLabel),
+          '${s.plannedMinutes}',
+          '${(s.focusMs / 60000).round()}',
+          '${(s.pausedMs / 60000).round()}',
+          s.outcome?.storage ?? 'live',
+          s.endReason?.storage ?? '',
+          s.enforcement.storage,
+          '${s.blockedPackages.length}',
+          _csv(s.reflection ?? ''),
+        ].join(','),
+      );
     }
     return lines.join('\n');
   }
@@ -954,58 +955,58 @@ class FocusRepository {
   }
 
   FocusSession _toModel(FocusSessionRow r) => FocusSession(
-        id: r.id,
-        mode: FocusMode.fromStorage(r.mode) ?? FocusMode.standard,
-        plannedMinutes: r.plannedMinutes,
-        goalLabel: r.goalLabel,
-        commitmentId: r.commitmentId,
-        startedAtWallMs: r.startedAtWallMs,
-        startedAtRealtimeMs: r.startedAtRealtimeMs,
-        segmentStartedAtRealtimeMs: r.segmentStartedAtRealtimeMs,
-        pausedAtWallMs: r.pausedAtWallMs,
-        focusMs: r.focusMs,
-        pausedMs: r.pausedMs,
-        state: FocusSessionState.fromStorage(r.state),
-        outcome: FocusOutcome.fromStorage(r.outcome),
-        enforcement: FocusEnforcement.fromStorage(r.enforcement),
-        endReason: FocusEndReason.fromStorage(r.endReason),
-        blockedAttempts: r.blockedAttempts,
-        overlayShows: r.overlayShows,
-        detectionEvents: r.detectionEvents,
-        timingVerified: r.timingVerified,
-        blockedPackages: _decodeList(r.blockedPackagesJson),
-        endedAtWallMs: r.endedAtWallMs,
-        reflection: r.reflection,
-        day: r.day,
-        source: r.source,
-      );
+    id: r.id,
+    mode: FocusMode.fromStorage(r.mode) ?? FocusMode.standard,
+    plannedMinutes: r.plannedMinutes,
+    goalLabel: r.goalLabel,
+    commitmentId: r.commitmentId,
+    startedAtWallMs: r.startedAtWallMs,
+    startedAtRealtimeMs: r.startedAtRealtimeMs,
+    segmentStartedAtRealtimeMs: r.segmentStartedAtRealtimeMs,
+    pausedAtWallMs: r.pausedAtWallMs,
+    focusMs: r.focusMs,
+    pausedMs: r.pausedMs,
+    state: FocusSessionState.fromStorage(r.state),
+    outcome: FocusOutcome.fromStorage(r.outcome),
+    enforcement: FocusEnforcement.fromStorage(r.enforcement),
+    endReason: FocusEndReason.fromStorage(r.endReason),
+    blockedAttempts: r.blockedAttempts,
+    overlayShows: r.overlayShows,
+    detectionEvents: r.detectionEvents,
+    timingVerified: r.timingVerified,
+    blockedPackages: _decodeList(r.blockedPackagesJson),
+    endedAtWallMs: r.endedAtWallMs,
+    reflection: r.reflection,
+    day: r.day,
+    source: r.source,
+  );
 
   FocusSessionsCompanion _toRow(FocusSession s) => FocusSessionsCompanion.insert(
-        id: s.id,
-        mode: s.mode.storage,
-        plannedMinutes: s.plannedMinutes,
-        goalLabel: s.goalLabel,
-        commitmentId: Value(s.commitmentId),
-        startedAtWallMs: s.startedAtWallMs,
-        startedAtRealtimeMs: s.startedAtRealtimeMs,
-        segmentStartedAtRealtimeMs: Value(s.segmentStartedAtRealtimeMs),
-        pausedAtWallMs: Value(s.pausedAtWallMs),
-        focusMs: Value(s.focusMs),
-        pausedMs: Value(s.pausedMs),
-        state: s.state.storage,
-        outcome: Value(s.outcome?.storage),
-        enforcement: s.enforcement.storage,
-        endReason: Value(s.endReason?.storage),
-        blockedAttempts: Value(s.blockedAttempts),
-        overlayShows: Value(s.overlayShows),
-        detectionEvents: Value(s.detectionEvents),
-        timingVerified: Value(s.timingVerified),
-        blockedPackagesJson: Value(jsonEncode(s.blockedPackages)),
-        endedAtWallMs: Value(s.endedAtWallMs),
-        reflection: Value(s.reflection),
-        day: s.day,
-        source: Value(s.source),
-      );
+    id: s.id,
+    mode: s.mode.storage,
+    plannedMinutes: s.plannedMinutes,
+    goalLabel: s.goalLabel,
+    commitmentId: Value(s.commitmentId),
+    startedAtWallMs: s.startedAtWallMs,
+    startedAtRealtimeMs: s.startedAtRealtimeMs,
+    segmentStartedAtRealtimeMs: Value(s.segmentStartedAtRealtimeMs),
+    pausedAtWallMs: Value(s.pausedAtWallMs),
+    focusMs: Value(s.focusMs),
+    pausedMs: Value(s.pausedMs),
+    state: s.state.storage,
+    outcome: Value(s.outcome?.storage),
+    enforcement: s.enforcement.storage,
+    endReason: Value(s.endReason?.storage),
+    blockedAttempts: Value(s.blockedAttempts),
+    overlayShows: Value(s.overlayShows),
+    detectionEvents: Value(s.detectionEvents),
+    timingVerified: Value(s.timingVerified),
+    blockedPackagesJson: Value(jsonEncode(s.blockedPackages)),
+    endedAtWallMs: Value(s.endedAtWallMs),
+    reflection: Value(s.reflection),
+    day: s.day,
+    source: Value(s.source),
+  );
 
   /// Missing and malformed weekdays are dropped rather than defaulted: a schedule
   /// that silently fires every day because its JSON was corrupt would be worse than
@@ -1024,7 +1025,10 @@ class FocusRepository {
     try {
       final decoded = jsonDecode(raw);
       if (decoded is List) {
-        return [for (final v in decoded) if (v is String) v];
+        return [
+          for (final v in decoded)
+            if (v is String) v,
+        ];
       }
     } catch (_) {
       // A corrupt blob is not worth a crash: the list is treated as empty, which
@@ -1033,4 +1037,3 @@ class FocusRepository {
     return const <String>[];
   }
 }
-

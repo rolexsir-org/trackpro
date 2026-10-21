@@ -11,6 +11,7 @@ import '../widgets/large_title_header.dart';
 import 'commitment_sheets.dart';
 import 'measurements_page.dart';
 import 'paywall_screen.dart';
+import 'settings_screen.dart';
 
 /// Routines — where commitments are created, edited, paused and retired.
 ///
@@ -30,13 +31,13 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
   _RoutineFilter _filter = _RoutineFilter.all;
 
   List<Commitment> _filtered(List<Commitment> commitments) => switch (_filter) {
-        _RoutineFilter.all => commitments,
-        // Schedules are stored as sets of ISO weekdays. The current product does
-        // not model a separate custom cadence, so the filters reflect only data we
-        // can truthfully query: every day and selected weekly days.
-        _RoutineFilter.daily => commitments.where((c) => c.schedule.length == 7).toList(),
-        _RoutineFilter.weekly => commitments.where((c) => c.schedule.length < 7).toList(),
-      };
+    _RoutineFilter.all => commitments,
+    // Schedules are stored as sets of ISO weekdays. The current product does
+    // not model a separate custom cadence, so the filters reflect only data we
+    // can truthfully query: every day and selected weekly days.
+    _RoutineFilter.daily => commitments.where((c) => c.schedule.length == 7).toList(),
+    _RoutineFilter.weekly => commitments.where((c) => c.schedule.length < 7).toList(),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -53,17 +54,14 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
           subtitle: allActive.isEmpty
               ? 'No routines yet'
               : '${allActive.length} active'
-                  '${state.hasCommitments && state.bestCommitmentStreak > 0 ? ' · best run ${state.bestCommitmentStreak} days' : ''}',
+                    '${state.hasCommitments && state.bestCommitmentStreak > 0 ? ' · best run ${state.bestCommitmentStreak} days' : ''}',
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(Editorial.s5, Editorial.s1, Editorial.s5, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               if (allActive.isNotEmpty) ...[
-                _RoutineFilters(
-                  selected: _filter,
-                  onChanged: (value) => setState(() => _filter = value),
-                ),
+                _RoutineFilters(selected: _filter, onChanged: (value) => setState(() => _filter = value)),
                 const SizedBox(height: Editorial.s4),
               ],
               if (allActive.isEmpty)
@@ -120,17 +118,18 @@ class _RoutinesScreenState extends State<RoutinesScreen> {
               const SizedBox(height: Editorial.s6),
               Text('MEASUREMENTS', style: Editorial.label),
               const SizedBox(height: Editorial.s3),
-              GlassList(children: [
-                GlassRow(
-                  title: 'Water, mood, money, sleep…',
-                  subtitle: 'Track quantities separately from routines, so “how much” and “did you” stay clear.',
-                  leading: const Icon(Icons.bar_chart_rounded, size: 17, color: Editorial.accent),
-                  accent: Editorial.accent,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const MeasurementsPage()),
+              GlassList(
+                children: [
+                  GlassRow(
+                    title: 'Water, mood, money, sleep…',
+                    subtitle: 'Track quantities separately from routines, so “how much” and “did you” stay clear.',
+                    leading: const Icon(Icons.bar_chart_rounded, size: 17, color: Editorial.accent),
+                    accent: Editorial.accent,
+                    onTap: () =>
+                        Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const MeasurementsPage())),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ]),
           ),
         ),
@@ -179,33 +178,36 @@ class _RoutineFilterChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Semantics(
-        button: true,
-        selected: selected,
-        label: '$label routines',
-        child: Material(
-          color: selected ? Editorial.accentSurface : Editorial.well,
-          borderRadius: BorderRadius.circular(Editorial.rPill),
-          child: InkWell(
-            onTap: onTap,
+    button: true,
+    selected: selected,
+    label: '$label routines',
+    child: Material(
+      color: selected ? Editorial.accentSurface : Editorial.well,
+      borderRadius: BorderRadius.circular(Editorial.rPill),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(Editorial.rPill),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 38),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+          decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(Editorial.rPill),
-            child: Container(
-              constraints: const BoxConstraints(minHeight: 38),
-              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(Editorial.rPill),
-                border: Border.all(color: selected ? Editorial.accent.withOpacity(.55) : Editorial.hairline, width: .5),
-              ),
-              child: Text(
-                label,
-                style: Editorial.body.copyWith(
-                  color: selected ? Editorial.accent : Editorial.inkSecondary,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-                ),
-              ),
+            border: Border.all(
+              color: selected ? Editorial.accent.withValues(alpha: .55) : Editorial.hairline,
+              width: .5,
+            ),
+          ),
+          child: Text(
+            label,
+            style: Editorial.body.copyWith(
+              color: selected ? Editorial.accent : Editorial.inkSecondary,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
 }
 
 class _FilteredEmpty extends StatelessWidget {
@@ -215,15 +217,13 @@ class _FilteredEmpty extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        decoration: Editorial.card(),
-        padding: const EdgeInsets.all(Editorial.s4),
-        child: Text(
-          filter == _RoutineFilter.daily
-              ? 'No every-day routines yet.'
-              : 'No selected-day routines yet.',
-          style: Editorial.body,
-        ),
-      );
+    decoration: Editorial.card(),
+    padding: const EdgeInsets.all(Editorial.s4),
+    child: Text(
+      filter == _RoutineFilter.daily ? 'No every-day routines yet.' : 'No selected-day routines yet.',
+      style: Editorial.body,
+    ),
+  );
 }
 
 /// One routine: what it is, how it is going, and how to change it.
@@ -244,13 +244,13 @@ class _RoutineRow extends StatelessWidget {
     final status = archived
         ? 'Archived · history kept'
         : paused
-            ? 'Paused'
-            : snap?.rate != null
-                ? '${snap!.rate!.round()}% · ${snap.decidedDays} days counted'
-                : (snap?.decidedDays ?? 0) == 0
-                    ? '${c.scheduleLabel} · nothing logged yet'
-                    : '${c.scheduleLabel} · ${snap!.decidedDays} of '
-                        '${MomentumEngine.minDecidedDaysForRate} days';
+        ? 'Paused'
+        : snap?.rate != null
+        ? '${snap!.rate!.round()}% · ${snap.decidedDays} days counted'
+        : (snap?.decidedDays ?? 0) == 0
+        ? '${c.scheduleLabel} · nothing logged yet'
+        : '${c.scheduleLabel} · ${snap!.decidedDays} of '
+              '${MomentumEngine.minDecidedDaysForRate} days';
 
     return GestureDetector(
       onTap: () => showCommitmentEditor(context, existing: c),
@@ -281,7 +281,8 @@ class _RoutineRow extends StatelessWidget {
             final ok = await showTrackConfirm(
               context,
               title: 'Delete “${c.name}”?',
-              body: 'This removes the routine and its '
+              body:
+                  'This removes the routine and its '
                   '${state.commitmentRepo.daysFor(c.id).length} recorded days. Archiving keeps the record '
                   'and simply stops counting it.',
               confirmLabel: 'Delete',
@@ -304,7 +305,13 @@ class _RoutineRow extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Flexible(child: Text(c.name, style: Editorial.figure.copyWith(fontSize: 16), overflow: TextOverflow.ellipsis)),
+                        Flexible(
+                          child: Text(
+                            c.name,
+                            style: Editorial.figure.copyWith(fontSize: 16),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
                         if (!archived && logged) ...[
                           const SizedBox(width: Editorial.s2),
                           Icon(Icons.verified_rounded, size: 14, color: Editorial.full),
@@ -373,15 +380,9 @@ class _EmptyRoutines extends StatelessWidget {
             style: Editorial.body,
           ),
           const SizedBox(height: Editorial.s5),
-          TrackFilledButton(
-            label: 'Create your first routine',
-            onTap: () => showTemplatePicker(context),
-          ),
+          TrackFilledButton(label: 'Create your first routine', onTap: () => showTemplatePicker(context)),
           const SizedBox(height: Editorial.s2),
-          TrackTintedButton(
-            label: 'Build one yourself',
-            onTap: () => showCommitmentEditor(context),
-          ),
+          TrackTintedButton(label: 'Build one yourself', onTap: () => showCommitmentEditor(context)),
         ],
       ),
     );

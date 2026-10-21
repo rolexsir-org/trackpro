@@ -180,13 +180,13 @@ void main() {
     // the two `isFalse` cases passed for the wrong reason — a test that cannot tell
     // which rule fired is not pinning the rule it names.
     Entitlement subscription({required DateTime expiresAt}) => Entitlement(
-          isPro: true,
-          planId: 'track_pro_annual',
-          expiresAt: expiresAt,
-          source: 'cache',
-          verified: true,
-          verifiedAt: DateTime.now(),
-        );
+      isPro: true,
+      planId: 'track_pro_annual',
+      expiresAt: expiresAt,
+      source: 'cache',
+      verified: true,
+      verifiedAt: DateTime.now(),
+    );
 
     test('a subscription inside the grace window is still active', () {
       expect(subscription(expiresAt: DateTime.now().subtract(const Duration(hours: 6))).active, isTrue);
@@ -442,12 +442,7 @@ void main() {
 
     test('a Play price always beats the fallback', () {
       final annual = ProConfig.plans.firstWhere((p) => p.id == 'track_pro_annual');
-      final priced = annual.copyWith(
-        price: '\$34.99',
-        rawPrice: 34.99,
-        currencySymbol: '\$',
-        currencyCode: 'USD',
-      );
+      final priced = annual.copyWith(price: '\$34.99', rawPrice: 34.99, currencySymbol: '\$', currencyCode: 'USD');
       // Play's localized, per-cohort price is the only one we ever show.
       expect(priced.displayPrice, '\$34.99');
       // `displayPeriod` is appended with no separator ('$displayPrice$displayPeriod'
@@ -571,21 +566,15 @@ void mainHttpVerifierTests() {
 
     tearDown(() async => server.close(force: true));
 
-    HttpPurchaseVerifier verifier({Future<String?> Function()? bearer}) => HttpPurchaseVerifier(
-          endpoint: endpoint,
-          bearerTokenProvider: bearer,
-          timeout: const Duration(seconds: 5),
-        );
+    HttpPurchaseVerifier verifier({Future<String?> Function()? bearer}) =>
+        HttpPurchaseVerifier(endpoint: endpoint, bearerTokenProvider: bearer, timeout: const Duration(seconds: 5));
 
     test('a valid response is accepted with its expiry', () async {
       final expiry = DateTime.now().add(const Duration(days: 300)).toUtc().toIso8601String();
       respond = (request) async {
-        request.response.write(jsonEncode({
-          'valid': true,
-          'expiresAt': expiry,
-          'autoRenew': true,
-          'inGracePeriod': false,
-        }));
+        request.response.write(
+          jsonEncode({'valid': true, 'expiresAt': expiry, 'autoRenew': true, 'inGracePeriod': false}),
+        );
         await request.response.close();
       };
 
@@ -613,11 +602,9 @@ void mainHttpVerifierTests() {
     });
 
     test('a bearer token is attached when the build provides one', () async {
-      await verifier(bearer: () async => 'integrity-token-123').verify(
-        productId: 'track_pro_monthly',
-        purchaseToken: 'tok',
-        packageName: 'com.track.app',
-      );
+      await verifier(
+        bearer: () async => 'integrity-token-123',
+      ).verify(productId: 'track_pro_monthly', purchaseToken: 'tok', packageName: 'com.track.app');
       expect(seen.single.headers.value(HttpHeaders.authorizationHeader), 'Bearer integrity-token-123');
     });
 
@@ -718,10 +705,7 @@ void mainHttpVerifierTests() {
         request.response.write('{"valid":true}');
         await request.response.close();
       };
-      final verifierUnderTest = HttpPurchaseVerifier(
-        endpoint: endpoint,
-        timeout: const Duration(milliseconds: 400),
-      );
+      final verifierUnderTest = HttpPurchaseVerifier(endpoint: endpoint, timeout: const Duration(milliseconds: 400));
       final result = await verifierUnderTest.verify(
         productId: 'track_pro_monthly',
         purchaseToken: 'tok',
@@ -732,22 +716,18 @@ void mainHttpVerifierTests() {
     });
 
     test('an unconfigured build cannot grant Pro', () async {
-      final result = await HttpPurchaseVerifier(endpoint: null).verify(
-        productId: 'track_pro_annual',
-        purchaseToken: 'tok',
-        packageName: 'com.track.app',
-      );
+      final result = await HttpPurchaseVerifier(
+        endpoint: null,
+      ).verify(productId: 'track_pro_annual', purchaseToken: 'tok', packageName: 'com.track.app');
       expect(result.valid, isFalse);
       expect(result.reachable, isFalse);
       expect(seen, isEmpty, reason: 'nothing was called');
     });
 
     test('a purchase token is never echoed into the request line or headers', () async {
-      await verifier(bearer: () async => 'integrity-token-123').verify(
-        productId: 'track_pro_annual',
-        purchaseToken: 'super-secret-token-value',
-        packageName: 'com.track.app',
-      );
+      await verifier(
+        bearer: () async => 'integrity-token-123',
+      ).verify(productId: 'track_pro_annual', purchaseToken: 'super-secret-token-value', packageName: 'com.track.app');
       final request = seen.single;
       expect(request.uri.toString(), isNot(contains('super-secret-token-value')));
       final headerDump = request.headers.toString();

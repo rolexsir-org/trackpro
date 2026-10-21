@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import '../config/app_environment.dart';
 import '../config/pro_config.dart';
 import '../data/commitment_repository.dart';
-import '../data/commitment_templates.dart';
 import '../data/cycle_stats.dart';
+import '../data/db/database.dart';
 import '../data/default_trackers.dart';
 import '../data/momentum.dart';
 import '../data/entry_repository.dart';
@@ -222,8 +222,13 @@ class AppState extends ChangeNotifier {
   /// Computed from real rows on every aggregate refresh.
   List<Insight> insights = <Insight>[];
   CycleStats cycle = const CycleStats(
-    starts: [], averageLength: 0, shortestLength: 0, longestLength: 0,
-    lastStart: null, currentCycleDay: null, periodLengthAvg: 0,
+    starts: [],
+    averageLength: 0,
+    shortestLength: 0,
+    longestLength: 0,
+    lastStart: null,
+    currentCycleDay: null,
+    periodLengthAvg: 0,
   );
 
   /// True once the user has logged enough days for patterns to be meaningful.
@@ -353,8 +358,7 @@ class AppState extends ChangeNotifier {
     final length = history.values.isEmpty ? 0 : history.values.first.length;
     final take = n > length ? length : n;
     return [
-      for (var i = length - take; i < length; i++)
-        history.values.any((series) => i < series.length && series[i] > 0),
+      for (var i = length - take; i < length; i++) history.values.any((series) => i < series.length && series[i] > 0),
     ];
   }
 
@@ -412,7 +416,10 @@ class AppState extends ChangeNotifier {
     final h = heightCm;
     final w = history['weight'];
     if (h == null || h <= 0 || w == null) return null;
-    final latest = [for (final v in w) if (v > 0) v];
+    final latest = [
+      for (final v in w)
+        if (v > 0) v,
+    ];
     if (latest.isEmpty) return null;
     final meters = h / 100;
     return latest.last / (meters * meters);
@@ -429,7 +436,6 @@ class AppState extends ChangeNotifier {
     list.sort((a, b) => ringPct(b, today(b.id)).compareTo(ringPct(a, today(a.id))));
     return list;
   }
-
 
   // ---------------------------------------------------------------- Focus Lock
   // The state layer's job here is narrow on purpose: mirror the repository, own the
@@ -492,8 +498,8 @@ class AppState extends ChangeNotifier {
     // A live session's enforcement is re-derived from the platform on every tick,
     // so a permission revoked thirty seconds ago is reflected now.
     if (session.enforcement.intendsToBlock) {
-      final permissionLostMidSession = session.enforcement != FocusEnforcement.unavailable &&
-          (!focusNative.overlay || !focusNative.usageAccess);
+      final permissionLostMidSession =
+          session.enforcement != FocusEnforcement.unavailable && (!focusNative.overlay || !focusNative.usageAccess);
       final reported = FocusEngine.enforcementFor(
         blockingRequested: true,
         serviceAlive: focusNative.running && focusNative.blocking,
@@ -1045,8 +1051,7 @@ class AppState extends ChangeNotifier {
       try {
         final decoded = (jsonDecode(habitJson) as List).cast<Map<String, dynamic>>();
         habits.addAll([
-          for (final h in decoded)
-            Habit(h['name'] as String, h['emoji'] as String, Color(h['color'] as int)),
+          for (final h in decoded) Habit(h['name'] as String, h['emoji'] as String, Color(h['color'] as int)),
         ]);
       } catch (_) {
         habits.clear(); // a corrupt config must not brick the tracker
@@ -1223,21 +1228,21 @@ class AppState extends ChangeNotifier {
   }
 
   Tracker _toModel(TrackerRow r) => Tracker(
-        id: r.id,
-        name: r.name,
-        emoji: r.emoji,
-        accent: Color(r.accent),
-        accent2: Color(r.accent2),
-        kind: MetricKind.values.firstWhere((k) => k.name == r.kind, orElse: () => MetricKind.habits),
-        goal: r.goal,
-        step: r.step,
-        unit: r.unit,
-        blurb: r.blurb,
-        insight: r.insight,
-        hero: r.hero,
-        hidden: r.hidden,
-        order: r.sort,
-      );
+    id: r.id,
+    name: r.name,
+    emoji: r.emoji,
+    accent: Color(r.accent),
+    accent2: Color(r.accent2),
+    kind: MetricKind.values.firstWhere((k) => k.name == r.kind, orElse: () => MetricKind.habits),
+    goal: r.goal,
+    step: r.step,
+    unit: r.unit,
+    blurb: r.blurb,
+    insight: r.insight,
+    hero: r.hero,
+    hidden: r.hidden,
+    order: r.sort,
+  );
 
   // ---------------------------------------------------------------- momentum
   /// Recomputed from the in-memory projection, so it is cheap enough to run after
@@ -1256,8 +1261,7 @@ class AppState extends ChangeNotifier {
 
   /// Archived commitments. Kept visible in Routines — archiving is a pause in
   /// attention, not a deletion, and the record is still the user's.
-  List<Commitment> get archivedCommitments =>
-      commitmentRepo.commitments.where((c) => c.archived).toList();
+  List<Commitment> get archivedCommitments => commitmentRepo.commitments.where((c) => c.archived).toList();
 
   MomentumSnapshot? momentumFor(String id) => momentum[id];
 
@@ -1271,13 +1275,15 @@ class AppState extends ChangeNotifier {
       final planned = MomentumEngine.isPlanned(c, key, commitmentRepo.pauses);
       final rec = commitmentRepo.daysFor(c.id)[key];
       if (!planned && rec == null) continue;
-      out.add(TodayCommitment(
-        commitment: c,
-        scheduled: planned,
-        outcome: rec?.outcome,
-        paused: commitmentRepo.isPaused(c.id),
-        snapshot: momentum[c.id],
-      ));
+      out.add(
+        TodayCommitment(
+          commitment: c,
+          scheduled: planned,
+          outcome: rec?.outcome,
+          paused: commitmentRepo.isPaused(c.id),
+          snapshot: momentum[c.id],
+        ),
+      );
     }
     out.sort((a, b) {
       final aDone = a.outcome != null ? 1 : 0;
@@ -1294,13 +1300,7 @@ class AppState extends ChangeNotifier {
   /// Returns false when the write did not land, so a caller cannot confirm a day
   /// that SQLite never received. The failure is also put on [writeFailure], which the
   /// shell shows wherever the user happens to be.
-  Future<bool> logCommitmentDay(
-    String id,
-    DayOutcome outcome, {
-    double? value,
-    String? note,
-    int? day,
-  }) async {
+  Future<bool> logCommitmentDay(String id, DayOutcome outcome, {double? value, String? note, int? day}) async {
     try {
       await commitmentRepo.record(commitmentId: id, outcome: outcome, day: day, value: value, note: note);
     } catch (_) {
@@ -1427,12 +1427,11 @@ class AppState extends ChangeNotifier {
 
   /// Commitments that have slipped enough to warrant a restart plan right now.
   List<Commitment> get needsRestart => [
-        for (final c in commitments)
-          if (momentum[c.id]?.restart != null) c,
-      ];
+    for (final c in commitments)
+      if (momentum[c.id]?.restart != null) c,
+  ];
 
-  bool canAddCommitment() =>
-      isPro || commitments.length < ProConfig.freeCommitmentLimit;
+  bool canAddCommitment() => isPro || commitments.length < ProConfig.freeCommitmentLimit;
 
   // ------------------------------------------------------- freemium policy
   /// Single decision point for "is this Pro?". Every lock in the UI reads these,
@@ -1741,11 +1740,7 @@ class AppState extends ChangeNotifier {
   /// need this path too — otherwise they would be the one place a failure went
   /// unreported.
   Future<bool> _recordFailedWrite(String label, Object error) async {
-    writeFailure = SaveFailure(
-      action: label,
-      detail: _describeWriteError(error),
-      at: DateTime.now(),
-    );
+    writeFailure = SaveFailure(action: label, detail: _describeWriteError(error), at: DateTime.now());
     await _rollbackProjection();
     return false;
   }
@@ -1768,17 +1763,22 @@ class AppState extends ChangeNotifier {
   /// streak on screen is computed from those stored days.
   void toggleHabit(int index) {
     habits[index].done = !habits[index].done;
-    final doneIndices = [for (var i = 0; i < habits.length; i++) if (habits[i].done) i];
+    final doneIndices = [
+      for (var i = 0; i < habits.length; i++)
+        if (habits[i].done) i,
+    ];
     final series = _writableSeries('habits');
     series[series.length - 1] = doneIndices.length.toDouble();
     Haptics.selection();
     notifyListeners();
-    unawaited(_persist(() async {
-      await repo.setDaily('habits', doneIndices.length.toDouble(), meta: encodeHabitMeta(doneIndices));
-      await repo.dao.setSetting('habits', jsonEncode([for (final h in habits) h.toJson()]));
-      _projectHabitHistory();
-      notifyListeners();
-    }, label: 'Habit'));
+    unawaited(
+      _persist(() async {
+        await repo.setDaily('habits', doneIndices.length.toDouble(), meta: encodeHabitMeta(doneIndices));
+        await repo.dao.setSetting('habits', jsonEncode([for (final h in habits) h.toJson()]));
+        _projectHabitHistory();
+        notifyListeners();
+      }, label: 'Habit'),
+    );
   }
 
   /// Adds a habit to the checklist (Pro-tier users get unlimited habits).
@@ -1787,7 +1787,9 @@ class AppState extends ChangeNotifier {
     habits.add(Habit(name.trim(), emoji, color));
     Haptics.commit();
     notifyListeners();
-    unawaited(_persist(() => repo.dao.setSetting('habits', jsonEncode([for (final h in habits) h.toJson()])), label: 'Habits'));
+    unawaited(
+      _persist(() => repo.dao.setSetting('habits', jsonEncode([for (final h in habits) h.toJson()])), label: 'Habits'),
+    );
   }
 
   void removeHabit(int index) {
@@ -1795,12 +1797,17 @@ class AppState extends ChangeNotifier {
     habits.removeAt(index);
     Haptics.warning();
     notifyListeners();
-    unawaited(_persist(() async {
-      await repo.dao.setSetting('habits', jsonEncode([for (final h in habits) h.toJson()]));
-      // Today's stored indices shift when a habit is removed.
-      final done = [for (var i = 0; i < habits.length; i++) if (habits[i].done) i];
-      await repo.setDaily('habits', done.length.toDouble(), meta: encodeHabitMeta(done));
-    }, label: 'Habits'));
+    unawaited(
+      _persist(() async {
+        await repo.dao.setSetting('habits', jsonEncode([for (final h in habits) h.toJson()]));
+        // Today's stored indices shift when a habit is removed.
+        final done = [
+          for (var i = 0; i < habits.length; i++)
+            if (habits[i].done) i,
+        ];
+        await repo.setDaily('habits', done.length.toDouble(), meta: encodeHabitMeta(done));
+      }, label: 'Habits'),
+    );
   }
 
   /// Adds one expense to today's running total.
@@ -1839,15 +1846,12 @@ class AppState extends ChangeNotifier {
     transactions.insert(0, Transaction(title, bucket, safeAmount, 'Just now'));
     Haptics.commit();
     notifyListeners();
-    unawaited(_persist(() async {
-      await repo.addEvent(
-        'expenses',
-        safeAmount,
-        safeTotal,
-        meta: jsonEncode({'category': bucket, 'title': title}),
-      );
-      categories = await repo.categoryTotals(days: 7);
-    }, label: tracker.name)); // `tracker` is already promoted by the early return above
+    unawaited(
+      _persist(() async {
+        await repo.addEvent('expenses', safeAmount, safeTotal, meta: jsonEncode({'category': bucket, 'title': title}));
+        categories = await repo.categoryTotals(days: 7);
+      }, label: tracker.name),
+    ); // `tracker` is already promoted by the early return above
     //
     // (It used to read `tracker!`, which the analyzer rejects under this repo's lint set as an
     // unnecessary null assertion on a non-nullable local.)
@@ -2112,10 +2116,12 @@ class AppState extends ChangeNotifier {
   /// The export the user downloads. Measurements and Momentum routines are
   /// assembled here, so no single repository has to know about the other — and so
   /// "take your data with you" genuinely means all of it.
-  Future<String> exportJson() => repo.exportJson(sections: {
-        'commitments': commitmentRepo.exportPayload(),
-        if (focusRepo != null) 'focus': focusRepo!.exportPayload(),
-      });
+  Future<String> exportJson() => repo.exportJson(
+    sections: {
+      'commitments': commitmentRepo.exportPayload(),
+      if (focusRepo != null) 'focus': focusRepo!.exportPayload(),
+    },
+  );
 
   /// Focus sessions as CSV, one row each.
   String exportFocusCsv() => focusRepo?.exportCsv() ?? 'date,mode,goal';
@@ -2199,8 +2205,7 @@ class AppState extends ChangeNotifier {
     return 'The change could not be saved. Your previous value is unchanged.';
   }
 
-  Future<void> _writeWidgetSnapshot() =>
-      widgetBridge?.writeSnapshot(this) ?? Future<void>.value();
+  Future<void> _writeWidgetSnapshot() => widgetBridge?.writeSnapshot(this) ?? Future<void>.value();
 
   /// Detaches this object from the layers that outlive it.
   ///

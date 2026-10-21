@@ -40,7 +40,7 @@ class ProgressRing extends StatelessWidget {
           stroke: stroke,
           a: colorA,
           b: colorB,
-          track: trackColor ?? Theme.of(context).dividerColor.withOpacity(.5),
+          track: trackColor ?? Theme.of(context).dividerColor.withValues(alpha: .5),
         ),
       ),
     );

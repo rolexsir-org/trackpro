@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:track/data/commitment_repository.dart';
 import 'package:track/data/db/database.dart';
 import 'package:track/data/entry_repository.dart';
+import 'package:track/models/models.dart';
 import 'package:track/state/app_state.dart';
 import 'package:track/util/day_key.dart';
 
@@ -77,16 +78,22 @@ void main() {
       await repo.bootstrap();
       final short = state.series('steps', 7);
       expect(short.length, 7);
-      expect(state.series('steps', 10000).length, lessThanOrEqualTo(EntryRepository.cacheDays),
-          reason: 'asking for more days than the cache holds cannot invent points');
+      expect(
+        state.series('steps', 10000).length,
+        lessThanOrEqualTo(EntryRepository.cacheDays),
+        reason: 'asking for more days than the cache holds cannot invent points',
+      );
       expect(state.series('steps', 0), isEmpty, reason: 'zero days is zero points');
     });
 
     test('writing to a tracker that has no series in memory still lands on today', () {
       expect(state.log('steps', 5000), isTrue);
       expect(state.today('steps'), 5000, reason: 'the write goes to the last slot, not out of range');
-      expect(state.log('not-a-tracker', 1), isFalse,
-          reason: 'validation refuses an id the app does not know, rather than inventing a series');
+      expect(
+        state.log('not-a-tracker', 1),
+        isFalse,
+        reason: 'validation refuses an id the app does not know, rather than inventing a series',
+      );
     });
   });
 
@@ -109,10 +116,7 @@ void main() {
       final exported = payload['commitments']! as Map<String, dynamic>;
       expect(exported['format'], 'track.commitments.v1');
       expect((exported['routines']! as List<dynamic>).length, 1);
-      expect(
-        ((exported['routines']! as List<dynamic>).first as Map<String, dynamic>)['days'],
-        hasLength(1),
-      );
+      expect(((exported['routines']! as List<dynamic>).first as Map<String, dynamic>)['days'], hasLength(1));
       expect((exported['totals']! as Map<String, dynamic>)['recorded_days'], 1);
     });
 
@@ -166,5 +170,4 @@ void main() {
       expect(await repo.dao.getSetting('added'), isNotNull);
     });
   });
-
 }

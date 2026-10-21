@@ -137,9 +137,7 @@ class CycleStats {
     final avg = usable.isEmpty ? 0.0 : usable.reduce((a, b) => a + b) / usable.length;
     final lastStart = starts.last;
     final completedRuns = runLengths.where((r) => r > 0 && r <= 14).toList();
-    final periodAvg = completedRuns.isEmpty
-        ? 0.0
-        : completedRuns.reduce((a, b) => a + b) / completedRuns.length;
+    final periodAvg = completedRuns.isEmpty ? 0.0 : completedRuns.reduce((a, b) => a + b) / completedRuns.length;
 
     return CycleStats(
       starts: starts,
@@ -164,6 +162,6 @@ class CycleStats {
       return 'Your logged cycles vary by $variability days — a prediction here would be a guess.';
     }
     return 'Your logged cycles average ${averageLength.round()} days '
-        '(${shortestLength}–${longestLength} in your data).';
+        '($shortestLength–$longestLength in your data).';
   }
 }

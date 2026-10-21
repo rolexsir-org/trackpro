@@ -58,10 +58,8 @@ void main() {
       expect(await repo.entryCount(), 0);
       expect(await repo.trackedDays(), 0);
       expect(await repo.demoRowCount(), 0);
-      expect(await repo.sourceCounts(), isEmpty,
-          reason: 'not one row exists, from any provenance');
-      expect(await repo.firstLoggedDate(), isNull,
-          reason: '"tracking since" must be unknown, not today');
+      expect(await repo.sourceCounts(), isEmpty, reason: 'not one row exists, from any provenance');
+      expect(await repo.firstLoggedDate(), isNull, reason: '"tracking since" must be unknown, not today');
     });
 
     test('every series is empty and gap-filled, never pre-populated', () async {
@@ -69,8 +67,7 @@ void main() {
       for (final t in await repo.dao.allTrackers()) {
         final series = await repo.dao.series(t.id, days: 28);
         expect(series.length, 28, reason: '${t.id} is gap-filled to the window');
-        expect(series.every((v) => v == 0), isTrue,
-            reason: '${t.id} must not carry invented history');
+        expect(series.every((v) => v == 0), isTrue, reason: '${t.id} must not carry invented history');
       }
     });
   });
@@ -79,13 +76,8 @@ void main() {
     /// Every `.dart` file that ships in the app binary.
     List<File> libSources() {
       final root = Directory('lib');
-      expect(root.existsSync(), isTrue,
-          reason: 'these tests must run from the package root (flutter test does)');
-      return root
-          .listSync(recursive: true)
-          .whereType<File>()
-          .where((f) => f.path.endsWith('.dart'))
-          .toList();
+      expect(root.existsSync(), isTrue, reason: 'these tests must run from the package root (flutter test does)');
+      return root.listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart')).toList();
     }
 
     test('lib/ never names a demo seeder or writes a demo-sourced row', () {
@@ -107,8 +99,7 @@ void main() {
           }
         }
       }
-      expect(offenders, isEmpty,
-          reason: 'synthetic-data machinery must not exist in lib/:\n${offenders.join('\n')}');
+      expect(offenders, isEmpty, reason: 'synthetic-data machinery must not exist in lib/:\n${offenders.join('\n')}');
     });
 
     test('lib/ does not import test fixtures, and fixtures are not in lib/', () {
@@ -120,14 +111,16 @@ void main() {
         }
       }
       expect(offenders, isEmpty);
-      expect(File('test/fixtures/demo_fixtures.dart').existsSync(), isTrue,
-          reason: 'the fixture must exist where tests can reach it');
+      expect(
+        File('test/fixtures/demo_fixtures.dart').existsSync(),
+        isTrue,
+        reason: 'the fixture must exist where tests can reach it',
+      );
     });
 
     test('there is no demo-seed switch left to misconfigure', () {
       final env = File('lib/config/app_environment.dart').readAsStringSync();
-      expect(env.contains('TRACK_DEMO_SEED'), isFalse,
-          reason: 'a build-time seeding switch is the bug, not the fix');
+      expect(env.contains('TRACK_DEMO_SEED'), isFalse, reason: 'a build-time seeding switch is the bug, not the fix');
       expect(env.contains('demoSeedEnabled'), isFalse);
     });
   });
@@ -136,8 +129,11 @@ void main() {
     test('the fixture file declares itself test-only', () {
       final fixture = File('test/fixtures/demo_fixtures.dart').readAsStringSync();
       expect(fixture, contains('tests and development previews only'));
-      expect(fixture, isNot(contains('package:track/../lib/data/demo_seed.dart')),
-          reason: 'the deleted seeder must not be referenced by anything');
+      expect(
+        fixture,
+        isNot(contains('package:track/../lib/data/demo_seed.dart')),
+        reason: 'the deleted seeder must not be referenced by anything',
+      );
     });
   });
 
@@ -152,15 +148,13 @@ void main() {
 
       final counts = {for (final c in await repo.sourceCounts()) c.source: c};
       expect(counts['demo']!.count, 1);
-      expect(counts['demo']!.label, 'Sample data (not yours)',
-          reason: 'Diagnostics must say it in plain words');
+      expect(counts['demo']!.label, 'Sample data (not yours)', reason: 'Diagnostics must say it in plain words');
       expect(counts['manual']!.count, 1);
 
       final removed = await repo.deleteDemoRows();
       expect(removed, 1);
       expect(await repo.demoRowCount(), 0);
-      expect((await repo.dao.series('mood', days: 1)).last, 4,
-          reason: 'removing sample data must not remove the user');
+      expect((await repo.dao.series('mood', days: 1)).last, 4, reason: 'removing sample data must not remove the user');
     });
 
     test('a full delete does not recreate anything', () async {
@@ -179,24 +173,39 @@ void main() {
     test('tracker definitions carry no statistic-shaped copy', () {
       final numericClaim = RegExp(r'\d+\s*%|\d+\s*(min|minutes|kg|L|cups|hours)\b');
       for (final tracker in DefaultTrackers.all()) {
-        expect(numericClaim.hasMatch(tracker.insight), isFalse,
-            reason: 'the "${tracker.id}" insight claims a statistic: "${tracker.insight}"');
-        expect(numericClaim.hasMatch(tracker.blurb), isFalse,
-            reason: 'the "${tracker.id}" blurb claims a statistic: "${tracker.blurb}"');
+        expect(
+          numericClaim.hasMatch(tracker.insight),
+          isFalse,
+          reason: 'the "${tracker.id}" insight claims a statistic: "${tracker.insight}"',
+        );
+        expect(
+          numericClaim.hasMatch(tracker.blurb),
+          isFalse,
+          reason: 'the "${tracker.id}" blurb claims a statistic: "${tracker.blurb}"',
+        );
       }
       for (final extra in DefaultTrackers.addable) {
-        expect(numericClaim.hasMatch(extra.blurb), isFalse,
-            reason: 'the "${extra.id}" catalogue blurb claims a statistic');
+        expect(
+          numericClaim.hasMatch(extra.blurb),
+          isFalse,
+          reason: 'the "${extra.id}" catalogue blurb claims a statistic',
+        );
       }
     });
 
     test('the default catalogue is a usable free tier, not a teaser', () {
       final all = DefaultTrackers.all();
-      expect(all.length, greaterThanOrEqualTo(6),
-          reason: 'a new user must have something real to track without paying');
+      expect(
+        all.length,
+        greaterThanOrEqualTo(6),
+        reason: 'a new user must have something real to track without paying',
+      );
       expect(all.map((t) => t.id), containsAll(['water', 'mood', 'expenses', 'sleep']));
-      expect(all.map((t) => t.id), contains('habits'),
-          reason: 'the habit loop is the retention engine and must be free');
+      expect(
+        all.map((t) => t.id),
+        contains('habits'),
+        reason: 'the habit loop is the retention engine and must be free',
+      );
     });
 
     test('starter habits are known only by name, with no invented streaks', () {

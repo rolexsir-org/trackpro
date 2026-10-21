@@ -31,11 +31,7 @@ class HealthService {
   Future<void>? _configuration;
   bool _granted = false;
 
-  static const List<HealthDataType> _types = [
-    HealthDataType.STEPS,
-    HealthDataType.SLEEP_ASLEEP,
-    HealthDataType.WEIGHT,
-  ];
+  static const List<HealthDataType> _types = [HealthDataType.STEPS, HealthDataType.SLEEP_ASLEEP, HealthDataType.WEIGHT];
 
   static const List<HealthDataAccess> _readAccess = [
     HealthDataAccess.READ,
@@ -133,9 +129,7 @@ class HealthService {
     } catch (_) {
       return {};
     }
-    return {
-      for (final e in out.entries) e.key: (e.value * 100).roundToDouble() / 100,
-    };
+    return {for (final e in out.entries) e.key: (e.value * 100).roundToDouble() / 100};
   }
 
   /// Latest weight per day. A body weight is a snapshot, not a sum — summing it
@@ -181,9 +175,7 @@ class HealthService {
     } catch (_) {
       return {};
     }
-    return {
-      for (final e in out.entries) e.key: round ? e.value.roundToDouble() : e.value,
-    };
+    return {for (final e in out.entries) e.key: round ? e.value.roundToDouble() : e.value};
   }
 
   /// Health 13.x uses named query parameters. Keeping that API translation in one

@@ -19,11 +19,7 @@ void main() {
   final today = dayKey(DateTime(2026, 3, 11));
   int daysAgo(int n) => dayKey(DateTime(2026, 3, 11).subtract(Duration(days: n)));
 
-  Commitment commitment({
-    Set<int> schedule = const {1, 2, 3, 4, 5, 6, 7},
-    int? created,
-    String id = 'run',
-  }) =>
+  Commitment commitment({Set<int> schedule = const {1, 2, 3, 4, 5, 6, 7}, int? created, String id = 'run'}) =>
       Commitment(
         id: id,
         name: 'Run',
@@ -37,9 +33,8 @@ void main() {
       );
 
   Map<int, CommitmentDay> records(Map<int, DayOutcome> byDay, {String id = 'run'}) => {
-        for (final e in byDay.entries)
-          e.key: CommitmentDay(commitmentId: id, day: e.key, outcome: e.value),
-      };
+    for (final e in byDay.entries) e.key: CommitmentDay(commitmentId: id, day: e.key, outcome: e.value),
+  };
 
   group('credit — a minimum is not a completion', () {
     test('one full day is 1.0 of credit and reports as a full day', () {
@@ -141,11 +136,7 @@ void main() {
     test('rest days and deliberate skips are excluded, not punished', () {
       final snap = MomentumEngine.compute(
         c: commitment(),
-        recorded: records({
-          today: DayOutcome.full,
-          daysAgo(1): DayOutcome.rest,
-          daysAgo(2): DayOutcome.skipped,
-        }),
+        recorded: records({today: DayOutcome.full, daysAgo(1): DayOutcome.rest, daysAgo(2): DayOutcome.skipped}),
         pauses: const [],
         today: today,
       );
@@ -190,11 +181,7 @@ void main() {
     test('rest days neither extend nor break a streak', () {
       final snap = MomentumEngine.compute(
         c: commitment(),
-        recorded: records({
-          today: DayOutcome.full,
-          daysAgo(1): DayOutcome.rest,
-          daysAgo(2): DayOutcome.full,
-        }),
+        recorded: records({today: DayOutcome.full, daysAgo(1): DayOutcome.rest, daysAgo(2): DayOutcome.full}),
         pauses: const [],
         today: today,
       );
@@ -205,11 +192,7 @@ void main() {
     test('a miss breaks both streaks', () {
       final snap = MomentumEngine.compute(
         c: commitment(),
-        recorded: records({
-          today: DayOutcome.full,
-          daysAgo(1): DayOutcome.missed,
-          daysAgo(2): DayOutcome.full,
-        }),
+        recorded: records({today: DayOutcome.full, daysAgo(1): DayOutcome.missed, daysAgo(2): DayOutcome.full}),
         pauses: const [],
         today: today,
       );
@@ -276,10 +259,7 @@ void main() {
     test('three planned misses in a row produce a plan with three steps', () {
       final snap = MomentumEngine.compute(
         c: commitment(),
-        recorded: records({
-          daysAgo(3): DayOutcome.missed,
-          daysAgo(4): DayOutcome.full,
-        }),
+        recorded: records({daysAgo(3): DayOutcome.missed, daysAgo(4): DayOutcome.full}),
         pauses: const [],
         today: today,
       );
@@ -294,11 +274,7 @@ void main() {
     test('two misses do not trigger a plan', () {
       final snap = MomentumEngine.compute(
         c: commitment(),
-        recorded: records({
-          daysAgo(1): DayOutcome.missed,
-          daysAgo(2): DayOutcome.missed,
-          daysAgo(3): DayOutcome.full,
-        }),
+        recorded: records({daysAgo(1): DayOutcome.missed, daysAgo(2): DayOutcome.missed, daysAgo(3): DayOutcome.full}),
         pauses: const [],
         today: today,
       );
@@ -331,9 +307,7 @@ void main() {
         dayKey(DateTime(2026, 3, 2)), // Monday
       ];
       final c = commitment(schedule: const {1});
-      final recorded = records({
-        for (var i = 0; i < mondays.length; i++) mondays[i]: DayOutcome.missed,
-      });
+      final recorded = records({for (var i = 0; i < mondays.length; i++) mondays[i]: DayOutcome.missed});
       final patterns = MomentumEngine.weekdayPatterns(c: c, recorded: recorded, pauses: const [], today: today);
       expect(patterns, isEmpty, reason: 'two data points cannot support a claim');
     });
@@ -358,7 +332,11 @@ void main() {
         }
       }
       final patterns = MomentumEngine.weekdayPatterns(
-        c: c, recorded: recorded, pauses: const [], today: today, weeks: 4,
+        c: c,
+        recorded: recorded,
+        pauses: const [],
+        today: today,
+        weeks: 4,
       );
       expect(patterns, isNotEmpty, reason: 'three misses in four Mondays is a real pattern');
       expect(patterns.first.weekday, 1);
@@ -448,8 +426,13 @@ void main() {
       // Five full days, two rest days: the plan was met, but five decided days is
       // under minDecidedDaysForRate, so the week gets a count instead of a score.
       final recorded = weekOf(lastWeek, [
-        DayOutcome.full, DayOutcome.full, DayOutcome.full, DayOutcome.full,
-        DayOutcome.full, DayOutcome.rest, DayOutcome.rest,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.rest,
+        DayOutcome.rest,
       ]);
       final review = MomentumEngine.weeklyReview(
         commitments: [commitment()],
@@ -461,10 +444,16 @@ void main() {
       expect(review.fullDays, 5);
       expect(review.excludedDays, 2);
       expect(review.missedDays, 0);
-      expect(review.rate, isNull,
-          reason: 'the weekly rate obeys the same ${MomentumEngine.minDecidedDaysForRate}-day rule as the rolling rate');
-      expect(review.complete, isFalse,
-          reason: 'complete is measured against the reference day, and that week still contains it');
+      expect(
+        review.rate,
+        isNull,
+        reason: 'the weekly rate obeys the same ${MomentumEngine.minDecidedDaysForRate}-day rule as the rolling rate',
+      );
+      expect(
+        review.complete,
+        isFalse,
+        reason: 'complete is measured against the reference day, and that week still contains it',
+      );
     });
 
     test('a week at the sample threshold reports a rate, with minimums worth 0.6', () {
@@ -472,8 +461,13 @@ void main() {
       // Five full days and two minimum-only days: 5 + 2×0.6 = 6.2 credit over 7
       // decided days → 88.57%. Rest days stay out of both sides.
       final recorded = weekOf(lastWeek, [
-        DayOutcome.full, DayOutcome.full, DayOutcome.full, DayOutcome.full,
-        DayOutcome.full, DayOutcome.minimum, DayOutcome.minimum,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.full,
+        DayOutcome.minimum,
+        DayOutcome.minimum,
       ]);
       final review = MomentumEngine.weeklyReview(
         commitments: [commitment()],
@@ -512,8 +506,11 @@ void main() {
       for (var i = 0; i < 400; i++) {
         seen.add(day);
         final next = nextDayKey(day);
-        expect(daysBetweenKeys(day, next), 1,
-            reason: 'stepping a day must always move exactly one calendar day, even across DST');
+        expect(
+          daysBetweenKeys(day, next),
+          1,
+          reason: 'stepping a day must always move exactly one calendar day, even across DST',
+        );
         expect(previousDayKey(next), day, reason: 'stepping must round-trip');
         day = next;
       }

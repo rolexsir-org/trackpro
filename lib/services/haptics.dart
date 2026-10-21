@@ -64,12 +64,15 @@ class Haptics {
     }
     if (_probing) return; // warmUp is already producing a haptic
 
-    _channel.invokeMethod<void>(kind).then((_) {
-      _channelAvailable = true;
-    }).catchError((Object _) {
-      _channelAvailable = false;
-      _fire(fallback);
-    });
+    _channel
+        .invokeMethod<void>(kind)
+        .then((_) {
+          _channelAvailable = true;
+        })
+        .catchError((Object _) {
+          _channelAvailable = false;
+          _fire(fallback);
+        });
   }
 
   /// Fire-and-forget, and never let a platform hiccup surface as an error.

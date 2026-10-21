@@ -7,10 +7,12 @@ import 'package:provider/provider.dart';
 import '../data/focus_engine.dart';
 import '../main.dart' show Pressable, TrackTheme;
 import '../models/focus_models.dart';
+import '../services/focus_platform.dart';
 import '../services/haptics.dart';
 import '../state/app_state.dart';
 import '../widgets/glass.dart';
 import '../widgets/progress_ring.dart';
+import 'focus_setup_sheets.dart';
 import 'log_sheets.dart';
 
 /// The focus session, full screen.
@@ -36,22 +38,19 @@ Future<void> openFocusSession(BuildContext context) async {
   if (_sessionRouteOpen) return;
   _sessionRouteOpen = true;
   try {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        fullscreenDialog: true,
-        builder: (_) => const FocusSessionScreen(),
-      ),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute<void>(fullscreenDialog: true, builder: (_) => const FocusSessionScreen()));
   } finally {
     _sessionRouteOpen = false;
   }
 }
 
 IconData _modeIcon(FocusMode mode) => switch (mode) {
-      FocusMode.standard => Icons.timer_outlined,
-      FocusMode.blocking => Icons.block_outlined,
-      FocusMode.deep => Icons.do_not_disturb_on_outlined,
-    };
+  FocusMode.standard => Icons.timer_outlined,
+  FocusMode.blocking => Icons.block_outlined,
+  FocusMode.deep => Icons.do_not_disturb_on_outlined,
+};
 
 class FocusSessionScreen extends StatefulWidget {
   const FocusSessionScreen({super.key});
@@ -162,10 +161,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
       accent: TrackTheme.orange,
       body: const SizedBox.shrink(),
       actions: [
-        TrackTintedButton(
-          label: 'Keep focusing',
-          onTap: () => Navigator.of(context).pop(false),
-        ),
+        TrackTintedButton(label: 'Keep focusing', onTap: () => Navigator.of(context).pop(false)),
         TrackFilledButton(
           label: 'End and record',
           color: TrackTheme.orange,
@@ -234,12 +230,7 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
                 ),
               ),
             ),
-            _Controls(
-              session: session,
-              onPause: _pause,
-              onResume: _resume,
-              onEnd: _end,
-            ),
+            _Controls(session: session, onPause: _pause, onResume: _resume, onEnd: _end),
           ],
         ),
       ),
@@ -247,10 +238,10 @@ class _FocusSessionScreenState extends State<FocusSessionScreen> with WidgetsBin
   }
 
   static Color _accentFor(FocusMode mode) => switch (mode) {
-        FocusMode.standard => TrackTheme.blue,
-        FocusMode.blocking => TrackTheme.indigo,
-        FocusMode.deep => TrackTheme.purple,
-      };
+    FocusMode.standard => TrackTheme.blue,
+    FocusMode.blocking => TrackTheme.indigo,
+    FocusMode.deep => TrackTheme.purple,
+  };
 }
 
 /// Small header: mode, and an always-present way out.
@@ -271,8 +262,15 @@ class _TopBar extends StatelessWidget {
             children: [
               Icon(_modeIcon(session.mode), size: 18, color: TrackTheme.orange),
               const SizedBox(width: 7),
-              Text(session.mode.label,
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: -.2, color: TrackTheme.label2(dark))),
+              Text(
+                session.mode.label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: -.2,
+                  color: TrackTheme.label2(dark),
+                ),
+              ),
             ],
           ),
           const Spacer(),
@@ -280,8 +278,10 @@ class _TopBar extends StatelessWidget {
             onTap: () => unawaited(onEnd()),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              child: Text('End',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.orange)),
+              child: Text(
+                'End',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.orange),
+              ),
             ),
           ),
         ],
@@ -292,12 +292,7 @@ class _TopBar extends StatelessWidget {
 
 /// The countdown itself: `18:42` and a ring that shows the same number two ways.
 class _Countdown extends StatelessWidget {
-  const _Countdown({
-    required this.remainingMs,
-    required this.progress,
-    required this.accent,
-    required this.paused,
-  });
+  const _Countdown({required this.remainingMs, required this.progress, required this.accent, required this.paused});
 
   final int remainingMs;
   final double progress;
@@ -329,13 +324,15 @@ class _Countdown extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 2),
-          Text(paused ? 'PAUSED' : 'REMAINING',
-              style: TextStyle(
-                fontSize: 11.5,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 1.1,
-                color: paused ? TrackTheme.orange : TrackTheme.label3(dark),
-              )),
+          Text(
+            paused ? 'PAUSED' : 'REMAINING',
+            style: TextStyle(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.1,
+              color: paused ? TrackTheme.orange : TrackTheme.label3(dark),
+            ),
+          ),
         ],
       ),
     );
@@ -352,12 +349,21 @@ class _GoalLine extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       children: [
-        Text(session.goalLabel,
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 19, fontWeight: FontWeight.w600, letterSpacing: -.4, color: TrackTheme.label(dark))),
+        Text(
+          session.goalLabel,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 19,
+            fontWeight: FontWeight.w600,
+            letterSpacing: -.4,
+            color: TrackTheme.label(dark),
+          ),
+        ),
         const SizedBox(height: 3),
-        Text('${focusDurationLabel(session.plannedMs)} planned',
-            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+        Text(
+          '${focusDurationLabel(session.plannedMs)} planned',
+          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+        ),
       ],
     );
   }
@@ -383,11 +389,11 @@ class _StatusBlock extends StatelessWidget {
   final VoidCallback onFix;
 
   static (Color, Color) _colors(String tone) => switch (tone) {
-        'full' => (TrackTheme.green, TrackTheme.mint),
-        'minimum' => (TrackTheme.orange, TrackTheme.yellow),
-        'danger' => (TrackTheme.red, TrackTheme.orange),
-        _ => (TrackTheme.blue, TrackTheme.indigo),
-      };
+    'full' => (TrackTheme.green, TrackTheme.mint),
+    'minimum' => (TrackTheme.orange, TrackTheme.yellow),
+    'danger' => (TrackTheme.red, TrackTheme.orange),
+    _ => (TrackTheme.blue, TrackTheme.indigo),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -406,19 +412,30 @@ class _StatusBlock extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(14, 13, 14, 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-            color: accent.withOpacity(dark ? .18 : .1),
-            border: Border.all(color: accent.withOpacity(.3), width: .5),
+            color: accent.withValues(alpha: dark ? .18 : .1),
+            border: Border.all(color: accent.withValues(alpha: .3), width: .5),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  Container(width: 8, height: 8, decoration: BoxDecoration(color: accent, shape: BoxShape.circle)),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(color: accent, shape: BoxShape.circle),
+                  ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: Text(paused ? 'Paused' : enforcement.label,
-                        style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, letterSpacing: -.2, color: TrackTheme.label(dark))),
+                    child: Text(
+                      paused ? 'Paused' : enforcement.label,
+                      style: TextStyle(
+                        fontSize: 14.5,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -.2,
+                        color: TrackTheme.label(dark),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -439,9 +456,9 @@ class _StatusBlock extends StatelessWidget {
                 Text(
                   enforcement.isConfirmed
                       ? 'Coverage panel launched ${native.overlayShows} time${native.overlayShows == 1 ? '' : 's'} · '
-                          '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected'
+                            '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected'
                       : '${session.blockedPackages.length} app${session.blockedPackages.length == 1 ? '' : 's'} selected · '
-                          '${native.blockedAttempts} selected-app opening${native.blockedAttempts == 1 ? '' : 's'} noticed',
+                            '${native.blockedAttempts} selected-app opening${native.blockedAttempts == 1 ? '' : 's'} noticed',
                   style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w600, color: accent),
                 ),
               ],
@@ -454,19 +471,14 @@ class _StatusBlock extends StatelessWidget {
             onTap: onFix,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(
-                color: TrackTheme.fill(dark),
-                borderRadius: BorderRadius.circular(13),
-              ),
+              decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(13)),
               child: Row(
                 children: [
                   Icon(Icons.warning_amber_rounded, size: 18, color: TrackTheme.orange),
                   const SizedBox(width: 9),
                   Expanded(
                     child: Text(
-                      !platformAvailable
-                          ? 'This device cannot cover apps — the timer still works.'
-                          : 'Fix access',
+                      !platformAvailable ? 'This device cannot cover apps — the timer still works.' : 'Fix access',
                       style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
                     ),
                   ),
@@ -493,10 +505,14 @@ class _SessionFacts extends StatelessWidget {
     final shown = elapsedMs > 0 ? elapsedMs : session.focusMs;
     return Row(
       children: [
-        Expanded(child: StatTile(value: focusDurationLabel(shown), label: 'Focused')),
+        Expanded(
+          child: StatTile(value: focusDurationLabel(shown), label: 'Focused'),
+        ),
         if (session.pausedMs > 0) ...[
           const SizedBox(width: 10),
-          Expanded(child: StatTile(value: focusDurationLabel(session.pausedMs), label: 'Paused')),
+          Expanded(
+            child: StatTile(value: focusDurationLabel(session.pausedMs), label: 'Paused'),
+          ),
         ],
       ],
     );
@@ -505,12 +521,7 @@ class _SessionFacts extends StatelessWidget {
 
 /// Pause and the way out. The exit is never removed, whatever the mode.
 class _Controls extends StatelessWidget {
-  const _Controls({
-    required this.session,
-    required this.onPause,
-    required this.onResume,
-    required this.onEnd,
-  });
+  const _Controls({required this.session, required this.onPause, required this.onResume, required this.onEnd});
 
   final FocusSession session;
   final Future<void> Function() onPause;
@@ -535,11 +546,7 @@ class _Controls extends StatelessWidget {
           Expanded(
             child: session.mode == FocusMode.deep
                 ? _HoldToEnd(onEnd: onEnd)
-                : TrackFilledButton(
-                    label: 'End session',
-                    color: TrackTheme.orange,
-                    onTap: () => unawaited(onEnd()),
-                  ),
+                : TrackFilledButton(label: 'End session', color: TrackTheme.orange, onTap: () => unawaited(onEnd())),
           ),
         ],
       ),
@@ -591,12 +598,14 @@ class _HoldToEndState extends State<_HoldToEnd> {
         height: 50,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: TrackTheme.orange.withOpacity(.14),
+          color: TrackTheme.orange.withValues(alpha: .14),
           borderRadius: BorderRadius.circular(TrackTheme.radiusPill),
-          border: Border.all(color: TrackTheme.orange.withOpacity(.35), width: .5),
+          border: Border.all(color: TrackTheme.orange.withValues(alpha: .35), width: .5),
         ),
-        child: Text('Hold to end',
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.orange)),
+        child: Text(
+          'Hold to end',
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.orange),
+        ),
       ),
     );
   }
@@ -640,11 +649,11 @@ Future<void> showFocusSummary(BuildContext context, String sessionId, {bool popO
 }
 
 Color _toneColor(String? tone) => switch (tone) {
-      'full' => TrackTheme.green,
-      'minimum' => TrackTheme.orange,
-      'danger' => TrackTheme.red,
-      _ => TrackTheme.blue,
-    };
+  'full' => TrackTheme.green,
+  'minimum' => TrackTheme.orange,
+  'danger' => TrackTheme.red,
+  _ => TrackTheme.blue,
+};
 
 class _SummaryBody extends StatefulWidget {
   const _SummaryBody({required this.summary, required this.sessionId});
@@ -686,16 +695,15 @@ class _SummaryBodyState extends State<_SummaryBody> {
               child: StatTile(value: focusDurationLabel(widget.summary.minutesFocused * 60000), label: 'Focused'),
             ),
             const SizedBox(width: 10),
-            Expanded(child: StatTile(value: focusDurationLabel(session.plannedMs), label: 'Planned')),
+            Expanded(
+              child: StatTile(value: focusDurationLabel(session.plannedMs), label: 'Planned'),
+            ),
           ],
         ),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.fromLTRB(14, 12, 14, 13),
-          decoration: BoxDecoration(
-            color: TrackTheme.fill(dark),
-            borderRadius: BorderRadius.circular(13),
-          ),
+          decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(13)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -704,26 +712,44 @@ class _SummaryBodyState extends State<_SummaryBody> {
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: TrackTheme.label(dark)),
               ),
               const SizedBox(height: 4),
-              Text(widget.summary.detail,
-                  style: TextStyle(fontSize: 12.5, height: 1.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+              Text(
+                widget.summary.detail,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.5,
+                  fontWeight: FontWeight.w500,
+                  color: TrackTheme.label2(dark),
+                ),
+              ),
               if (session.endReason != null) ...[
                 const SizedBox(height: 4),
-                Text('Ended because ${session.endReason!.label}.',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                Text(
+                  'Ended because ${session.endReason!.label}.',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                ),
               ],
               if (widget.summary.blockedApps.isNotEmpty) ...[
                 const SizedBox(height: 6),
-                Text('Selected for coverage: ${widget.summary.blockedApps.join(', ')}',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                Text(
+                  'Selected for coverage: ${widget.summary.blockedApps.join(', ')}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                ),
               ],
             ],
           ),
         ),
         const SizedBox(height: 14),
-        Text('What was it like?',
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: .2, color: TrackTheme.label3(dark))),
+        Text(
+          'What was it like?',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .2,
+            color: TrackTheme.label3(dark),
+          ),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: _reflection,
@@ -751,9 +777,11 @@ class _SummaryBodyState extends State<_SummaryBody> {
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            child: Text('Save reflection',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: TrackTheme.blue)),
+            child: Text(
+              'Save reflection',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: TrackTheme.blue),
+            ),
           ),
         ),
       ],

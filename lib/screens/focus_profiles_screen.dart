@@ -29,10 +29,10 @@ import 'paywall_screen.dart';
 /// taps the notification. Starting to cover apps at a time nobody is holding the
 /// phone is the behaviour users correctly call malware, and it is not what this does.
 IconData _profileModeIcon(FocusMode mode) => switch (mode) {
-      FocusMode.standard => Icons.timer_outlined,
-      FocusMode.blocking => Icons.block_outlined,
-      FocusMode.deep => Icons.do_not_disturb_on_outlined,
-    };
+  FocusMode.standard => Icons.timer_outlined,
+  FocusMode.blocking => Icons.block_outlined,
+  FocusMode.deep => Icons.do_not_disturb_on_outlined,
+};
 
 class FocusProfilesScreen extends StatelessWidget {
   const FocusProfilesScreen({super.key});
@@ -63,7 +63,8 @@ class FocusProfilesScreen extends StatelessWidget {
                       const InsightCard(
                         emoji: 'timer',
                         title: 'Focus Lock is unavailable in this build',
-                        body: 'Profiles and schedules configure the session engine, and this build has no '
+                        body:
+                            'Profiles and schedules configure the session engine, and this build has no '
                             'platform channel behind it. Nothing here would run.',
                         accent: TrackTheme.orange,
                         accent2: TrackTheme.yellow,
@@ -77,7 +78,8 @@ class FocusProfilesScreen extends StatelessWidget {
                       if (!app.canUseFocusProfiles)
                         ProLockedRow(
                           title: 'Saved profiles',
-                          subtitle: 'One tap to start the exact session you use every day — mode, length and '
+                          subtitle:
+                              'One tap to start the exact session you use every day — mode, length and '
                               'app list included.',
                           emoji: 'profile',
                           accent: TrackTheme.purple,
@@ -87,7 +89,8 @@ class FocusProfilesScreen extends StatelessWidget {
                         const InsightCard(
                           emoji: 'profile',
                           title: 'No profiles yet.',
-                          body: 'A profile is a session you have already decided about: the mode, the length, '
+                          body:
+                              'A profile is a session you have already decided about: the mode, the length, '
                               'the apps. Set one up and tomorrow\'s session starts with a single tap.',
                           accent: TrackTheme.purple,
                           accent2: TrackTheme.indigo,
@@ -109,7 +112,8 @@ class FocusProfilesScreen extends StatelessWidget {
                       if (!app.canUseFocusSchedules)
                         ProLockedRow(
                           title: 'Scheduled deep focus',
-                          subtitle: 'Track Pro reminds you at the time you chose, with one tap to start. It never '
+                          subtitle:
+                              'Track Pro reminds you at the time you chose, with one tap to start. It never '
                               'starts covering apps on its own.',
                           emoji: 'schedule',
                           accent: TrackTheme.indigo,
@@ -119,7 +123,8 @@ class FocusProfilesScreen extends StatelessWidget {
                         const InsightCard(
                           emoji: 'schedule',
                           title: 'No schedules yet.',
-                          body: 'Pick a time and the days it applies to. At that time Track Pro sends a reminder; '
+                          body:
+                              'Pick a time and the days it applies to. At that time Track Pro sends a reminder; '
                               'the session starts when you tap it, and not before.',
                           accent: TrackTheme.indigo,
                           accent2: TrackTheme.blue,
@@ -141,7 +146,10 @@ class FocusProfilesScreen extends StatelessWidget {
                                 enabled: v,
                               );
                               if (context.mounted) {
-                                showTrackToast(context, v ? 'Reminder armed' : 'Reminder off — nothing changed in any app');
+                                showTrackToast(
+                                  context,
+                                  v ? 'Reminder armed' : 'Reminder off — nothing changed in any app',
+                                );
                               }
                             },
                             onEdit: () => _editSchedule(context, existing: schedule),
@@ -154,7 +162,12 @@ class FocusProfilesScreen extends StatelessWidget {
                         'covers an app while you are not there — Android restricts background work like that, '
                         'and, more importantly, nobody wants an app that starts blocking things at 9am whether '
                         'or not they are at their desk.',
-                        style: TextStyle(fontSize: 11.8, height: 1.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                        style: TextStyle(
+                          fontSize: 11.8,
+                          height: 1.5,
+                          fontWeight: FontWeight.w500,
+                          color: TrackTheme.label3(dark),
+                        ),
                       ),
                     ],
                   ]),
@@ -193,17 +206,20 @@ Future<void> _editProfile(BuildContext context, {FocusProfile? existing}) async 
     subtitle: 'A profile is a decision you make once and reuse.',
     accent: TrackTheme.purple,
     scrollable: true,
-    body: _ProfileEditor(profile: existing, onSave: (p) async {
-      await app.saveFocusProfile(
-        id: existing?.id,
-        name: p.name,
-        mode: p.mode,
-        minutes: p.minutes,
-        commitmentId: p.commitmentId,
-        packages: p.packages,
-      );
-      Haptics.commit();
-    }),
+    body: _ProfileEditor(
+      profile: existing,
+      onSave: (p) async {
+        await app.saveFocusProfile(
+          id: existing?.id,
+          name: p.name,
+          mode: p.mode,
+          minutes: p.minutes,
+          commitmentId: p.commitmentId,
+          packages: p.packages,
+        );
+        Haptics.commit();
+      },
+    ),
     actions: const [],
   );
 }
@@ -249,16 +265,20 @@ class _ProfileEditorState extends State<_ProfileEditor> {
             filled: true,
             fillColor: TrackTheme.fill(dark),
             contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(11),
-              borderSide: BorderSide.none,
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(11), borderSide: BorderSide.none),
           ),
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),
-        Text('MODE',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: .5, color: TrackTheme.label3(dark))),
+        Text(
+          'MODE',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .5,
+            color: TrackTheme.label3(dark),
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -273,8 +293,15 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           ],
         ),
         const SizedBox(height: 12),
-        Text('LENGTH',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: .5, color: TrackTheme.label3(dark))),
+        Text(
+          'LENGTH',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .5,
+            color: TrackTheme.label3(dark),
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -293,38 +320,42 @@ class _ProfileEditorState extends State<_ProfileEditor> {
           ],
         ),
         const SizedBox(height: 12),
-        GlassList(children: [
-          GlassRow(
-            title: _packages.isEmpty ? 'No apps selected' : '${_packages.length} app${_packages.length == 1 ? '' : 's'} selected',
-            subtitle: _mode == FocusMode.standard ? 'Standard mode does not cover apps' : 'Tap to choose',
-            leading: const Icon(Icons.phonelink_lock_outlined, size: 18, color: TrackTheme.orange),
-            accent: TrackTheme.indigo,
-            onTap: _mode == FocusMode.standard
-                ? null
-                : () async {
-                    final picked = await showFocusAppPicker(context, selected: _packages, mode: _mode);
-                    if (picked != null && mounted) {
-                      setState(() => _packages = picked);
-                      app.setFocusDraftAppCount(picked.length);
-                    }
-                  },
-          ),
-          GlassRow(
-            title: _commitmentId == null ? 'Focus session' : _commitmentName(app),
-            subtitle: 'Attach it to a routine, so your history reads like your life',
-            leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
-            accent: TrackTheme.blue,
-            onTap: () async {
-              final goal = await showFocusGoalPicker(context);
-              if (goal != null && mounted) {
-                setState(() {
-                  _commitmentId = goal.id;
-                  if (_name.text.trim().isEmpty) _name.text = goal.label;
-                });
-              }
-            },
-          ),
-        ]),
+        GlassList(
+          children: [
+            GlassRow(
+              title: _packages.isEmpty
+                  ? 'No apps selected'
+                  : '${_packages.length} app${_packages.length == 1 ? '' : 's'} selected',
+              subtitle: _mode == FocusMode.standard ? 'Standard mode does not cover apps' : 'Tap to choose',
+              leading: const Icon(Icons.phonelink_lock_outlined, size: 18, color: TrackTheme.orange),
+              accent: TrackTheme.indigo,
+              onTap: _mode == FocusMode.standard
+                  ? null
+                  : () async {
+                      final picked = await showFocusAppPicker(context, selected: _packages, mode: _mode);
+                      if (picked != null && mounted) {
+                        setState(() => _packages = picked);
+                        app.setFocusDraftAppCount(picked.length);
+                      }
+                    },
+            ),
+            GlassRow(
+              title: _commitmentId == null ? 'Focus session' : _commitmentName(app),
+              subtitle: 'Attach it to a routine, so your history reads like your life',
+              leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
+              accent: TrackTheme.blue,
+              onTap: () async {
+                final goal = await showFocusGoalPicker(context);
+                if (goal != null && mounted) {
+                  setState(() {
+                    _commitmentId = goal.id;
+                    if (_name.text.trim().isEmpty) _name.text = goal.label;
+                  });
+                }
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: 8),
         Text(
           'Sessions started from this profile still ask for nothing new: the permissions it needs are the '
@@ -342,15 +373,17 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                   // Built here, at save time, from the live editor state — not from a
                   // snapshot taken at build, which would ship a stale app list if the
                   // picker changed after the last rebuild.
-                  await widget.onSave(FocusProfile(
-                    id: widget.profile?.id ?? 'draft',
-                    name: _name.text.trim().isEmpty ? '${_mode.shortLabel} ${_minutes}m' : _name.text.trim(),
-                    mode: _mode,
-                    minutes: _minutes,
-                    commitmentId: _commitmentId,
-                    packages: _packages,
-                    sort: widget.profile?.sort ?? 0,
-                  ));
+                  await widget.onSave(
+                    FocusProfile(
+                      id: widget.profile?.id ?? 'draft',
+                      name: _name.text.trim().isEmpty ? '${_mode.shortLabel} $_minutesm' : _name.text.trim(),
+                      mode: _mode,
+                      minutes: _minutes,
+                      commitmentId: _commitmentId,
+                      packages: _packages,
+                      sort: widget.profile?.sort ?? 0,
+                    ),
+                  );
                   if (!mounted) return;
                   Navigator.of(context).pop();
                 },
@@ -398,7 +431,14 @@ Future<void> _editSchedule(BuildContext context, {FocusSchedule? existing}) asyn
 
 /// The values an edited schedule carries back out of the editor, as a record so the
 /// sheet's public signature stays free of private types.
-typedef _ScheduleValues = ({FocusMode mode, int minutes, int hour, int minute, Set<int> weekdays, List<String> packages});
+typedef _ScheduleValues = ({
+  FocusMode mode,
+  int minutes,
+  int hour,
+  int minute,
+  Set<int> weekdays,
+  List<String> packages,
+});
 
 class _ScheduleEditor extends StatefulWidget {
   const _ScheduleEditor({required this.schedule, required this.onSave});
@@ -428,32 +468,38 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Center(
-          child: Text('${_two(_hour)}:${_two(_minute)}',
-              style: TextStyle(fontSize: 40, fontWeight: FontWeight.w300, letterSpacing: -1, color: TrackTheme.label(dark))),
+          child: Text(
+            '${_two(_hour)}:${_two(_minute)}',
+            style: TextStyle(
+              fontSize: 40,
+              fontWeight: FontWeight.w300,
+              letterSpacing: -1,
+              color: TrackTheme.label(dark),
+            ),
+          ),
         ),
         const SizedBox(height: 4),
         Row(
           children: [
             Expanded(
-              child: TrackTintedButton(
-                label: '− 30 min',
-                color: TrackTheme.blue,
-                onTap: () => _shift(-30),
-              ),
+              child: TrackTintedButton(label: '− 30 min', color: TrackTheme.blue, onTap: () => _shift(-30)),
             ),
             const SizedBox(width: 10),
             Expanded(
-              child: TrackTintedButton(
-                label: '+ 30 min',
-                color: TrackTheme.blue,
-                onTap: () => _shift(30),
-              ),
+              child: TrackTintedButton(label: '+ 30 min', color: TrackTheme.blue, onTap: () => _shift(30)),
             ),
           ],
         ),
         const SizedBox(height: 14),
-        Text('DAYS',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: .5, color: TrackTheme.label3(dark))),
+        Text(
+          'DAYS',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .5,
+            color: TrackTheme.label3(dark),
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 6,
@@ -470,8 +516,15 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
           ],
         ),
         const SizedBox(height: 14),
-        Text('MODE',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: .5, color: TrackTheme.label3(dark))),
+        Text(
+          'MODE',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .5,
+            color: TrackTheme.label3(dark),
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -486,8 +539,15 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
           ],
         ),
         const SizedBox(height: 12),
-        Text('LENGTH',
-            style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700, letterSpacing: .5, color: TrackTheme.label3(dark))),
+        Text(
+          'LENGTH',
+          style: TextStyle(
+            fontSize: 11.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: .5,
+            color: TrackTheme.label3(dark),
+          ),
+        ),
         const SizedBox(height: 6),
         Wrap(
           spacing: 8,
@@ -497,20 +557,24 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
           ],
         ),
         const SizedBox(height: 12),
-        GlassList(children: [
-          GlassRow(
-            title: _packages.isEmpty ? 'No apps selected' : '${_packages.length} app${_packages.length == 1 ? '' : 's'} selected',
-            subtitle: _mode == FocusMode.standard ? 'Standard mode does not cover apps' : 'Tap to choose',
-            leading: const Icon(Icons.phonelink_lock_outlined, size: 18, color: TrackTheme.orange),
-            accent: TrackTheme.indigo,
-            onTap: _mode == FocusMode.standard
-                ? null
-                : () async {
-                    final picked = await showFocusAppPicker(context, selected: _packages, mode: _mode);
-                    if (picked != null && mounted) setState(() => _packages = picked);
-                  },
-          ),
-        ]),
+        GlassList(
+          children: [
+            GlassRow(
+              title: _packages.isEmpty
+                  ? 'No apps selected'
+                  : '${_packages.length} app${_packages.length == 1 ? '' : 's'} selected',
+              subtitle: _mode == FocusMode.standard ? 'Standard mode does not cover apps' : 'Tap to choose',
+              leading: const Icon(Icons.phonelink_lock_outlined, size: 18, color: TrackTheme.orange),
+              accent: TrackTheme.indigo,
+              onTap: _mode == FocusMode.standard
+                  ? null
+                  : () async {
+                      final picked = await showFocusAppPicker(context, selected: _packages, mode: _mode);
+                      if (picked != null && mounted) setState(() => _packages = picked);
+                    },
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
         Text(
           _weekdays.isEmpty
@@ -572,13 +636,17 @@ class _ProfileRow extends StatelessWidget {
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
         boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+        border: Border.all(
+          color: dark ? Colors.white.withValues(alpha: .05) : Colors.black.withValues(alpha: .03),
+          width: .5,
+        ),
       ),
       child: Column(
         children: [
           GlassRow(
             title: profile.name,
-            subtitle: '${profile.mode.label} · ${profile.minutes} min'
+            subtitle:
+                '${profile.mode.label} · ${profile.minutes} min'
                 '${profile.packages.isEmpty ? '' : ' · ${profile.packages.length} app${profile.packages.length == 1 ? '' : 's'}'}',
             leading: Icon(_profileModeIcon(profile.mode), size: 18, color: TrackTheme.purple),
             accent: TrackTheme.purple,
@@ -597,7 +665,7 @@ class _ProfileRow extends StatelessWidget {
                   onTap: onDelete,
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 6),
-                    child: Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red.withOpacity(.8)),
+                    child: Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red.withValues(alpha: .8)),
                   ),
                 ),
               ],
@@ -608,11 +676,7 @@ class _ProfileRow extends StatelessWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: TrackFilledButton(
-                    label: 'Start now',
-                    color: TrackTheme.purple,
-                    onTap: onStart,
-                  ),
+                  child: TrackFilledButton(label: 'Start now', color: TrackTheme.purple, onTap: onStart),
                 ),
               ],
             ),
@@ -624,12 +688,7 @@ class _ProfileRow extends StatelessWidget {
 }
 
 class _ScheduleRow extends StatelessWidget {
-  const _ScheduleRow({
-    required this.schedule,
-    required this.onToggle,
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const _ScheduleRow({required this.schedule, required this.onToggle, required this.onEdit, required this.onDelete});
 
   final FocusSchedule schedule;
   final ValueChanged<bool> onToggle;
@@ -655,7 +714,10 @@ class _ScheduleRow extends StatelessWidget {
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
         boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+        border: Border.all(
+          color: dark ? Colors.white.withValues(alpha: .05) : Colors.black.withValues(alpha: .03),
+          width: .5,
+        ),
       ),
       child: Row(
         children: [
@@ -663,15 +725,26 @@ class _ScheduleRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('${schedule.label}  ·  ${schedule.mode.shortLabel}',
-                    style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w600, letterSpacing: -.25, color: TrackTheme.label(dark))),
+                Text(
+                  '${schedule.label}  ·  ${schedule.mode.shortLabel}',
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.25,
+                    color: TrackTheme.label(dark),
+                  ),
+                ),
                 const SizedBox(height: 2),
-                Text('$_days · ${schedule.minutes} min'
-                    '${schedule.packages.isEmpty ? '' : ' · ${schedule.packages.length} app${schedule.packages.length == 1 ? '' : 's'}'}',
-                    style: TextStyle(fontSize: 12.3, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                Text(
+                  '$_days · ${schedule.minutes} min'
+                  '${schedule.packages.isEmpty ? '' : ' · ${schedule.packages.length} app${schedule.packages.length == 1 ? '' : 's'}'}',
+                  style: TextStyle(fontSize: 12.3, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                ),
                 if (!schedule.enabled)
-                  Text('Off — no reminder will be sent',
-                      style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w600, color: TrackTheme.orange)),
+                  Text(
+                    'Off — no reminder will be sent',
+                    style: TextStyle(fontSize: 11.8, fontWeight: FontWeight.w600, color: TrackTheme.orange),
+                  ),
               ],
             ),
           ),
@@ -686,7 +759,7 @@ class _ScheduleRow extends StatelessWidget {
             onTap: onDelete,
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red.withOpacity(.8)),
+              child: Icon(Icons.delete_outline_rounded, size: 18, color: TrackTheme.red.withValues(alpha: .8)),
             ),
           ),
           Switch(value: schedule.enabled, onChanged: onToggle),
@@ -707,8 +780,14 @@ class _AddButton extends StatelessWidget {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
-        decoration: BoxDecoration(color: TrackTheme.fill(Theme.of(context).brightness == Brightness.dark), borderRadius: BorderRadius.circular(TrackTheme.radiusPill)),
-        child: const Text('Add', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.blue)),
+        decoration: BoxDecoration(
+          color: TrackTheme.fill(Theme.of(context).brightness == Brightness.dark),
+          borderRadius: BorderRadius.circular(TrackTheme.radiusPill),
+        ),
+        child: const Text(
+          'Add',
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.blue),
+        ),
       ),
     );
   }
@@ -741,12 +820,14 @@ class _Chip extends StatelessWidget {
               Icon(icon, size: 16, color: selected ? Colors.white : TrackTheme.orange),
               const SizedBox(width: 5),
             ],
-            Text(label,
-                style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? Colors.white : TrackTheme.label(dark),
-                )),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13.5,
+                fontWeight: FontWeight.w600,
+                color: selected ? Colors.white : TrackTheme.label(dark),
+              ),
+            ),
           ],
         ),
       ),

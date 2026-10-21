@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
 
@@ -17,12 +16,9 @@ Future<bool> showPaywall(BuildContext context, {required PaywallTrigger trigger}
   state.analytics?.log('paywall_viewed', {'trigger': trigger.key});
   Haptics.light();
 
-  final result = await Navigator.of(context).push<bool>(
-    MaterialPageRoute<bool>(
-      fullscreenDialog: true,
-      builder: (_) => PaywallScreen(trigger: trigger),
-    ),
-  );
+  final result = await Navigator.of(
+    context,
+  ).push<bool>(MaterialPageRoute<bool>(fullscreenDialog: true, builder: (_) => PaywallScreen(trigger: trigger)));
   if (result != true) {
     state.analytics?.log('paywall_dismissed', {'trigger': trigger.key});
   }
@@ -80,11 +76,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     if (!launched) {
       final message = billing.lastError;
       if (message != null) {
-        showTrackDialog(
-          context,
-          title: 'Could not start the purchase',
-          body: message,
-        );
+        showTrackDialog(context, title: 'Could not start the purchase', body: message);
       }
       return;
     }
@@ -121,7 +113,8 @@ class _PaywallScreenState extends State<PaywallScreen> {
       showTrackDialog(
         context,
         title: 'Nothing to restore',
-        body: 'No active subscription was found for this Google account. If you subscribed with a different account, switch accounts in the Play Store and try again.',
+        body:
+            'No active subscription was found for this Google account. If you subscribed with a different account, switch accounts in the Play Store and try again.',
       );
     }
   }
@@ -129,11 +122,16 @@ class _PaywallScreenState extends State<PaywallScreen> {
   Future<void> _manage() async {
     final state = context.read<AppState>();
     state.analytics?.log('manage_opened');
-    final url = state.billing?.manageUrl(packageName: state.packageName) ??
+    final url =
+        state.billing?.manageUrl(packageName: state.packageName) ??
         'https://play.google.com/store/account/subscriptions';
     if (!await launcher.launchUrl(Uri.parse(url), mode: launcher.LaunchMode.externalApplication)) {
       if (mounted) {
-        showTrackDialog(context, title: 'Open Google Play', body: 'Manage or cancel your subscription in Google Play → Subscriptions.');
+        showTrackDialog(
+          context,
+          title: 'Open Google Play',
+          body: 'Manage or cancel your subscription in Google Play → Subscriptions.',
+        );
       }
     }
   }
@@ -147,77 +145,76 @@ class _PaywallScreenState extends State<PaywallScreen> {
     return Scaffold(
       backgroundColor: TrackTheme.bg(true),
       body: SafeArea(
-            child: Column(
-              children: [
-                _TopBar(onClose: () => Navigator.of(context).pop(false), onRestore: _restore),
-                Expanded(
-                  child: ListView(
-                    physics: const ClampingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-                    children: [
-                      // The hero must carry the copy for the placement the user
-                      // actually hit — that is the whole reason there are eight.
-                      _Hero(trigger: widget.trigger),
-                      const SizedBox(height: 20),
-                      for (final plan in plans) ...[
-                        _PlanCard(
-                          plan: plan,
-                          selected: plan.id == _selected.id,
-                          onTap: () {
-                            Haptics.selection();
-                            setState(() => _selected = plan);
-                            state.analytics?.log('plan_selected', {'plan': plan.id, 'trigger': widget.trigger.key});
-                          },
-                        ),
-                        const SizedBox(height: 10),
-                      ],
-                      const SizedBox(height: 6),
-                      _Timeline(plan: _selected),
-                      const SizedBox(height: 22),
-                      const _Benefits(),
-                      const SizedBox(height: 22),
-                      const _Trust(),
-                      const SizedBox(height: 14),
-                    ],
-                  ),
-                ),
-                _Footer(
-                  plan: _selected,
-                  busy: _busy,
-                  available: billing?.available ?? false,
-                  onCta: _startPurchase,
-                  onManage: _manage,
-                  onRestore: _restore,
-                  // A purchase Play accepted but the backend has not confirmed is
-                  // its own state: the paywall must not keep offering to sell the
-                  // same thing, and it must not pretend the purchase failed.
-                  confirming: state.purchaseAwaitingVerification,
-                  onRecheck: () async {
-                    setState(() => _busy = true);
-                    await state.recheckPurchase();
-                    Haptics.commit();
-                    if (mounted) setState(() => _busy = false);
-                    if (mounted && !state.isPro) {
-                      showTrackDialog(
-                        context,
-                        title: 'Still confirming',
-                        body: state.billing?.lastVerifyOutcome == 'unreachable'
-                            ? 'We still cannot reach the verification service. Your purchase is safe in '
-                                'Google Play; Pro unlocks as soon as it can be confirmed.'
-                            : 'Google Play has not settled this purchase yet. Nothing has been lost — '
-                                'tracking stays free in the meantime.',
-                      );
-                    }
-                  },
-                  isPro: state.isPro,
-                  statusLine: state.entitlement.statusLine,
-                ),
-              ],
+        child: Column(
+          children: [
+            _TopBar(onClose: () => Navigator.of(context).pop(false), onRestore: _restore),
+            Expanded(
+              child: ListView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                children: [
+                  // The hero must carry the copy for the placement the user
+                  // actually hit — that is the whole reason there are eight.
+                  _Hero(trigger: widget.trigger),
+                  const SizedBox(height: 20),
+                  for (final plan in plans) ...[
+                    _PlanCard(
+                      plan: plan,
+                      selected: plan.id == _selected.id,
+                      onTap: () {
+                        Haptics.selection();
+                        setState(() => _selected = plan);
+                        state.analytics?.log('plan_selected', {'plan': plan.id, 'trigger': widget.trigger.key});
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  const SizedBox(height: 6),
+                  _Timeline(plan: _selected),
+                  const SizedBox(height: 22),
+                  const _Benefits(),
+                  const SizedBox(height: 22),
+                  const _Trust(),
+                  const SizedBox(height: 14),
+                ],
+              ),
             ),
-          ),
+            _Footer(
+              plan: _selected,
+              busy: _busy,
+              available: billing?.available ?? false,
+              onCta: _startPurchase,
+              onManage: _manage,
+              onRestore: _restore,
+              // A purchase Play accepted but the backend has not confirmed is
+              // its own state: the paywall must not keep offering to sell the
+              // same thing, and it must not pretend the purchase failed.
+              confirming: state.purchaseAwaitingVerification,
+              onRecheck: () async {
+                setState(() => _busy = true);
+                await state.recheckPurchase();
+                Haptics.commit();
+                if (mounted) setState(() => _busy = false);
+                if (mounted && !state.isPro) {
+                  showTrackDialog(
+                    context,
+                    title: 'Still confirming',
+                    body: state.billing?.lastVerifyOutcome == 'unreachable'
+                        ? 'We still cannot reach the verification service. Your purchase is safe in '
+                              'Google Play; Pro unlocks as soon as it can be confirmed.'
+                        : 'Google Play has not settled this purchase yet. Nothing has been lost — '
+                              'tracking stays free in the meantime.',
+                  );
+                }
+              },
+              isPro: state.isPro,
+              statusLine: state.entitlement.statusLine,
+            ),
+          ],
+        ),
+      ),
     );
   }
-
 }
 
 class _TopBar extends StatelessWidget {
@@ -240,7 +237,10 @@ class _TopBar extends StatelessWidget {
           const Spacer(),
           TextButton(
             onPressed: onRestore,
-            child: const Text('Restore', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.white)),
+            child: const Text(
+              'Restore',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: Colors.white),
+            ),
           ),
         ],
       ),
@@ -271,10 +271,14 @@ class _Hero extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: const [
-                Text('Track Pro',
-                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.4, color: Colors.white)),
-                Text('One app. Everything. Forever.',
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF))),
+                Text(
+                  'Track Pro',
+                  style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -.4, color: Colors.white),
+                ),
+                Text(
+                  'One app. Everything. Forever.',
+                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF)),
+                ),
               ],
             ),
           ],
@@ -319,11 +323,7 @@ class _PlanCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: selected ? const Color(0xFF2B1A0D) : TrackTheme.surface(true),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected ? ProPalette.gold : TrackTheme.separator(true),
-            width: selected ? 1.6 : 1,
-          ),
-
+          border: Border.all(color: selected ? ProPalette.gold : TrackTheme.separator(true), width: selected ? 1.6 : 1),
         ),
         child: Row(
           children: [
@@ -335,7 +335,7 @@ class _PlanCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 color: selected ? ProPalette.gold : Colors.transparent,
-                border: Border.all(color: selected ? ProPalette.gold : Colors.white.withOpacity(.4), width: 1.6),
+                border: Border.all(color: selected ? ProPalette.gold : Colors.white.withValues(alpha: .4), width: 1.6),
               ),
               child: selected ? const Icon(Icons.check_rounded, size: 14, color: ProPalette.goldText) : null,
             ),
@@ -346,16 +346,29 @@ class _PlanCard extends StatelessWidget {
                 children: [
                   Row(
                     children: [
-                      Text(plan.title,
-                          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -.3, color: Colors.white)),
+                      Text(
+                        plan.title,
+                        style: const TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -.3,
+                          color: Colors.white,
+                        ),
+                      ),
                       if (plan.badge != null) ...[
                         const SizedBox(width: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                           decoration: BoxDecoration(color: ProPalette.gold, borderRadius: BorderRadius.circular(6)),
-                          child: Text(plan.badge!,
-                              style: const TextStyle(
-                                  fontSize: 9.5, fontWeight: FontWeight.w700, letterSpacing: .3, color: ProPalette.goldText)),
+                          child: Text(
+                            plan.badge!,
+                            style: const TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: .3,
+                              color: ProPalette.goldText,
+                            ),
+                          ),
                         ),
                       ],
                     ],
@@ -371,8 +384,10 @@ class _PlanCard extends StatelessWidget {
                       children: [
                         const Icon(Icons.card_giftcard_rounded, size: 14, color: ProPalette.gold),
                         const SizedBox(width: 5),
-                        Text('${plan.trialDays} days free',
-                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ProPalette.gold)),
+                        Text(
+                          '${plan.trialDays} days free',
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: ProPalette.gold),
+                        ),
                       ],
                     ),
                   ],
@@ -383,10 +398,19 @@ class _PlanCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(plan.displayPrice,
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -.5, color: Colors.white)),
-                Text(plan.displayPeriod,
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0x99FFFFFF))),
+                Text(
+                  plan.displayPrice,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -.5,
+                    color: Colors.white,
+                  ),
+                ),
+                Text(
+                  plan.displayPeriod,
+                  style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: Color(0x99FFFFFF)),
+                ),
               ],
             ),
           ],
@@ -420,8 +444,10 @@ class _Timeline extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(plan.trialTimeline(),
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+          Text(
+            plan.trialTimeline(),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+          ),
           const SizedBox(height: 13),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -435,7 +461,7 @@ class _Timeline extends StatelessWidget {
                         height: 10,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: i == 0 ? ProPalette.gold : Colors.white.withOpacity(.28),
+                          color: i == 0 ? ProPalette.gold : Colors.white.withValues(alpha: .28),
                         ),
                       ),
                       const SizedBox(height: 7),
@@ -455,7 +481,7 @@ class _Timeline extends StatelessWidget {
                 if (i < steps.length - 1)
                   Padding(
                     padding: const EdgeInsets.only(top: 5),
-                    child: Container(width: 8, height: 1, color: Colors.white.withOpacity(.16)),
+                    child: Container(width: 8, height: 1, color: Colors.white.withValues(alpha: .16)),
                   ),
               ],
             ],
@@ -485,8 +511,10 @@ class _Benefits extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('WHAT PRO ADDS',
-            style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: .6, color: Color(0x99FFFFFF))),
+        const Text(
+          'WHAT PRO ADDS',
+          style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700, letterSpacing: .6, color: Color(0x99FFFFFF)),
+        ),
         const SizedBox(height: 14),
         for (final b in ProConfig.benefits) ...[
           Row(
@@ -504,11 +532,25 @@ class _Benefits extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(b.title,
-                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -.2, color: Colors.white)),
+                    Text(
+                      b.title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -.2,
+                        color: Colors.white,
+                      ),
+                    ),
                     const SizedBox(height: 2),
-                    Text(b.body,
-                        style: const TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: Color(0xB3FFFFFF))),
+                    Text(
+                      b.body,
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xB3FFFFFF),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -538,8 +580,15 @@ class _Trust extends StatelessWidget {
                 const Icon(Icons.check_circle_outline_rounded, size: 16, color: Color(0x99FFFFFF)),
                 const SizedBox(width: 9),
                 Expanded(
-                  child: Text(line,
-                      style: const TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: Color(0xCCFFFFFF))),
+                  child: Text(
+                    line,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xCCFFFFFF),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -593,7 +642,12 @@ class _Footer extends StatelessWidget {
               child: Text(
                 'Google Play billing is unavailable here — install from the Play Store to subscribe.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, height: 1.4, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(.7)),
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white.withValues(alpha: .7),
+                ),
               ),
             ),
           if (isPro)
@@ -605,10 +659,12 @@ class _Footer extends StatelessWidget {
                   const Icon(Icons.verified_outlined, size: 16, color: ProPalette.gold),
                   const SizedBox(width: 7),
                   Flexible(
-                    child: Text(statusLine,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white)),
+                    child: Text(
+                      statusLine,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
                   ),
                 ],
               ),
@@ -620,8 +676,14 @@ class _Footer extends StatelessWidget {
                 const Icon(Icons.schedule_outlined, size: 16, color: ProPalette.gold),
                 const SizedBox(width: 7),
                 Flexible(
-                  child: Text('Confirming your purchase with Google Play',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(.9))),
+                  child: Text(
+                    'Confirming your purchase with Google Play',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white.withValues(alpha: .9),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -630,7 +692,12 @@ class _Footer extends StatelessWidget {
               'Pro unlocks the moment the payment settles. Nothing is lost if you close this — '
               'the purchase stays attached to your Google account.',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 11.5, height: 1.4, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(.6)),
+              style: TextStyle(
+                fontSize: 11.5,
+                height: 1.4,
+                fontWeight: FontWeight.w500,
+                color: Colors.white.withValues(alpha: .6),
+              ),
             ),
             const SizedBox(height: 12),
           ],
@@ -639,18 +706,21 @@ class _Footer extends StatelessWidget {
                 ? (busy ? 'Checking…' : 'Check again')
                 : (busy ? 'Contacting Google Play…' : plan.ctaFor()),
             loading: busy,
-            onTap: busy
-                ? null
-                : (confirming ? () => onRecheck() : (available ? onCta : null)),
+            onTap: busy ? null : (confirming ? () => onRecheck() : (available ? onCta : null)),
           ),
           const SizedBox(height: 9),
           Text(
             plan.hasTrial
                 ? 'Free for ${plan.trialDays} days, then ${plan.displayPrice}${plan.displayPeriod}. '
-                    'Auto-renews until cancelled. Cancel anytime in Google Play.'
+                      'Auto-renews until cancelled. Cancel anytime in Google Play.'
                 : 'One-time payment. No subscription, no renewal.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 11, height: 1.4, fontWeight: FontWeight.w500, color: Colors.white.withOpacity(.6)),
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+              color: Colors.white.withValues(alpha: .6),
+            ),
           ),
           const SizedBox(height: 8),
           Wrap(
@@ -691,8 +761,10 @@ class _FooterLink extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Text(label,
-          style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white.withOpacity(.75))),
+      child: Text(
+        label,
+        style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: Colors.white.withValues(alpha: .75)),
+      ),
     );
   }
 }
@@ -710,12 +782,7 @@ Future<void> showTrackDialog(BuildContext context, {required String title, requi
       content: SingleChildScrollView(
         child: Text(body, style: TextStyle(fontSize: 13, height: 1.4, color: TrackTheme.label2(dark))),
       ),
-      actions: [
-        FilledButton(
-          onPressed: () => Navigator.of(ctx).pop(),
-          child: const Text('OK'),
-        ),
-      ],
+      actions: [FilledButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('OK'))],
     ),
   );
 }
@@ -754,10 +821,7 @@ Future<void> showLegalSheet(BuildContext context, {required String kind}) {
                 child: Container(
                   width: 38,
                   height: 4,
-                  decoration: BoxDecoration(
-                    color: TrackTheme.label3(dark),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                  decoration: BoxDecoration(color: TrackTheme.label3(dark), borderRadius: BorderRadius.circular(4)),
                 ),
               ),
               const SizedBox(height: 14),
@@ -769,10 +833,7 @@ Future<void> showLegalSheet(BuildContext context, {required String kind}) {
                       style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: TrackTheme.label(dark)),
                     ),
                   ),
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: const Text('Done'),
-                  ),
+                  TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Done')),
                 ],
               ),
               Text(

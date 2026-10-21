@@ -69,8 +69,11 @@ void main() {
   group('history is read from stored rows', () {
     test('a fresh install has no recorded days anywhere', () async {
       for (final t in state.trackers) {
-        expect(await state.recordedDays(t.id), isEmpty,
-            reason: '${t.id} has no rows, so the history list says so instead of showing zeros');
+        expect(
+          await state.recordedDays(t.id),
+          isEmpty,
+          reason: '${t.id} has no rows, so the history list says so instead of showing zeros',
+        );
       }
     });
 
@@ -88,8 +91,11 @@ void main() {
       await state.setDayValue('water', today, 2000);
       final days = await state.recordedDays('water');
       expect(days.map((d) => d.day), [today]);
-      expect(days.any((d) => d.day == yesterday), isFalse,
-          reason: 'a gap in the history has no row, and is not a 0 the user did not enter');
+      expect(
+        days.any((d) => d.day == yesterday),
+        isFalse,
+        reason: 'a gap in the history has no row, and is not a 0 the user did not enter',
+      );
     });
 
     test('a logged zero is a reading, and stays in the list', () async {
@@ -134,8 +140,7 @@ void main() {
       expect(await state.setDayValue('water', yesterday, -5), isFalse);
       expect(await state.setDayValue('water', yesterday, double.nan), isFalse);
       expect(await rowsFor('water'), isEmpty, reason: 'nothing was stored for a refused value');
-      expect(state.writeFailure, isNull,
-          reason: 'a refusal is a validation answer, not a write failure');
+      expect(state.writeFailure, isNull, reason: 'a refusal is a validation answer, not a write failure');
     });
 
     test('editing an older day recomputes the derived numbers', () async {
@@ -182,8 +187,11 @@ void main() {
       await state.setDayValue('water', today, 2000);
       await state.clearDay('water', today);
       expect(state.today('water'), 0);
-      expect(state.historyOf('water').every((v) => v == 0), isTrue,
-          reason: 'the projection is re-derived, and an empty day reads empty');
+      expect(
+        state.historyOf('water').every((v) => v == 0),
+        isTrue,
+        reason: 'the projection is re-derived, and an empty day reads empty',
+      );
     });
   });
 
@@ -197,8 +205,7 @@ void main() {
       state.move(id, -1);
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(state.byId(id).hidden, isTrue,
-          reason: 'moving a row is not a statement about wanting to see it');
+      expect(state.byId(id).hidden, isTrue, reason: 'moving a row is not a statement about wanting to see it');
       final row = (await db.trackDao.allTrackers()).firstWhere((r) => r.id == id);
       expect(row.hidden, isTrue);
     });
@@ -237,8 +244,11 @@ void main() {
 
       final failure = state.writeFailure;
       expect(failure, isNotNull);
-      expect(failure!.action.contains('Water'), isTrue,
-          reason: 'the banner names what the user was doing, not "an error": ${failure.action}');
+      expect(
+        failure!.action.contains('Water'),
+        isTrue,
+        reason: 'the banner names what the user was doing, not "an error": ${failure.action}',
+      );
       expect(failure.detail, isNotEmpty);
 
       // The store still holds the old value, and the projection agrees with it — the
@@ -263,8 +273,7 @@ void main() {
       expect(state.writeFailure!.action.contains('Water'), isTrue);
 
       await goWritable();
-      expect(state.today('water'), 0,
-          reason: 'the painted value was rolled back to what the store actually holds');
+      expect(state.today('water'), 0, reason: 'the painted value was rolled back to what the store actually holds');
       expect(await state.recordedDays('water'), isEmpty);
     });
 

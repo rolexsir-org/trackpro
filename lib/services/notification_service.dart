@@ -116,7 +116,7 @@ class NotificationService {
 
       const android = AndroidInitializationSettings('@mipmap/ic_launcher');
       await _plugin.initialize(
-        const InitializationSettings(android: android),
+        settings: const InitializationSettings(android: android),
         onDidReceiveNotificationResponse: (response) {
           if (response.payload != null) _taps.add(response.payload!);
         },
@@ -157,15 +157,15 @@ class NotificationService {
     final open = _openTrackerNames(state);
     final body = hideDetails
         ? (open.isEmpty
-            ? 'Everything is logged for today. See you tomorrow.'
-            : '${open.length} ${open.length == 1 ? 'tracker is' : 'trackers are'} still open today.')
+              ? 'Everything is logged for today. See you tomorrow.'
+              : '${open.length} ${open.length == 1 ? 'tracker is' : 'trackers are'} still open today.')
         : (open.isEmpty
-            ? 'Everything is logged. Nice — see you tomorrow.'
-            : '${open.length} still open today: ${open.take(3).join(', ')}${open.length > 3 ? '…' : ''}');
+              ? 'Everything is logged. Nice — see you tomorrow.'
+              : '${open.length} still open today: ${open.take(3).join(', ')}${open.length > 3 ? '…' : ''}');
 
     // Cancel first: a stale instance from a previous schedule must never survive
     // as a second reminder.
-    await _plugin.cancel(_checkInId);
+    await _plugin.cancel(id: _checkInId);
     await _scheduleDaily(
       id: _checkInId,
       channel: _checkInChannel,
@@ -182,7 +182,7 @@ class NotificationService {
   /// risk, which is what makes it feel like a coach instead of spam.
   Future<void> syncStreakSaver(AppState state) async {
     if (!_ready) return;
-    await _plugin.cancel(_streakSaverId);
+    await _plugin.cancel(id: _streakSaverId);
 
     final atRisk = _streakAtRisk(state);
     if (atRisk == null) return;
@@ -203,15 +203,15 @@ class NotificationService {
 
   Future<void> scheduleWeeklyReport({int weekday = DateTime.sunday, int hour = 19}) async {
     if (!_ready) return;
-    await _plugin.cancel(_weeklyId);
+    await _plugin.cancel(id: _weeklyId);
     await _plugin.zonedSchedule(
-      _weeklyId,
-      'Your week in review',
-      hideDetails
+      id: _weeklyId,
+      title: 'Your week in review',
+      body: hideDetails
           ? 'Your weekly summary is ready inside Track Pro.'
           : 'Trends, averages and what changed across every tracker.',
-      _nextInstanceOf(weekday, hour, 0),
-      _details(_weeklyChannel, payload: 'insights'),
+      scheduledDate: _nextInstanceOf(weekday, hour, 0),
+      notificationDetails: _details(_weeklyChannel, payload: 'insights'),
       androidScheduleMode: _mode,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
@@ -243,11 +243,11 @@ class NotificationService {
     if (weekdays.isEmpty) {
       // Every day, at this time.
       await _plugin.zonedSchedule(
-        id,
-        'Time to focus',
-        body,
-        _nextInstanceOf(DateTime.now().weekday, hour, minute),
-        _focusDetails(payload: 'focus'),
+        id: id,
+        title: 'Time to focus',
+        body: body,
+        scheduledDate: _nextInstanceOf(DateTime.now().weekday, hour, minute),
+        notificationDetails: _focusDetails(payload: 'focus'),
         androidScheduleMode: _mode,
         matchDateTimeComponents: DateTimeComponents.time,
       );
@@ -257,11 +257,11 @@ class NotificationService {
     for (final weekday in weekdays) {
       if (weekday < 1 || weekday > 7) continue;
       await _plugin.zonedSchedule(
-        id + weekday,
-        'Time to focus',
-        body,
-        _nextInstanceOf(weekday, hour, minute),
-        _focusDetails(payload: 'focus'),
+        id: id + weekday,
+        title: 'Time to focus',
+        body: body,
+        scheduledDate: _nextInstanceOf(weekday, hour, minute),
+        notificationDetails: _focusDetails(payload: 'focus'),
         androidScheduleMode: _mode,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
@@ -272,7 +272,7 @@ class NotificationService {
   Future<void> cancelFocusSchedule(int id) async {
     if (!_ready) return;
     for (var offset = 0; offset <= 7; offset++) {
-      await _plugin.cancel(id + offset);
+      await _plugin.cancel(id: id + offset);
     }
   }
 
@@ -281,25 +281,25 @@ class NotificationService {
   /// would cost more in retention than it could ever earn in revenue.
   Future<void> cancelProOnly() async {
     if (!_ready) return;
-    await _plugin.cancel(_streakSaverId);
-    await _plugin.cancel(_weeklyId);
+    await _plugin.cancel(id: _streakSaverId);
+    await _plugin.cancel(id: _weeklyId);
   }
 
   /// Cancels a single reminder. Used by the per-notification switches, so a user
   /// who turns off the streak saver keeps the daily check-in.
   Future<void> cancelCheckIn() async {
     if (!_ready) return;
-    await _plugin.cancel(_checkInId);
+    await _plugin.cancel(id: _checkInId);
   }
 
   Future<void> cancelStreakSaver() async {
     if (!_ready) return;
-    await _plugin.cancel(_streakSaverId);
+    await _plugin.cancel(id: _streakSaverId);
   }
 
   Future<void> cancelWeekly() async {
     if (!_ready) return;
-    await _plugin.cancel(_weeklyId);
+    await _plugin.cancel(id: _weeklyId);
   }
 
   /// Whether the OS currently lets us post at all (revoked in system settings,
@@ -317,9 +317,9 @@ class NotificationService {
   /// Cancel everything (used by the "pause reminders" switch in Settings).
   Future<void> cancelAll() async {
     if (!_ready) return;
-    await _plugin.cancel(_checkInId);
-    await _plugin.cancel(_streakSaverId);
-    await _plugin.cancel(_weeklyId);
+    await _plugin.cancel(id: _checkInId);
+    await _plugin.cancel(id: _streakSaverId);
+    await _plugin.cancel(id: _weeklyId);
   }
 
   Future<List<PendingNotificationRequest>> pending() async {
@@ -363,52 +363,55 @@ class NotificationService {
   }) {
     final next = _nextInstanceOf(DateTime.now().weekday, hour, minute);
     return _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      next,
-      _details(channel, payload: payload, style: style),
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: next,
+      notificationDetails: _details(channel, payload: payload, style: style),
       androidScheduleMode: _mode,
       matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 
-  NotificationDetails _details(AndroidNotificationChannel channel, {required String payload, StyleInformation? style}) =>
-      NotificationDetails(
-        android: AndroidNotificationDetails(
-          channel.id,
-          channel.name,
-          channelDescription: channel.description,
-          importance: channel.importance,
-          priority: Priority.defaultPriority,
-          styleInformation: style,
-          category: AndroidNotificationCategory.reminder,
-          // Hidden on a secure lock screen. The content is personal (streaks,
-          // trackers, sleep), and a phone on a table should not become a report.
-          visibility: NotificationVisibility.private,
-          // Grouped under one app-level group so three reminders never stack into
-          // a wall of noise.
-          groupKey: 'com.track.app.reminders',
-          // Compact Android notification presentation: title, body and one action.
-          actions: const [AndroidNotificationAction('log', 'Log now', showsUserInterface: true)],
-        ),
-      );
+  NotificationDetails _details(
+    AndroidNotificationChannel channel, {
+    required String payload,
+    StyleInformation? style,
+  }) => NotificationDetails(
+    android: AndroidNotificationDetails(
+      channel.id,
+      channel.name,
+      channelDescription: channel.description,
+      importance: channel.importance,
+      priority: Priority.defaultPriority,
+      styleInformation: style,
+      category: AndroidNotificationCategory.reminder,
+      // Hidden on a secure lock screen. The content is personal (streaks,
+      // trackers, sleep), and a phone on a table should not become a report.
+      visibility: NotificationVisibility.private,
+      // Grouped under one app-level group so three reminders never stack into
+      // a wall of noise.
+      groupKey: 'com.track.app.reminders',
+      // Compact Android notification presentation: title, body and one action.
+      actions: const [AndroidNotificationAction('log', 'Log now', showsUserInterface: true)],
+    ),
+  );
 
   NotificationDetails _focusDetails({required String payload}) => NotificationDetails(
-        android: AndroidNotificationDetails(
-          _focusScheduleChannel.id,
-          _focusScheduleChannel.name,
-          channelDescription: _focusScheduleChannel.description,
-          importance: _focusScheduleChannel.importance,
-          priority: Priority.defaultPriority,
-          category: AndroidNotificationCategory.reminder,
-          // A scheduled focus session names the goal, which can be personal
-          // ("revision for the exam"). Private, like every other Track Pro reminder.
-          visibility: NotificationVisibility.private,
-          groupKey: 'com.track.app.reminders',
-          actions: const [AndroidNotificationAction('start', 'Start now', showsUserInterface: true)],
-        ),
-      );
+    android: AndroidNotificationDetails(
+      _focusScheduleChannel.id,
+      _focusScheduleChannel.name,
+      channelDescription: _focusScheduleChannel.description,
+      importance: _focusScheduleChannel.importance,
+      priority: Priority.defaultPriority,
+      category: AndroidNotificationCategory.reminder,
+      // A scheduled focus session names the goal, which can be personal
+      // ("revision for the exam"). Private, like every other Track Pro reminder.
+      visibility: NotificationVisibility.private,
+      groupKey: 'com.track.app.reminders',
+      actions: const [AndroidNotificationAction('start', 'Start now', showsUserInterface: true)],
+    ),
+  );
 
   tz.TZDateTime _nextInstanceOf(int weekday, int hour, int minute) {
     final now = tz.TZDateTime.now(tz.local);

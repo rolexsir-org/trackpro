@@ -43,17 +43,20 @@ void main() {
       // makes every verification "time out" before it starts, which reads to the user as a
       // rejected receipt — and this call sits behind the paywall closing.
       expect(AppEnvironment.verifyTimeout.inMilliseconds, greaterThan(0));
-      expect(AppEnvironment.verifyTimeout, const Duration(seconds: 10),
-          reason: 'no dart-define is set in a test run, so the default must be what ships');
+      expect(
+        AppEnvironment.verifyTimeout,
+        const Duration(seconds: 10),
+        reason: 'no dart-define is set in a test run, so the default must be what ships',
+      );
     });
 
     test('a debug run reports no configuration problems', () {
-      expect(kReleaseMode, isFalse,
-          reason: 'this file pins debug behaviour; the release rules are checked by CI');
+      expect(kReleaseMode, isFalse, reason: 'this file pins debug behaviour; the release rules are checked by CI');
       expect(
         AppEnvironment.validate(),
         isEmpty,
-        reason: 'validate() gates its two release-only rules on kReleaseMode, so a test run must '
+        reason:
+            'validate() gates its two release-only rules on kReleaseMode, so a test run must '
             'never fail for a missing --dart-define. If this fails, either the guard stopped '
             'being release-only (every `flutter test` now needs store flags to pass) or a '
             'non-HTTPS URL was compiled in.',

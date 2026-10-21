@@ -12,31 +12,31 @@ class ValueValidation {
 
   /// Inclusive `[min, max]` accepted for a tracker id.
   static (double min, double max) boundsFor(String trackerId) => switch (trackerId) {
-        'water' => (0, 20000), // 20 L; above that it is a typo or an IV drip
-        'mood' => (0, 5),
-        'expenses' => (0, 1000000),
-        'sleep' => (0, 24),
-        'calories' => (0, 20000),
-        'steps' => (0, 200000),
-        'screen' => (0, 1440),
-        'weight' => (0, 500),
-        'period' => (0, 10), // flow intensity / cycle-day marker
-        _ => (0, 1e9),
-      };
+    'water' => (0, 20000), // 20 L; above that it is a typo or an IV drip
+    'mood' => (0, 5),
+    'expenses' => (0, 1000000),
+    'sleep' => (0, 24),
+    'calories' => (0, 20000),
+    'steps' => (0, 200000),
+    'screen' => (0, 1440),
+    'weight' => (0, 500),
+    'period' => (0, 10), // flow intensity / cycle-day marker
+    _ => (0, 1e9),
+  };
 
   /// Fallback when only the metric kind is known (adding a tracker later).
   static (double min, double max) boundsForKind(MetricKind kind) => switch (kind) {
-        MetricKind.volume => (0, 20000),
-        MetricKind.mood => (0, 5),
-        MetricKind.money => (0, 1000000),
-        MetricKind.hours => (0, 24),
-        MetricKind.calories => (0, 20000),
-        MetricKind.steps => (0, 200000),
-        MetricKind.minutes => (0, 1440),
-        MetricKind.weight => (0, 500),
-        MetricKind.cycle => (0, 10),
-        MetricKind.habits => (0, 50),
-      };
+    MetricKind.volume => (0, 20000),
+    MetricKind.mood => (0, 5),
+    MetricKind.money => (0, 1000000),
+    MetricKind.hours => (0, 24),
+    MetricKind.calories => (0, 20000),
+    MetricKind.steps => (0, 200000),
+    MetricKind.minutes => (0, 1440),
+    MetricKind.weight => (0, 500),
+    MetricKind.cycle => (0, 10),
+    MetricKind.habits => (0, 50),
+  };
 
   /// Returns the value to store, or `null` when it must be rejected outright.
   ///
@@ -61,6 +61,6 @@ class ValueValidation {
   /// Guards a chart's inputs: drops anything unstorable, so a legacy bad row
   /// cannot derail an average.
   static List<double> sanitizeSeries(String trackerId, Iterable<double> values) => [
-        for (final v in values) sanitize(trackerId, v) ?? 0,
-      ];
+    for (final v in values) sanitize(trackerId, v) ?? 0,
+  ];
 }

@@ -43,9 +43,7 @@ class FakeScreenTimeService extends ScreenTimeService {
 
   @override
   Future<List<ScreenTimeAppUsage>> todayByApp({int limit = 6}) async =>
-      standing == ScreenTimePermissionState.granted
-          ? appsToday.take(limit).toList()
-          : const <ScreenTimeAppUsage>[];
+      standing == ScreenTimePermissionState.granted ? appsToday.take(limit).toList() : const <ScreenTimeAppUsage>[];
 }
 
 void main() {
@@ -80,16 +78,13 @@ void main() {
     });
 
     test('parseTodayByApp sorts most-used first, falls back to package name, and caps at limit', () {
-      final apps = ScreenTimeService.parseTodayByApp(
-        <Object?>[
-          <String, Object?>{'package': 'com.b.app', 'label': 'Browser', 'minutes': 42.0},
-          <String, Object?>{'package': 'com.a.app', 'label': '   ', 'minutes': 95.0},
-          <String, Object?>{'package': 'com.c.app', 'label': 'Camera', 'minutes': 15.0},
-          <String, Object?>{'package': 'com.zero.app', 'label': 'Zero', 'minutes': 0.0},
-          <String, Object?>{'package': '', 'label': 'EmptyPkg', 'minutes': 50.0},
-        ],
-        limit: 2,
-      );
+      final apps = ScreenTimeService.parseTodayByApp(<Object?>[
+        <String, Object?>{'package': 'com.b.app', 'label': 'Browser', 'minutes': 42.0},
+        <String, Object?>{'package': 'com.a.app', 'label': '   ', 'minutes': 95.0},
+        <String, Object?>{'package': 'com.c.app', 'label': 'Camera', 'minutes': 15.0},
+        <String, Object?>{'package': 'com.zero.app', 'label': 'Zero', 'minutes': 0.0},
+        <String, Object?>{'package': '', 'label': 'EmptyPkg', 'minutes': 50.0},
+      ], limit: 2);
 
       expect(apps.length, 2);
       expect(apps.first.packageName, 'com.a.app');
@@ -118,11 +113,7 @@ void main() {
           ScreenTimeAppUsage(packageName: 'com.video.app', label: 'Video', minutes: 75.0),
         ],
       );
-      state = AppState(
-        repo: repo,
-        commitmentRepo: commitments,
-        screenTime: fakeScreen,
-      );
+      state = AppState(repo: repo, commitmentRepo: commitments, screenTime: fakeScreen);
       await state.load();
     });
 

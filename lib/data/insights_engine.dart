@@ -65,7 +65,6 @@ class InsightsEngine {
     required bool advanced,
     CycleStats? cycle,
   }) {
-    final today = history.values.isEmpty ? 0 : history.values.first.length - 1;
     final out = <Insight>[];
 
     final loggedByTracker = <String, List<bool>>{
@@ -92,14 +91,16 @@ class InsightsEngine {
     }
 
     if (cycle != null && cycle.hasPrediction) {
-      out.add(Insight(
-        emoji: '🌸',
-        title: 'Cycle pattern',
-        body: cycle.summary,
-        sampleDays: cycle.cycleCount * cycle.averageLength.round(),
-        kind: InsightKind.cycle,
-        advanced: false,
-      ));
+      out.add(
+        Insight(
+          emoji: '🌸',
+          title: 'Cycle pattern',
+          body: cycle.summary,
+          sampleDays: cycle.cycleCount * cycle.averageLength.round(),
+          kind: InsightKind.cycle,
+          advanced: false,
+        ),
+      );
     }
 
     return out;
@@ -125,7 +126,8 @@ class InsightsEngine {
       return const Insight(
         emoji: '🌱',
         title: 'Nothing logged yet',
-        body: 'Your first entry starts the history. Patterns need about two weeks of real days '
+        body:
+            'Your first entry starts the history. Patterns need about two weeks of real days '
             'before they mean anything — this app will not invent them in the meantime.',
         sampleDays: 0,
         kind: InsightKind.summary,
@@ -161,15 +163,17 @@ class InsightsEngine {
 
       final avg = loggedValues.reduce((a, b) => a + b) / loggedValues.length;
       final pct = t.goal <= 0 ? 0 : (avg / t.goal * 100).round();
-      out.add(Insight(
-        emoji: t.emoji,
-        title: '${t.name} averages ${_fmt(t, avg)} over ${loggedValues.length} logged days',
-        body: pct == 0
-            ? 'Goal is not set yet, so this is your own baseline rather than a score.'
-            : 'That is $pct% of your ${_fmt(t, t.goal)} goal, counting only days you logged.',
-        sampleDays: loggedValues.length,
-        kind: InsightKind.average,
-      ));
+      out.add(
+        Insight(
+          emoji: t.emoji,
+          title: '${t.name} averages ${_fmt(t, avg)} over ${loggedValues.length} logged days',
+          body: pct == 0
+              ? 'Goal is not set yet, so this is your own baseline rather than a score.'
+              : 'That is $pct% of your ${_fmt(t, t.goal)} goal, counting only days you logged.',
+          sampleDays: loggedValues.length,
+          kind: InsightKind.average,
+        ),
+      );
     }
     return out;
   }
@@ -246,16 +250,19 @@ class InsightsEngine {
       if (result == null) continue;
       final (r, n) = result;
       final positive = r > 0;
-      out.add(Insight(
-        emoji: positive ? '↗️' : '↘️',
-        title: '${_label(pair[0])} and ${_label(pair[1])} move together ${positive ? 'upward' : 'downward'}',
-        body: 'Across the $n days where you logged both, days with more ${_label(pair[0]).toLowerCase()} tended to have '
-            '${positive ? 'higher' : 'lower'} ${_label(pair[1]).toLowerCase()} (r = ${r.toStringAsFixed(2)}). '
-            'That is an association in your own data, not proof of cause.',
-        sampleDays: n,
-        advanced: true,
-        kind: InsightKind.correlation,
-      ));
+      out.add(
+        Insight(
+          emoji: positive ? '↗️' : '↘️',
+          title: '${_label(pair[0])} and ${_label(pair[1])} move together ${positive ? 'upward' : 'downward'}',
+          body:
+              'Across the $n days where you logged both, days with more ${_label(pair[0]).toLowerCase()} tended to have '
+              '${positive ? 'higher' : 'lower'} ${_label(pair[1]).toLowerCase()} (r = ${r.toStringAsFixed(2)}). '
+              'That is an association in your own data, not proof of cause.',
+          sampleDays: n,
+          advanced: true,
+          kind: InsightKind.correlation,
+        ),
+      );
     }
     return out;
   }
@@ -288,16 +295,19 @@ class InsightsEngine {
       if (maxD == minD) continue;
       final spread = (avgs[maxD] - avgs[minD]) / (avgs[minD] == 0 ? 1 : avgs[minD]);
       if (spread < .15) continue; // under 15% is noise, not a rhythm
-      out.add(Insight(
-        emoji: t.emoji,
-        title: '${t.name} peaks on ${_weekdayName(maxD)}s',
-        body: 'Your ${_weekdayName(maxD)} average is ${_fmt(t, avgs[maxD])} versus ${_fmt(t, avgs[minD])} '
-            'on ${_weekdayName(minD)}s, across ${counts[maxD]} ${_weekdayName(maxD)}s and ${counts[minD]} '
-            '${_weekdayName(minD)}s you logged.',
-        sampleDays: counts.fold(0, (p, c) => p + c),
-        advanced: true,
-        kind: InsightKind.rhythm,
-      ));
+      out.add(
+        Insight(
+          emoji: t.emoji,
+          title: '${t.name} peaks on ${_weekdayName(maxD)}s',
+          body:
+              'Your ${_weekdayName(maxD)} average is ${_fmt(t, avgs[maxD])} versus ${_fmt(t, avgs[minD])} '
+              'on ${_weekdayName(minD)}s, across ${counts[maxD]} ${_weekdayName(maxD)}s and ${counts[minD]} '
+              '${_weekdayName(minD)}s you logged.',
+          sampleDays: counts.fold(0, (p, c) => p + c),
+          advanced: true,
+          kind: InsightKind.rhythm,
+        ),
+      );
       if (out.length >= 2) break; // two weekday findings is plenty
     }
     return out;
@@ -330,7 +340,8 @@ class InsightsEngine {
       return Insight(
         emoji: '⚖️',
         title: 'Weight is holding steady',
-        body: 'Across the $n days you weighed in, the trend is flat (${perWeek.toStringAsFixed(2)} kg/week). '
+        body:
+            'Across the $n days you weighed in, the trend is flat (${perWeek.toStringAsFixed(2)} kg/week). '
             'Weight fluctuates daily, so a flat line over weeks is a real result.',
         sampleDays: n,
         advanced: true,
@@ -348,26 +359,27 @@ class InsightsEngine {
   }
 
   static String _fmt(Tracker t, double v) => switch (t.kind) {
-        MetricKind.volume => '${(v / 1000).toStringAsFixed(1)} L',
-        MetricKind.money => '₹${v.round()}',
-        MetricKind.hours => '${v.toStringAsFixed(1)} h',
-        MetricKind.weight => '${v.toStringAsFixed(1)} kg',
-        MetricKind.mood => v.toStringAsFixed(1),
-        MetricKind.minutes => '${v.round()} min',
-        _ => '${v.round()}',
-      };
+    MetricKind.volume => '${(v / 1000).toStringAsFixed(1)} L',
+    MetricKind.money => '₹${v.round()}',
+    MetricKind.hours => '${v.toStringAsFixed(1)} h',
+    MetricKind.weight => '${v.toStringAsFixed(1)} kg',
+    MetricKind.mood => v.toStringAsFixed(1),
+    MetricKind.minutes => '${v.round()} min',
+    _ => '${v.round()}',
+  };
 
   static String _label(String id) => switch (id) {
-        'sleep' => 'Sleep',
-        'mood' => 'Mood',
-        'water' => 'Water',
-        'steps' => 'Steps',
-        'screen' => 'Screen time',
-        'expenses' => 'Spending',
-        _ => id,
-      };
+    'sleep' => 'Sleep',
+    'mood' => 'Mood',
+    'water' => 'Water',
+    'steps' => 'Steps',
+    'screen' => 'Screen time',
+    'expenses' => 'Spending',
+    _ => id,
+  };
 
-  static String _weekdayName(int dow) => const ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dow];
+  static String _weekdayName(int dow) =>
+      const ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dow];
 
   /// Slot index → weekday. `i == length - 1` is today, so the mapping stays
   /// correct regardless of what day the app happens to run on.
@@ -386,18 +398,19 @@ class Milestones {
     required int cycleCount,
     required bool hasHealthData,
   }) {
-    Milestone m(String emoji, String title, int have, int need) => Milestone(
-          emoji,
-          title,
-          have >= need ? 'Unlocked' : '${need - have} days to go',
-          have >= need,
-        );
+    Milestone m(String emoji, String title, int have, int need) =>
+        Milestone(emoji, title, have >= need ? 'Unlocked' : '${need - have} days to go', have >= need);
 
     return <Milestone>[
       m('🔥', '7-day streak', bestStreak, 7),
       m('🏅', '30-day streak', bestStreak, 30),
       m('📅', 'Two weeks tracked', trackedDays, 14),
-      Milestone('📓', '100 entries logged', entryCount >= 100 ? 'Unlocked' : '${100 - entryCount} entries to go', entryCount >= 100),
+      Milestone(
+        '📓',
+        '100 entries logged',
+        entryCount >= 100 ? 'Unlocked' : '${100 - entryCount} entries to go',
+        entryCount >= 100,
+      ),
       Milestone('😴', 'Health Connect linked', hasHealthData ? 'Unlocked' : 'Connect in Settings', hasHealthData),
       Milestone('🌸', 'Two cycles logged', cycleCount >= 2 ? 'Unlocked' : 'Log 2 cycles', cycleCount >= 2),
     ];

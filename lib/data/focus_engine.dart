@@ -11,12 +11,12 @@ import '../util/day_key.dart';
 ///
 /// The three rules that matter most, all enforced here rather than in the UI:
 ///
-  ///  1. **Enforcement is proved, not assumed.** [enforcementFor] will not return
-  ///     [FocusEnforcement.verified] until the foreground-app detector has reported
-  ///     activity and Android accepted a coverage-panel launch for a selected app.
-  ///     [outcomeFor] will not return a clean completion for a blocking session whose
-  ///     enforcement was never confirmed. "We asked for permission and started a
-  ///     service" is not evidence that anything was blocked.
+///  1. **Enforcement is proved, not assumed.** [enforcementFor] will not return
+///     [FocusEnforcement.verified] until the foreground-app detector has reported
+///     activity and Android accepted a coverage-panel launch for a selected app.
+///     [outcomeFor] will not return a clean completion for a blocking session whose
+///     enforcement was never confirmed. "We asked for permission and started a
+///     service" is not evidence that anything was blocked.
 ///  2. **Time is monotonic first.** [recover] uses the platform's monotonic clock
 ///     (Android `SystemClock.elapsedRealtime()`) as the source of truth, falls back
 ///     to the wall clock only when it must, and treats a *backwards* monotonic clock
@@ -52,13 +52,12 @@ class FocusEngine {
   /// standard session enforces nothing but its own clock, so pausing it costs
   /// nothing but the time itself.
   static Duration? pauseBudgetFor(FocusMode mode) => switch (mode) {
-        FocusMode.standard => null,
-        FocusMode.blocking => const Duration(minutes: 5),
-        FocusMode.deep => const Duration(minutes: 3),
-      };
+    FocusMode.standard => null,
+    FocusMode.blocking => const Duration(minutes: 5),
+    FocusMode.deep => const Duration(minutes: 3),
+  };
 
-  static int clampMinutes(int minutes) =>
-      minutes.clamp(minCustomMinutes, maxCustomMinutes).toInt();
+  static int clampMinutes(int minutes) => minutes.clamp(minCustomMinutes, maxCustomMinutes).toInt();
 
   // ------------------------------------------------------------- enforcement
   /// What actually happened to enforcement, derived from what the platform
@@ -141,8 +140,7 @@ class FocusEngine {
       // stays at the last checkpoint) and a paused session (which accrues nothing).
       final back = wallDelta < session.wallSpanMs;
       final fromCheckpoint = session.state == FocusSessionState.paused || back;
-      final estimate =
-          fromCheckpoint ? session.focusMs : session.focusMs + (wallDelta - session.wallSpanMs);
+      final estimate = fromCheckpoint ? session.focusMs : session.focusMs + (wallDelta - session.wallSpanMs);
       final elapsed = estimate.clamp(session.focusMs, planned).toInt();
       return FocusRecovery(
         session: session,
@@ -308,8 +306,7 @@ class FocusEngine {
             'App blocking was set up and running, but this device never confirmed that it could see '
                 'which app was in the foreground, so Track Pro cannot say that anything was blocked. '
                 'Recorded as a degraded session rather than a clean one.',
-          FocusEnforcement.lost =>
-            'App blocking stopped part-way through this session, so part of it was unprotected.',
+          FocusEnforcement.lost => 'App blocking stopped part-way through this session, so part of it was unprotected.',
           _ =>
             'A rule you selected was not in force for the whole session, so this is recorded as a '
                 'degraded completion rather than a clean one.',
@@ -379,8 +376,10 @@ class FocusEngine {
   /// Aggregates for the history screen. Every nullable field is null because the
   /// sample is too small — the same discipline `MomentumSnapshot.rate` uses.
   static FocusStats statsFor(List<FocusSession> sessions, {required int todayKey}) {
-    final ended = [for (final s in sessions) if (s.state == FocusSessionState.ended) s]
-      ..sort((a, b) => b.startedAtWallMs.compareTo(a.startedAtWallMs));
+    final ended = [
+      for (final s in sessions)
+        if (s.state == FocusSessionState.ended) s,
+    ]..sort((a, b) => b.startedAtWallMs.compareTo(a.startedAtWallMs));
     if (ended.isEmpty) return FocusStats.empty;
 
     var completed = 0, degraded = 0, interrupted = 0, cancelled = 0;
@@ -535,17 +534,17 @@ class FocusEngine {
   /// advance rather than discovered mid-session. Kept as a pure function of the
   /// mode so the setup sheet and the session screen cannot disagree.
   static String cancellationCopy(FocusMode mode) => switch (mode) {
-        FocusMode.standard =>
-          'End it any time. Nothing is blocked in this mode, so ending early just records a '
-              'shorter session.',
-        FocusMode.blocking =>
-          'End it any time. The apps you picked are covered while the session runs, and released '
-              'the moment it ends.',
-        FocusMode.deep =>
-          'Ending takes a deliberate press-and-hold — a rule you chose, not a trap. If a pause '
-              'goes past the ${pauseBudgetFor(FocusMode.deep)!.inMinutes}-minute budget, the '
-              'session is still saved, but not as a clean completion.',
-      };
+    FocusMode.standard =>
+      'End it any time. Nothing is blocked in this mode, so ending early just records a '
+          'shorter session.',
+    FocusMode.blocking =>
+      'End it any time. The apps you picked are covered while the session runs, and released '
+          'the moment it ends.',
+    FocusMode.deep =>
+      'Ending takes a deliberate press-and-hold — a rule you chose, not a trap. If a pause '
+          'goes past the ${pauseBudgetFor(FocusMode.deep)!.inMinutes}-minute budget, the '
+          'session is still saved, but not as a clean completion.',
+  };
 }
 
 /// `12 min` / `1 h 05` — durations in the units people use.
@@ -576,119 +575,118 @@ String _minutes(int milliseconds) => '${(milliseconds / 60000).round()} min';
 /// records come from the same file.
 extension FocusModeText on FocusMode {
   String get label => switch (this) {
-        FocusMode.standard => 'Standard focus',
-        FocusMode.blocking => 'App blocking',
-        FocusMode.deep => 'Deep focus',
-      };
+    FocusMode.standard => 'Standard focus',
+    FocusMode.blocking => 'App blocking',
+    FocusMode.deep => 'Deep focus',
+  };
 
   String get shortLabel => switch (this) {
-        FocusMode.standard => 'Standard',
-        FocusMode.blocking => 'Blocking',
-        FocusMode.deep => 'Deep',
-      };
+    FocusMode.standard => 'Standard',
+    FocusMode.blocking => 'Blocking',
+    FocusMode.deep => 'Deep',
+  };
 
   String get emoji => switch (this) {
-        FocusMode.standard => '🎯',
-        FocusMode.blocking => '🛡️',
-        FocusMode.deep => '🌒',
-      };
+    FocusMode.standard => '🎯',
+    FocusMode.blocking => '🛡️',
+    FocusMode.deep => '🌒',
+  };
 
   /// What the mode does, said plainly.
   String get blurb => switch (this) {
-        FocusMode.standard =>
-          'A quiet timer. Track Pro holds its own reminders while a session runs; nothing outside '
-              'the app is touched.',
-        FocusMode.blocking =>
-          'Requests a coverage panel for the apps you pick while the session runs. It is best-effort, not a lock.',
-        FocusMode.deep =>
-          'Requested app coverage with stricter rules: a smaller pause budget, and a press-and-hold to end.',
-      };
+    FocusMode.standard =>
+      'A quiet timer. Track Pro holds its own reminders while a session runs; nothing outside '
+          'the app is touched.',
+    FocusMode.blocking =>
+      'Requests a coverage panel for the apps you pick while the session runs. It is best-effort, not a lock.',
+    FocusMode.deep =>
+      'Requested app coverage with stricter rules: a smaller pause budget, and a press-and-hold to end.',
+  };
 
   /// The honest limitation, shown on the setup sheet *before* a mode is chosen. A
   /// user who finds out afterwards that "blocking" was advisory is a user who will
   /// never trust the feature again.
   String get limitation => switch (this) {
-        FocusMode.standard => 'No blocking. Other apps can still notify you.',
-        FocusMode.blocking =>
-          'Needs Usage access and Display over other apps. It cannot stop an app launching, and '
-              'pressing Home leaves a covered app.',
-        FocusMode.deep =>
-          'Best-effort. It cannot cover the notification shade, system dialogs, or the Home and '
-              'Recents buttons.',
-      };
+    FocusMode.standard => 'No blocking. Other apps can still notify you.',
+    FocusMode.blocking =>
+      'Needs Usage access and Display over other apps. It cannot stop an app launching, and '
+          'pressing Home leaves a covered app.',
+    FocusMode.deep =>
+      'Best-effort. It cannot cover the notification shade, system dialogs, or the Home and '
+          'Recents buttons.',
+  };
 }
 
 /// The words for how much of a session was actually enforced. Used by the session
 /// screen, the summary and the history so one label means one thing everywhere.
 extension FocusEnforcementText on FocusEnforcement {
   String get label => switch (this) {
-        FocusEnforcement.timerOnly => 'Timer only',
-        FocusEnforcement.unavailable => 'Not blocking',
-        FocusEnforcement.armed => 'Blocking set up, unconfirmed',
-        FocusEnforcement.verified => 'Blocking verified',
-        FocusEnforcement.lost => 'Blocking lost',
-      };
+    FocusEnforcement.timerOnly => 'Timer only',
+    FocusEnforcement.unavailable => 'Not blocking',
+    FocusEnforcement.armed => 'Blocking set up, unconfirmed',
+    FocusEnforcement.verified => 'Blocking verified',
+    FocusEnforcement.lost => 'Blocking lost',
+  };
 
   /// The sentence printed under the countdown. Never claims more than the value.
   String get detail => switch (this) {
-        FocusEnforcement.timerOnly => 'This session enforces its timer and nothing else.',
-        FocusEnforcement.unavailable =>
-          'Not blocking: a permission this mode needs is not granted, so nothing is being '
-              'restricted.',
-        FocusEnforcement.armed =>
-          'The coverage service is running, but Track Pro has not yet seen Android accept a coverage-panel '
-              'launch for a selected app, so it cannot confirm coverage is working.',
-        FocusEnforcement.verified =>
-          'A selected app was detected and Track Pro launched its coverage panel. This remains '
-              'best-effort: Android can always leave an app through Home or system controls.',
-        FocusEnforcement.lost =>
-          'Blocking stopped during this session. The rest of the time was not enforced.',
-      };
+    FocusEnforcement.timerOnly => 'This session enforces its timer and nothing else.',
+    FocusEnforcement.unavailable =>
+      'Not blocking: a permission this mode needs is not granted, so nothing is being '
+          'restricted.',
+    FocusEnforcement.armed =>
+      'The coverage service is running, but Track Pro has not yet seen Android accept a coverage-panel '
+          'launch for a selected app, so it cannot confirm coverage is working.',
+    FocusEnforcement.verified =>
+      'A selected app was detected and Track Pro launched its coverage panel. This remains '
+          'best-effort: Android can always leave an app through Home or system controls.',
+    FocusEnforcement.lost => 'Blocking stopped during this session. The rest of the time was not enforced.',
+  };
 
   /// Colour token name for the UI, so the state is legible at a glance without any
   /// screen inventing its own mapping.
   String get tone => switch (this) {
-        FocusEnforcement.verified => 'full',
-        FocusEnforcement.armed => 'minimum',
-        FocusEnforcement.unavailable || FocusEnforcement.lost => 'danger',
-        FocusEnforcement.timerOnly => 'rest',
-      };
+    FocusEnforcement.verified => 'full',
+    FocusEnforcement.armed => 'minimum',
+    FocusEnforcement.unavailable || FocusEnforcement.lost => 'danger',
+    FocusEnforcement.timerOnly => 'rest',
+  };
 }
 
 /// The words for how a session ended.
 extension FocusOutcomeText on FocusOutcome {
   String get label => switch (this) {
-        FocusOutcome.completed => 'Completed',
-        FocusOutcome.completedDegraded => 'Completed, degraded',
-        FocusOutcome.interrupted => 'Interrupted',
-        FocusOutcome.cancelled => 'Cancelled',
-      };
+    FocusOutcome.completed => 'Completed',
+    FocusOutcome.completedDegraded => 'Completed, degraded',
+    FocusOutcome.interrupted => 'Interrupted',
+    FocusOutcome.cancelled => 'Cancelled',
+  };
 
   String get emoji => switch (this) {
-        FocusOutcome.completed => '✅',
-        FocusOutcome.completedDegraded => '⚠️',
-        FocusOutcome.interrupted => '⛔',
-        FocusOutcome.cancelled => '⏹️',
-      };
+    FocusOutcome.completed => '✅',
+    FocusOutcome.completedDegraded => '⚠️',
+    FocusOutcome.interrupted => '⛔',
+    FocusOutcome.cancelled => '⏹️',
+  };
 
   /// Colour token name from `Editorial`, resolved in the UI layer.
   String get tone => switch (this) {
-        FocusOutcome.completed => 'full',
-        FocusOutcome.completedDegraded => 'minimum',
-        FocusOutcome.interrupted => 'danger',
-        FocusOutcome.cancelled => 'rest',
-      };
+    FocusOutcome.completed => 'full',
+    FocusOutcome.completedDegraded => 'minimum',
+    FocusOutcome.interrupted => 'danger',
+    FocusOutcome.cancelled => 'rest',
+  };
 }
 
 /// The words for why a session stopped.
 extension FocusEndReasonText on FocusEndReason {
   String get label => switch (this) {
-        FocusEndReason.timer => 'timer reached zero',
-        FocusEndReason.userEnded => 'ended after the time was up',
-        FocusEndReason.cancelled => 'ended early',
-        FocusEndReason.serviceLost => 'the enforcing service stopped',
-        FocusEndReason.deviceRestarted => 'the device restarted',
-        FocusEndReason.permissionRevoked => 'a permission was revoked',
-        FocusEndReason.appUpdated => 'Track Pro was updated',
-      };
+    FocusEndReason.timer => 'timer reached zero',
+    FocusEndReason.userEnded => 'ended after the time was up',
+    FocusEndReason.cancelled => 'ended early',
+    FocusEndReason.serviceLost => 'the enforcing service stopped',
+    FocusEndReason.deviceRestarted => 'the device restarted',
+    FocusEndReason.permissionRevoked => 'a permission was revoked',
+    FocusEndReason.appUpdated => 'Track Pro was updated',
+  };
 }

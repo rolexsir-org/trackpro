@@ -35,7 +35,12 @@ class LargeTitleHeader extends StatelessWidget {
     final size = MediaQuery.sizeOf(context);
     final scaler = MediaQuery.textScalerOf(context);
     final textDirection = Directionality.of(context);
-    final largeTitleStyle = const TextStyle(fontSize: 34, fontWeight: FontWeight.w700, letterSpacing: -.8, height: 1.05);
+    final largeTitleStyle = const TextStyle(
+      fontSize: 34,
+      fontWeight: FontWeight.w700,
+      letterSpacing: -.8,
+      height: 1.05,
+    );
     final subtitleStyle = const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, height: 1.3);
 
     // A fixed 96px header left only 40px below the compact bar. That was less
@@ -61,7 +66,8 @@ class LargeTitleHeader extends StatelessWidget {
 
     const compactHeight = 56.0;
     const largeVerticalPadding = 22.0;
-    final measuredLargeContent = largeVerticalPadding + titlePainter.height + (subtitlePainter == null ? 0 : 4 + subtitlePainter.height);
+    final measuredLargeContent =
+        largeVerticalPadding + titlePainter.height + (subtitlePainter == null ? 0 : 4 + subtitlePainter.height);
     final expandedHeight = math.max(largeHeight, compactHeight + measuredLargeContent);
 
     return SliverPersistentHeader(
@@ -112,7 +118,7 @@ class _LargeTitleDelegate extends SliverPersistentHeaderDelegate {
     final compactOpacity = ((progress - .35) / .65).clamp(0.0, 1.0).toDouble();
 
     return Container(
-      color: TrackTheme.bg(dark).withOpacity(progress > .03 ? .98 : 0),
+      color: TrackTheme.bg(dark).withValues(alpha: progress > .03 ? .98 : 0),
       child: Stack(
         fit: StackFit.expand,
         children: [
@@ -125,10 +131,7 @@ class _LargeTitleDelegate extends SliverPersistentHeaderDelegate {
               opacity: compactOpacity,
               child: Row(
                 children: [
-                  if (leading != null) ...[
-                    leading!,
-                    const SizedBox(width: 10),
-                  ],
+                  if (leading != null) ...[leading!, const SizedBox(width: 10)],
                   Expanded(
                     child: Text(
                       title,
@@ -142,10 +145,7 @@ class _LargeTitleDelegate extends SliverPersistentHeaderDelegate {
                       ),
                     ),
                   ),
-                  if (trailing != null) ...[
-                    const SizedBox(width: 10),
-                    trailing!,
-                  ],
+                  if (trailing != null) ...[const SizedBox(width: 10), trailing!],
                 ],
               ),
             ),

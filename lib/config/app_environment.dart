@@ -41,8 +41,7 @@ class AppEnvironment {
   /// How long to wait before a verification request counts as "could not ask"
   /// rather than as a verdict. Bounded on purpose: this call sits behind the
   /// paywall closing, and a hang must never look like a rejection.
-  static Duration get verifyTimeout =>
-      Duration(milliseconds: _verifyTimeoutMs <= 0 ? 10000 : _verifyTimeoutMs);
+  static Duration get verifyTimeout => Duration(milliseconds: _verifyTimeoutMs <= 0 ? 10000 : _verifyTimeoutMs);
 
   // ------------------------------------------------------------------- legal
   static const String termsUrl = String.fromEnvironment('TRACK_TERMS_URL');

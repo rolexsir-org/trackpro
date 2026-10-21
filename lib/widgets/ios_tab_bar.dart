@@ -31,8 +31,7 @@ class IosTabBar extends StatelessWidget {
     return math.max(60, 31 + 3 + (scaledLabelSize * 1.15 * labelLines) + 8);
   }
 
-  static double totalHeight(BuildContext context) =>
-      contentHeight(context) + MediaQuery.paddingOf(context).bottom;
+  static double totalHeight(BuildContext context) => contentHeight(context) + MediaQuery.paddingOf(context).bottom;
 
   static double scrollClearance(BuildContext context) => totalHeight(context) + 24;
 
@@ -120,12 +119,7 @@ class _TabItem extends StatelessWidget {
                     letterSpacing: 0,
                     color: color,
                   ),
-                  child: Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
+                  child: Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
                 ),
               ),
             ),
