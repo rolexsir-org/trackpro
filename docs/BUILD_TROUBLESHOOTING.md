@@ -60,20 +60,37 @@ Your screenshot shows 14 warnings and 1 error. The 14 are not the failure:
 
 | Warning in your output | Means | Do |
 |---|---|---|
-| `The option setting 'android.builtInKotlin=false' is deprecated` | AGP 9.0 introduced built-in Kotlin; the opt-out is legacy | **Nothing yet.** See below. |
-| `The option setting 'android.newDsl=false' is deprecated` | Same migration, new Gradle DSL | Nothing yet |
-| `'org.jetbrains.kotlin.android' plugin usage … no longer required` (×8, one per plugin) | Plugins still apply the Kotlin Gradle Plugin because built-in Kotlin is off | Nothing yet |
-| `plugins that apply KGP: health` | `health` is the one that still needs it | Nothing yet |
-| `New Minor Gradle Version Available` | Gradle 9.3.1 → newer exists | Nothing |
+| `Deprecated 'org.jetbrains.kotlin.android' plugin usage` — in `build/reports/problems/problems-report.html` or the console | The Flutter Gradle plugin applies KGP to `:app` because the AGP 9 opt-out is active | **Fixed 2026-10-21** — that one diagnostic id is suppressed in `android/gradle.properties`, with both blockers and the removal condition recorded. See the next section. |
+| `The option setting 'android.builtInKotlin=false' is deprecated` | AGP 9.0 introduced built-in Kotlin; the opt-out is legacy and disappears in AGP 10 | Expected on this matrix, and deliberately **not** suppressed: it is the deadline. Not an error. |
+| `The option setting 'android.newDsl=false' is deprecated` | Same migration, new Gradle DSL | Same as above |
+| `plugins that apply KGP: health` | Flutter's own compatibility notice. `health` 13.3.2 applies `kotlin-android` unconditionally — this is blocker #1 below | Upgrade `health` when it migrates; do not flip the flag first |
+| `New Minor Gradle Version Available` | Gradle 9.3.1 → newer exists | Nothing; Gradle, AGP and KGP move as one set, never alone |
 
-**Do not flip `android.builtInKotlin=true` to silence these.** It is not a
-cleanup: it requires *every* plugin in the tree to have migrated to AGP's
-built-in Kotlin. Today eight of them (including `flutter_local_notifications`
-and `health`) still apply KGP, and each would fail to compile. The reasoning and
-the version matrix (AGP 9.1.0 / Gradle 9.3.1 / KGP 2.4.0 / JDK 17 / compileSdk
-36) are in `docs/UPGRADE_2026-10-20.md` §2 and in comments in
-`android/gradle.properties` and `android/app/build.gradle.kts`. Same for the
-Gradle upgrade banner: Gradle, AGP and KGP move as one set, never alone.
+### Why the plugin warning is suppressed, and what removes the suppression
+
+`kotlin.suppressGradlePluginWarnings=DeprecatedKotlinAndroidPlugin` suppresses
+exactly one diagnostic (the id AndroidX suppresses in its own
+`gradle.properties`). It is not a substitute for migrating — the migration is
+blocked by two facts that are checked, not assumed:
+
+1. **`health` 13.3.2 applies the Kotlin Gradle Plugin unconditionally**
+   (`apply plugin: 'kotlin-android'` in its `android/build.gradle`). With
+   `android.builtInKotlin=true` that application is a configuration error at
+   `:health`. (Verified in the 13.3.2 tree; 13.3.2 is the newest release this
+   project can pin.)
+2. **Flutter 3.47.7 rejects the Kotlin version AGP 9.1.0 bundles.** Its Gradle plugin
+   fails with *"Your project's Kotlin version (2.2.10) is lower than Flutter's
+   minimum supported version of 2.2.20"* (`flutter/flutter#192167`). The skip
+   landed in `flutter/flutter#192206`, **after** 3.47 — so this is the Flutter
+   SDK's limit, not a choice this repository can make.
+
+Remove the suppression in the same change that removes
+`android.builtInKotlin=false` / `android.newDsl=false`, after `health` ships a
+built-in-Kotlin release and the build runs on a Flutter that contains #192206.
+`tools/release_gate.py` check **P-52** fails if the four coupled facts (the two
+opt-out flags, the KGP version pin, and this suppression) stop agreeing, so the
+combination cannot be half-edited into a build that fails at configuration.
+`docs/UPGRADE_2026-10-20.md` §8 records the evidence and the exact edit.
 
 One more observation from your screenshot: the plugin list includes
 **`device_info_plus`** and **`jni`**, and the editor tab is
@@ -141,7 +158,7 @@ executed:
 | Check | Result | What it rules out |
 |---|---|---|
 | tree-sitter parse of all 70 `.dart` files in `lib/` + `test/` | **PASS**, 0 parse errors | Syntax damage, unclosed brackets, broken string interpolation |
-| `tools/release_gate.py` | **PASS**, 51 checks | The repository's own structural rules |
+| `tools/release_gate.py` | **PASS**, 52 checks | The repository's own structural rules |
 | `tools/{import,member,symbol_clash,test_api,static}_audit.py` | **PASS** | Unresolved imports, undeclared members, duplicate symbols |
 | call-site argument audit (arity + named/required, 2 247 call sites) | **PASS**, 0 mismatches | Wrong argument names/counts against declarations in `lib/` |
 | enum-reference audit (`Enum.value` refs, switch exhaustiveness) | **PASS** | Renamed/missing enum values |

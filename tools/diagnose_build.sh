@@ -192,12 +192,15 @@ if [ $build_status -ne 0 ]; then
         "  the library at the API-36-compatible release, never to raise compileSdk alone." ;;
   esac
   case "$L" in
-    *"builtinkotlin"*|*"kotlin gradle plugin"*|*"kgp"*)
+    *"builtinkotlin"*|*"kotlin gradle plugin"*|*"kgp"*|*"no longer required for kotlin support"*)
       note "Kotlin plugin / AGP 9 migration" \
-        "Android Studio prints these KGP notices on every build; they are deprecations, not" \
-        "  failures, on the current matrix (AGP 9.1.0 / KGP 2.4.0 / android.builtInKotlin=false)." \
-        "  Do NOT flip builtInKotlin to true to silence them: it requires every plugin in the" \
-        "  tree to have migrated, or each one fails to compile. Details: docs/UPGRADE_2026-10-20.md §2." ;;
+        "These are deprecations, not failures, on the current matrix (AGP 9.1.0 / KGP 2.4.0 /" \
+        "  android.builtInKotlin=false). The 'org.jetbrains.kotlin.android' diagnostic is" \
+        "  suppressed by kotlin.suppressGradlePluginWarnings in android/gradle.properties; if it" \
+        "  is back, that line or one of the two flags was removed on its own." \
+        "  Do NOT flip builtInKotlin to true: :health 13.3.2 still applies KGP outright, and" \
+        "  Flutter 3.47.7 rejects AGP's bundled Kotlin 2.2.10 (flutter/flutter#192167)." \
+        "  The migration and its exit condition: docs/UPGRADE_2026-10-20.md §8." ;;
   esac
   case "$L" in
     *"jni"*|*"unsatisfiedlinkerror"*)

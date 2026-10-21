@@ -30,8 +30,17 @@ project(":wear").projectDir = file("../wear")   // or keep it inside android/wea
 ```kotlin
 plugins {
     id("com.android.application")
-    id("kotlin-android")
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    id("org.jetbrains.kotlin.plugin.compose") version "2.4.0"
+}
+
+// The host app still opts out of AGP 9 built-in Kotlin
+// (`android.builtInKotlin=false` in android/gradle.properties), so this module
+// has to apply KGP itself. The guard makes the same file work after the host
+// migrates to built-in Kotlin — it is the pattern the plugin ecosystem uses.
+val builtInKotlin = providers.gradleProperty("android.builtInKotlin")
+    .orNull?.toBoolean() ?: true
+if (!builtInKotlin) {
+    apply(plugin = "org.jetbrains.kotlin.android")
 }
 
 android {

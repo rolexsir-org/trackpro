@@ -454,3 +454,39 @@ Everything in §3 and §4 remains true, plus: the four new test files have never
 so they are compile-unverified. `dart format` was not run (no formatter here), so the new
 files are hand-formatted to the repo's pinned 120-column budget — if the CI format gate
 disagrees, the fix is `bash`-level (`dart format`) and not a review question.
+
+## 9. 2026-10-21 — AGP 9 problems-report fix (executed in this checkout)
+
+The Gradle build on the Flutter 3.47.7 / AGP 9.1.0 / KGP 2.4.0 matrix produced
+one entry in `build/reports/problems/problems-report.html`: *"Deprecated
+`org.jetbrains.kotlin.android` plugin usage"* in `:app`. Root cause and the two
+verified blockers to a real migration (`health` 13.3.2 still applies KGP;
+Flutter 3.47.7 rejects AGP's bundled Kotlin 2.2.10, `flutter/flutter#192206`
+landed after 3.47) are recorded in `docs/UPGRADE_2026-10-20.md` §8. The fix is
+the scoped `kotlin.suppressGradlePluginWarnings=DeprecatedKotlinAndroidPlugin`
+in `android/gradle.properties`, plus gate check **P-52** and three probes so the
+four coupled facts cannot be half-edited.
+
+| Gate | Command | Result |
+|---|---|---|
+| Release gate | `python3 tools/release_gate.py` | **exit 0** — `clean — 52 checks, 0 problems` |
+| Gate probes | `python3 tools/gate_probe.py` | **exit 0** — 54 probes, every one fired, tree clean after restore |
+| Import audit | `python3 tools/import_audit.py` | **exit 0** — every relative import resolves, 21 packages declared |
+| Member audit | `python3 tools/member_audit.py` | **exit 0** — 969 qualified references across 16 files |
+| Test-API audit | `python3 tools/test_api_audit.py` | **exit 0** — 617 member references across 18 test files |
+| Symbol-clash audit | `python3 tools/symbol_clash_audit.py` | **exit 0** — 70 files |
+| Static audit | `python3 tools/static_audit.py` | **exit 0** — no undeclared `AppState` members/statics |
+| Billing server suite | `npm --prefix billing_server test` | **exit 0** — 60/60, Node 22 |
+
+While adding P-52, P-20's Kotlin/Compose version comparison was found to have
+never been able to fire (it required `version("…")`, the file writes
+`version "…"`). The regex now accepts both forms; a probe
+(`P-20 · a Compose compiler drifting from the Kotlin pin`) proves it, and the
+probe total above includes it.
+
+**Not executed:** any Gradle task. This checkout has no JDK, Gradle or Android
+SDK, and `dl.google.com`, `maven.google.com`, `repo.maven.apache.org` and
+`pub.dev` are unreachable (HTTP 000), so `flutter build apk --debug` cannot run
+here. Whether the suppression removes the entry from the problems report is
+therefore **NOT RUN**; the first CI build on this change is the proof. This
+section certifies the structure of the fix, not that Gradle accepts it.
