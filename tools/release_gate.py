@@ -556,8 +556,12 @@ def c_gradle_pins():
         for m in re.finditer(r'["\'][\w.:\-]+\+["\']', body):
             out.append(f'{rel}: a dynamic version `{m.group(0)}` — the build is not reproducible')
     settings = raw('android/settings.gradle.kts')
-    ks = re.search(r'org\.jetbrains\.kotlin\.android"?\)?\s*version\("([\d.]+)"', settings)
-    cs = re.search(r'org\.jetbrains\.kotlin\.plugin\.compose"\)\s*version\("([\d.]+)"', settings)
+    # Kotlin DSL writes `id("…") version "x.y.z"`; both that and the parenthesised
+    # `version("…")` form have to match, or the comparison compares nothing and the
+    # check reads as green forever (it did, until a probe was written for it).
+    ks = re.search(r'org\.jetbrains\.kotlin\.android"?\)?\s*version\s*\(?\s*"([\d.]+)"', settings)
+    cs = re.search(r'org\.jetbrains\.kotlin\.plugin\.compose"?\)?\s*version\s*\(?\s*"([\d.]+)"',
+                   settings)
     if ks and cs and ks.group(1) != cs.group(1):
         out.append(f'android/settings.gradle.kts: Kotlin {ks.group(1)} vs Compose compiler '
                    f'{cs.group(1)} — the Compose plugin tracks the Kotlin version exactly')
@@ -1228,6 +1232,60 @@ def c51():
                    'log more and telling them their data cannot support a guess')
     elif 'guess' not in sb:
         out.append(f'{rel}: the unusable-gap line no longer says a prediction would be a guess')
+    return out
+
+
+@check('P-52', 'the AGP 9 Kotlin opt-out is coherent and stays suppressible',
+       'AGP 9 compiles Kotlin itself unless `android.builtInKotlin=false`, and while that '
+       'opt-out is active the Flutter Gradle plugin applies `kotlin-android` to :app. Each of '
+       'the four facts this check pins is load-bearing: drop `android.newDsl=false` and KGP '
+       'cannot configure the AGP 9 DSL; drop the KGP version pin and the compiler version '
+       'drifts with AGP; drop the suppression id and the deprecation returns to '
+       '`build/reports/problems/problems-report.html` (the report this was fixed from); apply '
+       '`kotlin-android` in :app yourself and AGP 9 rejects it outright. They are one decision '
+       'and have to move together — which is exactly the kind of thing a diff loses.')
+def c52():
+    props = raw('android/gradle.properties')
+    settings = raw('android/settings.gradle.kts')
+    app = raw('android/app/build.gradle.kts')
+    out = []
+
+    # Property values only: a comment that mentions the flag (these comments do) must not
+    # read as the flag itself, or the check would certify its own documentation.
+    m = re.search(r'(?m)^[ \t]*android\.builtInKotlin[ \t]*=[ \t]*(\S+)[ \t]*$', props)
+    built_in = m.group(1).lower() if m else None
+    if built_in not in (None, 'true', 'false'):
+        out.append(f'android/gradle.properties: `android.builtInKotlin={built_in}` is not a '
+                   'boolean — AGP ignores it and the opt-out silently does nothing')
+
+    if re.search(r'(?m)^[ \t]*(?:id|alias)[ \t]*\([ \t]*["\']?'
+                 r'(?:kotlin-android|org\.jetbrains\.kotlin\.android)["\']?[ \t]*\)', app):
+        out.append('android/app/build.gradle.kts: applies the Kotlin Gradle Plugin directly. '
+                   'The Flutter Gradle plugin already applies it to :app while '
+                   '`android.builtInKotlin=false`, and AGP 9 rejects it when built-in Kotlin '
+                   'is on — either way this line is wrong')
+
+    if built_in == 'false':
+        if not re.search(r'(?m)^[ \t]*android\.newDsl[ \t]*=[ \t]*false[ \t]*$', props):
+            out.append('android/gradle.properties: `android.builtInKotlin=false` without '
+                       '`android.newDsl=false` — the Kotlin Gradle Plugin this path needs is '
+                       'not compatible with the AGP 9 new DSL, so :app stops configuring')
+        if not re.search(r'org\.jetbrains\.kotlin\.android"?\)?\s*version\s*\(?\s*"([\d.]+)"',
+                         settings):
+            out.append('android/settings.gradle.kts: no `org.jetbrains.kotlin.android` version '
+                       'pin. That pin is what puts KGP on the build classpath (and what the '
+                       'Compose compiler version is checked against); without it the compiler '
+                       'version becomes an AGP implementation detail')
+        if 'DeprecatedKotlinAndroidPlugin' not in props:
+            out.append('android/gradle.properties: `kotlin.suppressGradlePluginWarnings` no '
+                       'longer lists `DeprecatedKotlinAndroidPlugin`. With the opt-out active '
+                       ':app applies KGP, so KGP 2.3+ reports the deprecation again in '
+                       'build/reports/problems/problems-report.html — the exact problem this '
+                       'line exists to remove')
+    elif built_in in (None, 'true') and 'DeprecatedKotlinAndroidPlugin' in props:
+        out.append('android/gradle.properties: suppresses `DeprecatedKotlinAndroidPlugin` '
+                   'while built-in Kotlin is enabled. Nothing applies KGP on that path, so the '
+                   'suppression only hides a future deprecation — remove it with the opt-out')
     return out
 
 

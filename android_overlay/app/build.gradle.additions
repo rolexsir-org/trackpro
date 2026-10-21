@@ -9,9 +9,11 @@
 //
 //    plugins {
 //        id("com.android.application")
-//        id("kotlin-android")
+//        // NO `id("kotlin-android")` here: while `android.builtInKotlin=false`
+//        // the Flutter Gradle plugin applies KGP to :app itself, and AGP 9
+//        // rejects a second application (see android/gradle.properties).
 //        id("dev.flutter.flutter-gradle-plugin")
-//        id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+//        id("org.jetbrains.kotlin.plugin.compose") version "2.4.0"
 //    }
 //
 // 2) COMPOSE + LANGUAGE FEATURES

@@ -182,6 +182,25 @@ PROBES = [
          r'implementation\("androidx\.glance:glance-appwidget:1\.2\.0"\)',
          'implementation("androidx.glance:glance-appwidget:1.+")'),
     ]),
+    # The Kotlin/Compose agreement rule used to be unprovable: its regex only accepted
+    # `version("…")`, while the settings file writes `version "…"`, so it compared
+    # nothing. This probe is what keeps the repaired regex honest.
+    ('P-20', 'a Compose compiler drifting from the Kotlin pin', [
+        ('android/settings.gradle.kts',
+         'id("org.jetbrains.kotlin.plugin.compose") version "2.4.0" apply false',
+         'id("org.jetbrains.kotlin.plugin.compose") version "2.3.0" apply false'),
+    ]),
+    # P-52 pins the AGP 9 Kotlin opt-out, which is four facts that only work together.
+    # Each probe removes one of them, so a check that starts certifying a broken
+    # combination cannot pass quietly.
+    ('P-52', 'the KGP deprecation suppression dropped from the opt-out', [
+        ('android/gradle.properties',
+         'kotlin.suppressGradlePluginWarnings=DeprecatedKotlinAndroidPlugin',
+         '# suppression removed during a tidy-up'),
+    ]),
+    ('P-52', 'the new-DSL opt-out dropped from the Kotlin opt-out', [
+        ('android/gradle.properties', 'android.newDsl=false', 'android.newDsl=true'),
+    ]),
     ('P-21', 'a keep rule R8 needs removed', [
         ('re', 'android/app/proguard-rules.pro',
          r'-keep class com\.track\.app\.TrackWidgetReceiver \{ \*; \}',
