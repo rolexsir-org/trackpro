@@ -562,20 +562,30 @@ class BillingService extends ChangeNotifier {
     return millis == null ? null : DateTime.fromMillisecondsSinceEpoch(millis);
   }
 
-  /// Play error codes worth translating — the rest fall back to Play's message.
-  String? _messageFor(BillingResponse? code) {
-    switch (code) {
-      case BillingResponse.userCanceled:
-        return null; // not an error; the user chose to back out
-      case BillingResponse.itemAlreadyOwned:
+  /// Play responses worth translating — everything else shows a generic line.
+  ///
+  /// What actually reaches the app is the federated plugin's [IAPError]: its
+  /// `code` is a stable *String* (`'purchase_error'` for every failed Play
+  /// purchase), and the underlying [BillingResponse] survives only as text —
+  /// `in_app_purchase_android` puts `BillingResponse.toString()` (e.g.
+  /// `'BillingResponse.itemAlreadyOwned'`) into `error.message`. There is no
+  /// enum to switch on; code that assumed one is the defect that kept this
+  /// file from ever compiling (record in docs/BUILD_TROUBLESHOOTING.md,
+  /// "Resolution — 2026-10-22").
+  ///
+  /// `userCanceled` is deliberately absent: the plugin reports it as
+  /// [PurchaseStatus.canceled], so it never reaches this branch.
+  String? _messageFor(IAPError? error) {
+    switch (error?.message) {
+      case 'BillingResponse.itemAlreadyOwned':
         return 'You already own this — try Restore purchases.';
-      case BillingResponse.billingUnavailable:
+      case 'BillingResponse.billingUnavailable':
         return 'Google Play is unavailable. Check your connection and try again.';
-      case BillingResponse.itemUnavailable:
+      case 'BillingResponse.itemUnavailable':
         return 'This plan is not available for your account right now.';
-      case BillingResponse.developerError:
+      case 'BillingResponse.developerError':
         return 'Play could not process that. Please try again.';
-      case BillingResponse.serviceDisconnected:
+      case 'BillingResponse.serviceDisconnected':
         return 'Lost connection to Google Play. Reopen the app and retry.';
       default:
         return null;

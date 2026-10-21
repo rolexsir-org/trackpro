@@ -1289,6 +1289,35 @@ def c52():
     return out
 
 
+@check('P-53', 'Play purchase errors keep the federated IAPError shape',
+       '`PurchaseDetails.error` is an `IAPError`: its `code` is a String (\'purchase_error\') '
+       'and the Play `BillingResponse` reaches the app only as text — '
+       '`BillingResponse.toString()` in `error.message`. An earlier billing service switched '
+       'on a `BillingResponse?` parameter fed from `error?.code`: a type error every '
+       'name/arity audit in this repo passed and the first real Dart compile rejected, so '
+       '`:app:compileFlutterBuildDebug` failed with the cause buried in the flutter output '
+       '(docs/BUILD_TROUBLESHOOTING.md, "Resolution — 2026-10-22"). This check pins the two '
+       'text-visible halves of that shape: the translator takes the `IAPError` itself, and '
+       'nothing in the billing service declares a `BillingResponse` variable. It cannot see '
+       'types — `flutter analyze` remains the authority — but it can stop the exact line '
+       'from coming back.')
+def c53():
+    src = code('lib/services/billing_service.dart')
+    out = []
+    if not re.search(r'_messageFor\(\s*IAPError\?', src):
+        out.append('lib/services/billing_service.dart: `_messageFor` no longer takes the '
+                   '`IAPError`. It has to: `error.code` is a String (\'purchase_error\') and the '
+                   '`BillingResponse` only exists as text in `error.message`, so any narrower '
+                   'parameter — the `BillingResponse?` that used to sit there — is either a '
+                   'type error or a lie')
+    if re.search(r'\bBillingResponse\??\s+\w+\s*[,)=;]', src):
+        out.append('lib/services/billing_service.dart: declares a `BillingResponse` variable. '
+                   'Nothing the federated purchase API returns has that type; the only '
+                   '`BillingResponse` text in this file should be inside the '
+                   '\'BillingResponse.<name>\' string literals the translator matches on')
+    return out
+
+
 # --------------------------------------------------------------------------------------
 # runner
 # --------------------------------------------------------------------------------------

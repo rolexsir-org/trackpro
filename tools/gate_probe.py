@@ -201,6 +201,14 @@ PROBES = [
     ('P-52', 'the new-DSL opt-out dropped from the Kotlin opt-out', [
         ('android/gradle.properties', 'android.newDsl=false', 'android.newDsl=true'),
     ]),
+    # P-53: the billing error translator must consume the federated `IAPError`, never a
+    # `BillingResponse`. This reintroduces the exact parameter type that made
+    # `:app:compileFlutterBuildDebug` fail while every text audit passed.
+    ('P-53', 'the purchase-error translator switches on BillingResponse again', [
+        ('lib/services/billing_service.dart',
+         'String? _messageFor(IAPError? error) {',
+         'String? _messageFor(BillingResponse? error) {'),
+    ]),
     ('P-21', 'a keep rule R8 needs removed', [
         ('re', 'android/app/proguard-rules.pro',
          r'-keep class com\.track\.app\.TrackWidgetReceiver \{ \*; \}',
