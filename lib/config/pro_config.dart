@@ -27,6 +27,8 @@
 /// Depth of history is the paid axis: it is exactly the thing that makes the app
 /// more valuable (and harder to leave) the longer you use it, which makes it a
 /// purchase people *want* to make rather than one they resent.
+library;
+
 class ProConfig {
   const ProConfig._();
 
@@ -138,7 +140,11 @@ class ProConfig {
   static const List<ProBenefit> benefits = <ProBenefit>[
     ProBenefit('🧩', 'Every tracker, unlimited', 'Free keeps 3. Pro unlocks all 10 — plus custom trackers.'),
     ProBenefit('📈', 'Your full history, forever', 'Free shows 7 days. Pro shows every day you have ever logged.'),
-    ProBenefit('🔗', 'Patterns no single app can find', 'Sleep ⇄ mood ⇄ spending correlations, heatmaps, 90-day trends.'),
+    ProBenefit(
+      '🔗',
+      'Patterns no single app can find',
+      'Sleep ⇄ mood ⇄ spending correlations, heatmaps, 90-day trends.',
+    ),
     ProBenefit('❤️', 'Steps, sleep & weight auto-sync', 'Health Connect fills them in — zero-effort tracking.'),
     ProBenefit('🔥', 'Streak saver & weekly report', 'A nudge only when a streak is genuinely about to break.'),
     ProBenefit('📱', 'Widget with all three rings', 'Plus the Wear OS tile, on your watch.'),
@@ -186,8 +192,7 @@ class ProConfig {
   // database is a gate that will eventually ship broken.
 
   /// Can one more tracker be added?
-  static bool canAddTracker({required bool isPro, required int active}) =>
-      isPro || active < freeTrackerLimit;
+  static bool canAddTracker({required bool isPro, required int active}) => isPro || active < freeTrackerLimit;
 
   /// How many days of history this tier can see.
   static int historyWindowDays({required bool isPro, required int available}) =>
@@ -195,8 +200,7 @@ class ProConfig {
 
   /// Is `daysAgo` past the free window? Used to draw lock markers rather than
   /// silently truncating a chart.
-  static bool isHistoryLocked({required bool isPro, required int daysAgo}) =>
-      !isPro && daysAgo >= freeHistoryDays;
+  static bool isHistoryLocked({required bool isPro, required int daysAgo}) => !isPro && daysAgo >= freeHistoryDays;
 
   /// Rings drawn by the home-screen widget and the Wear tile.
   static int widgetRings({required bool isPro}) => isPro ? 3 : 1;
@@ -204,42 +208,42 @@ class ProConfig {
   /// Which paywall placement, if any, a given lock should open. Kept next to the
   /// policy so a lock and its trigger can never drift apart.
   static PaywallTrigger? triggerFor(String gate) => switch (gate) {
-        'tracker_limit' => PaywallTrigger.trackerLimit,
-        'commitment_limit' => PaywallTrigger.commitmentLimit,
-        'history' => PaywallTrigger.historyLock,
-        'insights' => PaywallTrigger.insightsLock,
-        'health' => PaywallTrigger.healthSync,
-        'streak' => PaywallTrigger.streakSave,
-        'streak_save' => PaywallTrigger.streakSave,
-        'focus_apps' => PaywallTrigger.focusApps,
-        'focus_profiles' => PaywallTrigger.focusProfiles,
-        'focus_schedules' => PaywallTrigger.focusSchedules,
-        'focus_analytics' => PaywallTrigger.focusAnalytics,
-        _ => null,
-      };
+    'tracker_limit' => PaywallTrigger.trackerLimit,
+    'commitment_limit' => PaywallTrigger.commitmentLimit,
+    'history' => PaywallTrigger.historyLock,
+    'insights' => PaywallTrigger.insightsLock,
+    'health' => PaywallTrigger.healthSync,
+    'streak' => PaywallTrigger.streakSave,
+    'streak_save' => PaywallTrigger.streakSave,
+    'focus_apps' => PaywallTrigger.focusApps,
+    'focus_profiles' => PaywallTrigger.focusProfiles,
+    'focus_schedules' => PaywallTrigger.focusSchedules,
+    'focus_analytics' => PaywallTrigger.focusAnalytics,
+    _ => null,
+  };
 
   static bool isProOnly(String feature) => <String>{
-        'insights.patterns',
-        'insights.correlations',
-        'insights.heatmap',
-        'insights.range90',
-        'history.full',
-        'trackers.more',
-        'commitments.advanced',
-        'health.sync',
-        'notifications.streakSaver',
-        'notifications.weekly',
-        'widget.threeRings',
-        'wear.tile',
-        // Focus Lock. Note what is *not* here: the modes themselves, the timer, the
-        // session summary, the app picker, and deleting your own sessions. Those are
-        // free in every mode, because a habit app that charges to block the thing you
-        // are avoiding has its incentives backwards.
-        'focus.unlimitedApps',
-        'focus.profiles',
-        'focus.schedules',
-        'focus.analytics',
-      }.contains(feature);
+    'insights.patterns',
+    'insights.correlations',
+    'insights.heatmap',
+    'insights.range90',
+    'history.full',
+    'trackers.more',
+    'commitments.advanced',
+    'health.sync',
+    'notifications.streakSaver',
+    'notifications.weekly',
+    'widget.threeRings',
+    'wear.tile',
+    // Focus Lock. Note what is *not* here: the modes themselves, the timer, the
+    // session summary, the app picker, and deleting your own sessions. Those are
+    // free in every mode, because a habit app that charges to block the thing you
+    // are avoiding has its incentives backwards.
+    'focus.unlimitedApps',
+    'focus.profiles',
+    'focus.schedules',
+    'focus.analytics',
+  }.contains(feature);
 }
 
 enum PlanKind { monthly, annual, lifetime }
@@ -550,34 +554,34 @@ class Entitlement {
   }
 
   Map<String, Object?> toJson() => {
-        'isPro': isPro,
-        'planId': planId,
-        'productId': productId,
-        'expiresAt': expiresAt?.toIso8601String(),
-        'trialEndsAt': trialEndsAt?.toIso8601String(),
-        'autoRenew': autoRenew,
-        'purchaseToken': purchaseToken,
-        'source': source,
-        'verified': verified,
-        'verifiedAt': verifiedAt?.toIso8601String(),
-        'pending': pending,
-        'inGracePeriod': inGracePeriod,
-      };
+    'isPro': isPro,
+    'planId': planId,
+    'productId': productId,
+    'expiresAt': expiresAt?.toIso8601String(),
+    'trialEndsAt': trialEndsAt?.toIso8601String(),
+    'autoRenew': autoRenew,
+    'purchaseToken': purchaseToken,
+    'source': source,
+    'verified': verified,
+    'verifiedAt': verifiedAt?.toIso8601String(),
+    'pending': pending,
+    'inGracePeriod': inGracePeriod,
+  };
 
   static Entitlement fromJson(Map<String, Object?> m) => Entitlement(
-        isPro: m['isPro'] as bool? ?? false,
-        planId: m['planId'] as String?,
-        productId: m['productId'] as String?,
-        expiresAt: _parse(m['expiresAt']),
-        trialEndsAt: _parse(m['trialEndsAt']),
-        autoRenew: m['autoRenew'] as bool? ?? false,
-        purchaseToken: m['purchaseToken'] as String?,
-        source: m['source'] as String? ?? 'cache',
-        verified: m['verified'] as bool? ?? false,
-        verifiedAt: _parse(m['verifiedAt']),
-        pending: m['pending'] as bool? ?? false,
-        inGracePeriod: m['inGracePeriod'] as bool? ?? false,
-      );
+    isPro: m['isPro'] as bool? ?? false,
+    planId: m['planId'] as String?,
+    productId: m['productId'] as String?,
+    expiresAt: _parse(m['expiresAt']),
+    trialEndsAt: _parse(m['trialEndsAt']),
+    autoRenew: m['autoRenew'] as bool? ?? false,
+    purchaseToken: m['purchaseToken'] as String?,
+    source: m['source'] as String? ?? 'cache',
+    verified: m['verified'] as bool? ?? false,
+    verifiedAt: _parse(m['verifiedAt']),
+    pending: m['pending'] as bool? ?? false,
+    inGracePeriod: m['inGracePeriod'] as bool? ?? false,
+  );
 
   /// A purchase Play has accepted, **awaiting server confirmation**.
   ///

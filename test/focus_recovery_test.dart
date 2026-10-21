@@ -221,8 +221,11 @@ void main() {
       );
       expect(r.elapsedMs, 7 * minutes, reason: 'no segment to add — the clock stopped with the process');
       expect(r.session.enforcement, FocusEnforcement.armed);
-      expect(r.session.enforcement.isConfirmed, isFalse,
-          reason: 'a kill cannot upgrade what the platform last reported');
+      expect(
+        r.session.enforcement.isConfirmed,
+        isFalse,
+        reason: 'a kill cannot upgrade what the platform last reported',
+      );
     });
 
     test('wall-clock timing is recorded as unverified rather than trusted', () {
@@ -238,10 +241,7 @@ void main() {
 
   group('the summary a recovered session gets', () {
     test('an interrupted session keeps its time in the history and explains itself', () {
-      final session = live(
-        focusMs: 9 * minutes,
-        enforcement: FocusEnforcement.lost,
-      ).copyWith(
+      final session = live(focusMs: 9 * minutes, enforcement: FocusEnforcement.lost).copyWith(
         state: FocusSessionState.ended,
         outcome: FocusOutcome.interrupted,
         endReason: FocusEndReason.deviceRestarted,

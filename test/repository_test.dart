@@ -48,8 +48,7 @@ void main() {
       for (final t in trackers) {
         final series = await repo.dao.series(t.id, days: 28);
         expect(series.length, 28, reason: '${t.id} is gap-filled to the window');
-        expect(series.every((v) => v == 0), isTrue,
-            reason: '${t.id} must not carry invented history');
+        expect(series.every((v) => v == 0), isTrue, reason: '${t.id} must not carry invented history');
       }
     });
 
@@ -66,8 +65,7 @@ void main() {
       expect(await repo.entryCount(), 0);
       expect(await repo.trackedDays(), 0);
       expect(await repo.sourceCounts(), isEmpty);
-      expect(await repo.firstLoggedDate(), isNull,
-          reason: '"tracking since" must be unknown, not today');
+      expect(await repo.firstLoggedDate(), isNull, reason: '"tracking since" must be unknown, not today');
     });
 
     test('exports carry the format header only', () async {
@@ -91,8 +89,7 @@ void main() {
 
       expect(report.createdTrackers, isFalse, reason: 'the catalogue already exists');
       expect(report.entryCount, greaterThan(0));
-      expect((await repo.dao.series('water', days: 1)).last, 1500,
-          reason: 'the user value is untouched');
+      expect((await repo.dao.series('water', days: 1)).last, 1500, reason: 'the user value is untouched');
       expect(await repo.demoRowCount(), 0);
     });
 
@@ -107,8 +104,11 @@ void main() {
       final removed = await repo.deleteDemoRows();
       expect(removed, 1);
       expect(await repo.demoRowCount(), 0);
-      expect((await repo.dao.series('water', days: 1)).last, 0,
-          reason: 'removing sample data leaves a genuine empty state');
+      expect(
+        (await repo.dao.series('water', days: 1)).last,
+        0,
+        reason: 'removing sample data leaves a genuine empty state',
+      );
     });
   });
 
@@ -138,8 +138,7 @@ void main() {
     });
 
     test('survives a reload: what the user typed is what comes back', () async {
-      await repo.setDaily('expenses', 1240,
-          meta: '{"category":"Groceries","title":"Vegetables"}');
+      await repo.setDaily('expenses', 1240, meta: '{"category":"Groceries","title":"Vegetables"}');
       await repo.hydrate();
 
       expect((await repo.dao.series('expenses', days: 1)).last, 1240);
@@ -167,8 +166,7 @@ void main() {
       // 10 L of water is a typo for "a lot", not a reason to lose the entry.
       final stored = await repo.setDaily('water', 10000);
       expect(stored, isTrue);
-      expect((await repo.dao.series('water', days: 1)).last,
-          ValueValidation.boundsFor('water').$2);
+      expect((await repo.dao.series('water', days: 1)).last, ValueValidation.boundsFor('water').$2);
     });
 
     test('a broken wearable reading never reaches the database', () async {
@@ -246,10 +244,16 @@ void main() {
 
       expect(await repo.entryCount(), 0);
       expect(await repo.demoRowCount(), 0);
-      expect((await repo.dao.allTrackers()).length, greaterThanOrEqualTo(3),
-          reason: 'the app is still usable: the trackers are still there');
-      expect((await repo.dao.series('water', days: 1)).last, 0,
-          reason: 'a delete must not resurrect synthetic history');
+      expect(
+        (await repo.dao.allTrackers()).length,
+        greaterThanOrEqualTo(3),
+        reason: 'the app is still usable: the trackers are still there',
+      );
+      expect(
+        (await repo.dao.series('water', days: 1)).last,
+        0,
+        reason: 'a delete must not resurrect synthetic history',
+      );
     });
 
     test('deleteDemoRows removes only demo rows', () async {
@@ -278,8 +282,11 @@ void main() {
 
     test('the projection and SQL agree about the same day', () async {
       await repo.setDaily('water', 1750);
-      expect(repo.cache['water']!.last, (await repo.dao.series('water', days: 1)).last,
-          reason: 'the in-memory chart and the database must never disagree');
+      expect(
+        repo.cache['water']!.last,
+        (await repo.dao.series('water', days: 1)).last,
+        reason: 'the in-memory chart and the database must never disagree',
+      );
     });
 
     test('day keys are local-calendar keys, not UTC instants', () async {

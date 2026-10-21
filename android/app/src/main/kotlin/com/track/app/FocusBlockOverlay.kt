@@ -51,7 +51,7 @@ class FocusBlockOverlay : Activity() {
         // Deliberately NOT setShowWhenLocked(true) and NOT setTurnScreenOn(true): this
         // panel appears because the user opened an app, never over a locked screen.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setBackgroundDrawable(ColorDrawable(Color.parseColor("#0B0B10")))
+            window?.setBackgroundDrawable(ColorDrawable(Color.parseColor("#0B0B10")))
         }
 
         val label = FocusStore.label(this)
@@ -80,14 +80,15 @@ class FocusBlockOverlay : Activity() {
             setPadding(0, 24, 0, 8)
         })
 
-        countdown = TextView(this).apply {
+        val countdownView = TextView(this).apply {
             text = remainingLabel()
             setTextColor(Color.WHITE)
             textSize = 44f
             gravity = Gravity.CENTER
             setPadding(0, 40, 0, 8)
         }
-        root.addView(countdown)
+        countdown = countdownView
+        root.addView(countdownView)
 
         root.addView(TextView(this).apply {
             // The goal text is shown here (and only here) because the user is holding

@@ -1,6 +1,3 @@
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-
 /// The bridge to the Android side of Focus Lock, plus the honest fallback for
 /// every platform that is not Android.
 ///
@@ -20,6 +17,9 @@ import 'package:flutter/services.dart';
 /// reports the capability as unavailable and [FocusEnforcer.startSession] returns
 /// false. Nothing here ever returns "blocked" because it could not find out.
 library;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 
 /// What the device has actually granted, right now.
 class FocusPermissions {
@@ -53,18 +53,13 @@ class FocusPermissions {
   bool get canBlock => usageAccess && overlay;
 
   /// What is missing, in the order worth fixing — the wire names, for logic.
-  List<String> get missingForBlocking => <String>[
-        if (!usageAccess) 'usageAccess',
-        if (!overlay) 'overlay',
-      ];
+  List<String> get missingForBlocking => <String>[if (!usageAccess) 'usageAccess', if (!overlay) 'overlay'];
 
   /// The same list in the words the system settings use, for the UI. The raw
   /// identifiers used to be printed in Settings and in the setup sheet, which is a
   /// sentence written for whoever wrote the channel, not for the person reading it.
-  String get missingForBlockingLabel => <String>[
-        if (!usageAccess) 'Usage access',
-        if (!overlay) 'Display over other apps',
-      ].join(' and ');
+  String get missingForBlockingLabel =>
+      <String>[if (!usageAccess) 'Usage access', if (!overlay) 'Display over other apps'].join(' and ');
 
   static const FocusPermissions none = FocusPermissions();
 }
@@ -181,8 +176,7 @@ abstract class FocusEnforcer {
 
 /// The real implementation: one method channel, no assumptions.
 class MethodChannelFocusEnforcer implements FocusEnforcer {
-  MethodChannelFocusEnforcer({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel('track/focus');
+  MethodChannelFocusEnforcer({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('track/focus');
 
   final MethodChannel _channel;
   bool? _present;
@@ -289,11 +283,13 @@ class MethodChannelFocusEnforcer implements FocusEnforcer {
       if (raw is Map) {
         final pkg = raw['package'] as String?;
         if (pkg == null || pkg.isEmpty) continue;
-        out.add(FocusAppInfo(
-          packageName: pkg,
-          label: (raw['label'] as String?)?.trim().isNotEmpty == true ? raw['label'] as String : pkg,
-          protectedFromBlocking: raw['protected'] == true,
-        ));
+        out.add(
+          FocusAppInfo(
+            packageName: pkg,
+            label: (raw['label'] as String?)?.trim().isNotEmpty == true ? raw['label'] as String : pkg,
+            protectedFromBlocking: raw['protected'] == true,
+          ),
+        );
       }
     }
     return out;
@@ -380,8 +376,7 @@ class NoFocusEnforcer implements FocusEnforcer {
     required bool block,
     required String label,
     required int accentArgb,
-  }) async =>
-      false;
+  }) async => false;
 
   @override
   Future<void> stopSession() async {}

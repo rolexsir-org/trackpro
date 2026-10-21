@@ -248,7 +248,7 @@ class TrackWidget : GlanceAppWidget() {
             context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE).getString(FLUTTER_KEY, null)
 
         /** Called from MainActivity after every Dart-side snapshot write. */
-        suspend fun refresh(context: Context) = updateAll(context)
+        suspend fun refresh(context: Context) = TrackWidget().updateAll(context)
     }
 }
 

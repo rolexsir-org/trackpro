@@ -44,21 +44,21 @@ class Tracker {
   int order;
 
   Tracker copy() => Tracker(
-        id: id,
-        name: name,
-        emoji: emoji,
-        accent: accent,
-        accent2: accent2,
-        kind: kind,
-        goal: goal,
-        step: step,
-        unit: unit,
-        blurb: blurb,
-        insight: insight,
-        hero: hero,
-        hidden: hidden,
-        order: order,
-      );
+    id: id,
+    name: name,
+    emoji: emoji,
+    accent: accent,
+    accent2: accent2,
+    kind: kind,
+    goal: goal,
+    step: step,
+    unit: unit,
+    blurb: blurb,
+    insight: insight,
+    hero: hero,
+    hidden: hidden,
+    order: order,
+  );
 }
 
 /// A habit in the user's own checklist.
@@ -78,11 +78,7 @@ class Habit {
   int streak;
   bool done;
 
-  Map<String, dynamic> toJson() => {
-        'name': name,
-        'emoji': emoji,
-        'color': color.toARGB32(),
-      };
+  Map<String, dynamic> toJson() => {'name': name, 'emoji': emoji, 'color': color.toARGB32()};
 }
 
 class Transaction {
@@ -111,7 +107,6 @@ class Milestone {
   final bool unlocked;
 }
 
-
 class FoodItem {
   const FoodItem(this.name, this.kcal, this.emoji);
 
@@ -120,13 +115,12 @@ class FoodItem {
   final String emoji;
 }
 
-
-/// ---------------------------------------------------------------------------
-/// Momentum: commitments, the days they were actually kept, and the derived
-/// figures. Everything here is a *definition* or a *record of something that
-/// happened* — nothing is a placeholder, and nothing carries a default value that
-/// could be mistaken for history.
-/// ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Momentum: commitments, the days they were actually kept, and the derived
+// figures. Everything here is a *definition* or a *record of something that
+// happened* — nothing is a placeholder, and nothing carries a default value that
+// could be mistaken for history.
+// ---------------------------------------------------------------------------
 
 /// What actually happened on one planned day.
 ///
@@ -142,21 +136,21 @@ extension DayOutcomeText on DayOutcome {
   String get storage => name;
 
   String get label => switch (this) {
-        DayOutcome.full => 'Full',
-        DayOutcome.minimum => 'Minimum',
-        DayOutcome.missed => 'Missed',
-        DayOutcome.rest => 'Rest day',
-        DayOutcome.skipped => 'Skipped on purpose',
-      };
+    DayOutcome.full => 'Full',
+    DayOutcome.minimum => 'Minimum',
+    DayOutcome.missed => 'Missed',
+    DayOutcome.rest => 'Rest day',
+    DayOutcome.skipped => 'Skipped on purpose',
+  };
 
   /// Short verb for the logging sheet.
   String get verb => switch (this) {
-        DayOutcome.full => 'Did the full thing',
-        DayOutcome.minimum => 'Did the minimum',
-        DayOutcome.missed => 'Did not do it',
-        DayOutcome.rest => 'Rest day',
-        DayOutcome.skipped => 'Skipping on purpose',
-      };
+    DayOutcome.full => 'Did the full thing',
+    DayOutcome.minimum => 'Did the minimum',
+    DayOutcome.missed => 'Did not do it',
+    DayOutcome.rest => 'Rest day',
+    DayOutcome.skipped => 'Skipping on purpose',
+  };
 
   bool get countsAsDecided => this == DayOutcome.full || this == DayOutcome.minimum || this == DayOutcome.missed;
 
@@ -262,32 +256,25 @@ class Commitment {
     bool? archived,
     int? archivedDay,
     int? sort,
-  }) =>
-      Commitment(
-        id: id,
-        name: name ?? this.name,
-        emoji: emoji ?? this.emoji,
-        color: color ?? this.color,
-        outcome: outcome ?? this.outcome,
-        minimumAction: minimumAction ?? this.minimumAction,
-        fullAction: fullAction ?? this.fullAction,
-        revisions: revisions ?? this.revisions,
-        createdDay: createdDay,
-        archived: archived ?? this.archived,
-        archivedDay: archivedDay ?? this.archivedDay,
-        sort: sort ?? this.sort,
-      );
+  }) => Commitment(
+    id: id,
+    name: name ?? this.name,
+    emoji: emoji ?? this.emoji,
+    color: color ?? this.color,
+    outcome: outcome ?? this.outcome,
+    minimumAction: minimumAction ?? this.minimumAction,
+    fullAction: fullAction ?? this.fullAction,
+    revisions: revisions ?? this.revisions,
+    createdDay: createdDay,
+    archived: archived ?? this.archived,
+    archivedDay: archivedDay ?? this.archivedDay,
+    sort: sort ?? this.sort,
+  );
 }
 
 /// A recorded decision about one planned day.
 class CommitmentDay {
-  const CommitmentDay({
-    required this.commitmentId,
-    required this.day,
-    required this.outcome,
-    this.value,
-    this.note,
-  });
+  const CommitmentDay({required this.commitmentId, required this.day, required this.outcome, this.value, this.note});
 
   final String commitmentId;
   final int day;
@@ -376,12 +363,7 @@ class RestartStep {
 /// days it covers, and what to do — and it is generated from the record, never
 /// from an inferred emotional state.
 class RestartPlan {
-  const RestartPlan({
-    required this.reason,
-    required this.missedRun,
-    required this.steps,
-    required this.generatedOn,
-  });
+  const RestartPlan({required this.reason, required this.missedRun, required this.steps, required this.generatedOn});
 
   final String reason;
   final int missedRun;

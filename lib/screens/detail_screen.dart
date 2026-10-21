@@ -78,12 +78,24 @@ class DetailScreen extends StatelessWidget {
                         center: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(fmtValue(t, v),
-                                style: TextStyle(
-                                    fontSize: 40, fontWeight: FontWeight.w700, letterSpacing: -1.6, color: TrackTheme.label(dark))),
+                            Text(
+                              fmtValue(t, v),
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -1.6,
+                                color: TrackTheme.label(dark),
+                              ),
+                            ),
                             const SizedBox(height: 4),
-                            Text('${(pct * 100).round()}% of ${fmtGoalLong(t)}',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
+                            Text(
+                              '${(pct * 100).round()}% of ${fmtGoalLong(t)}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: TrackTheme.label3(dark),
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -101,28 +113,46 @@ class DetailScreen extends StatelessWidget {
                         const SizedBox(width: 10),
                         SizedBox(
                           width: 108,
-                          child: TrackTintedButton(label: 'Goal', color: t.accent, onTap: () => openGoalSheet(context, t)),
+                          child: TrackTintedButton(
+                            label: 'Goal',
+                            color: t.accent,
+                            onTap: () => openGoalSheet(context, t),
+                          ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 14),
                     Row(
                       children: [
-                        Expanded(child: StatTile(value: _avgText(t, state.avg(trackerId, 7)), label: '7-day avg')),
+                        Expanded(
+                          child: StatTile(value: _avgText(t, state.avg(trackerId, 7)), label: '7-day avg'),
+                        ),
                         const SizedBox(width: 10),
-                        Expanded(child: StatTile(value: '${state.streak(trackerId)} days', label: 'Streak')),
+                        Expanded(
+                          child: StatTile(value: '${state.streak(trackerId)} days', label: 'Streak'),
+                        ),
                         const SizedBox(width: 10),
-                        Expanded(child: StatTile(value: _avgText(t, state.best(trackerId)), label: 'Best 28d')),
+                        Expanded(
+                          child: StatTile(value: _avgText(t, state.best(trackerId)), label: 'Best 28d'),
+                        ),
                       ],
                     ),
                     SectionLabel(
                       'This week',
                       trailing: Text(
-                        '${d.direction > 0 ? '▲' : d.direction < 0 ? '▼' : ''} ${d.text}',
+                        '${d.direction > 0
+                            ? '▲'
+                            : d.direction < 0
+                            ? '▼'
+                            : ''} ${d.text}',
                         style: TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w500,
-                          color: d.goodness > 0 ? TrackTheme.green : d.goodness < 0 ? TrackTheme.orange : TrackTheme.label3(dark),
+                          color: d.goodness > 0
+                              ? TrackTheme.green
+                              : d.goodness < 0
+                              ? TrackTheme.orange
+                              : TrackTheme.label3(dark),
                         ),
                       ),
                     ),
@@ -141,7 +171,11 @@ class DetailScreen extends StatelessWidget {
                                       // after a spring-forward transition the elapsed-time version
                                       // is a whole day off, and every bar label under it moves.
                                       weekdayShort(dateOfDayKey(dayKeyFromToday(6 - i))),
-                                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                                      style: TextStyle(
+                                        fontSize: 10.5,
+                                        fontWeight: FontWeight.w600,
+                                        color: TrackTheme.label3(dark),
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -154,8 +188,14 @@ class DetailScreen extends StatelessWidget {
                     SectionLabel(
                       'History',
                       trailing: state.isPro
-                          ? Text('${state.historyWindow} days',
-                              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)))
+                          ? Text(
+                              '${state.historyWindow} days',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: TrackTheme.label3(dark),
+                              ),
+                            )
                           : const ProChip(compact: true),
                     ),
                     _HistorySection(
@@ -177,8 +217,9 @@ class DetailScreen extends StatelessWidget {
                       // the size of the window: "built from 90 days of your own
                       // data" on a one-day-old install is a fabrication.
                       body: switch (state.loggedDaysInWindow(state.days)) {
-                        0 => 'Nothing logged against this tracker yet, so there is nothing to read into. '
-                            'The line above is what it measures.',
+                        0 =>
+                          'Nothing logged against this tracker yet, so there is nothing to read into. '
+                              'The line above is what it measures.',
                         1 => 'Built from 1 logged day — the longer you log, the sharper this gets.',
                         final logged => 'Built from $logged logged days — the longer you log, the sharper this gets.',
                       },
@@ -234,7 +275,10 @@ class DetailScreen extends StatelessWidget {
         final moodHistory = state.historyOf('mood');
         // Only the days the user actually rated: a zero in the cache means "not
         // logged", and counting those would invent a mood of zero.
-        final logged = <double>[for (final m in moodHistory) if (m > 0) m];
+        final logged = <double>[
+          for (final m in moodHistory)
+            if (m > 0) m,
+        ];
         return [
           SectionLabel(
             state.isPro ? '5-week heatmap' : 'This week\'s heatmap',
@@ -255,7 +299,9 @@ class DetailScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(5),
                           // A blank square means "not logged", which is why it is
                           // neutral grey and not the palest mood colour.
-                          color: m == 0 ? TrackTheme.fill(dark) : t.accent.withOpacity((.35 + m * .13).clamp(0.0, 1.0).toDouble()),
+                          color: m == 0
+                              ? TrackTheme.fill(dark)
+                              : t.accent.withValues(alpha: (.35 + m * .13).clamp(0.0, 1.0).toDouble()),
                         ),
                       ),
                   ],
@@ -264,14 +310,21 @@ class DetailScreen extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(state.isPro ? '5 weeks ago' : '${state.historyWindow} days ago',
-                        style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
-                    Text('Today', style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
+                    Text(
+                      state.isPro ? '5 weeks ago' : '${state.historyWindow} days ago',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                    ),
+                    Text(
+                      'Today',
+                      style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 6),
-                Text('Grey squares are days you did not log — they are not low moods.',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                Text(
+                  'Grey squares are days you did not log — they are not low moods.',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                ),
               ],
             ),
           ),
@@ -293,22 +346,24 @@ class DetailScreen extends StatelessWidget {
               body: 'Tap a face on the Today screen. After a week this becomes a distribution of your own days.',
             )
           else
-            GlassList(children: [
-              for (final row in const [
-                ['Great', 5],
-                ['Good', 4],
-                ['Okay', 3],
-                ['Low', 2],
-                ['Awful', 1],
-              ])
-                _Bar(
-                  label: row[0] as String,
-                  value: logged.where((m) => m.round() == row[1]).length,
-                  max: logged.length,
-                  color: t.accent,
-                  suffix: 'days',
-                ),
-            ]),
+            GlassList(
+              children: [
+                for (final row in const [
+                  ['Great', 5],
+                  ['Good', 4],
+                  ['Okay', 3],
+                  ['Low', 2],
+                  ['Awful', 1],
+                ])
+                  _Bar(
+                    label: row[0] as String,
+                    value: logged.where((m) => m.round() == row[1]).length,
+                    max: logged.length,
+                    color: t.accent,
+                    suffix: 'days',
+                  ),
+              ],
+            ),
         ];
 
       case 'expenses':
@@ -321,33 +376,47 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'expenses',
               title: 'No spending logged yet',
-              body: 'Add an expense and the category breakdown builds itself — this chart is a GROUP BY on your own entries.',
+              body:
+                  'Add an expense and the category breakdown builds itself — this chart is a GROUP BY on your own entries.',
             )
           else
-            GlassList(children: [
-              for (final c in state.categories)
-                _Bar(label: c.name, value: c.amount.round(), max: maxSpend, color: c.color, money: true, width: 104),
-            ]),
+            GlassList(
+              children: [
+                for (final c in state.categories)
+                  _Bar(label: c.name, value: c.amount.round(), max: maxSpend, color: c.color, money: true, width: 104),
+              ],
+            ),
           const SectionLabel('Recent'),
           if (state.transactions.isEmpty)
-            const _NoData(emoji: 'inbox', title: 'Nothing here yet', body: 'Your logged expenses will appear in this list, newest first.')
+            const _NoData(
+              emoji: 'inbox',
+              title: 'Nothing here yet',
+              body: 'Your logged expenses will appear in this list, newest first.',
+            )
           else
-            GlassList(children: [
-              for (final x in state.transactions.take(5))
-                GlassRow(
-                  title: x.title,
-                  subtitle: '${x.category} · ${x.when}',
-                  leading: const Icon(Icons.receipt_long_outlined, size: 18, color: TrackTheme.orange),
-                  accent: TrackTheme.green,
-                  showChevron: false,
-                  trailing: Text('₹${x.amount.round()}',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
-                ),
-            ]),
+            GlassList(
+              children: [
+                for (final x in state.transactions.take(5))
+                  GlassRow(
+                    title: x.title,
+                    subtitle: '${x.category} · ${x.when}',
+                    leading: const Icon(Icons.receipt_long_outlined, size: 18, color: TrackTheme.orange),
+                    accent: TrackTheme.green,
+                    showChevron: false,
+                    trailing: Text(
+                      '₹${x.amount.round()}',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+                    ),
+                  ),
+              ],
+            ),
         ];
 
       case 'sleep':
-        final sleepLogged = [for (final v in state.historyOf('sleep')) if (v > 0) v];
+        final sleepLogged = [
+          for (final v in state.historyOf('sleep'))
+            if (v > 0) v,
+        ];
         final nightsBelow = sleepLogged.where((v) => v < state.byId('sleep').goal * .85).length;
         return [
           const SectionLabel('Last 7 nights'),
@@ -355,37 +424,44 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'sleep',
               title: 'No nights logged',
-              body: 'Log hours slept, or connect Health Connect in Settings and this fills in from your phone or watch.',
+              body:
+                  'Log hours slept, or connect Health Connect in Settings and this fills in from your phone or watch.',
             )
           else ...[
             _Card(
               child: MiniChart(values: state.week('sleep'), color: t.accent, height: 110, barRadius: 5),
             ),
-            GlassList(children: [
-              _Bar(
-                label: 'Nights at goal',
-                value: state.week('sleep').where((v) => v >= t.goal * .95).length,
-                max: 7,
-                color: TrackTheme.green,
-                suffix: 'of 7',
-              ),
-              _Bar(
-                label: 'Nights under ${(t.goal * .85).toStringAsFixed(1)}h',
-                value: nightsBelow,
-                max: sleepLogged.length,
-                color: TrackTheme.orange,
-                suffix: 'total',
-              ),
-            ]),
+            GlassList(
+              children: [
+                _Bar(
+                  label: 'Nights at goal',
+                  value: state.week('sleep').where((v) => v >= t.goal * .95).length,
+                  max: 7,
+                  color: TrackTheme.green,
+                  suffix: 'of 7',
+                ),
+                _Bar(
+                  label: 'Nights under ${(t.goal * .85).toStringAsFixed(1)}h',
+                  value: nightsBelow,
+                  max: sleepLogged.length,
+                  color: TrackTheme.orange,
+                  suffix: 'total',
+                ),
+              ],
+            ),
           ],
         ];
 
       case 'habits':
         final doneToday = state.habits.where((h) => h.done).length;
         return [
-          SectionLabel('Today\'s checklist',
-              trailing: Text('$doneToday/${state.habits.length}',
-                  style: TextStyle(fontSize: 13, color: TrackTheme.label3(dark)))),
+          SectionLabel(
+            'Today\'s checklist',
+            trailing: Text(
+              '$doneToday/${state.habits.length}',
+              style: TextStyle(fontSize: 13, color: TrackTheme.label3(dark)),
+            ),
+          ),
           if (state.habits.isEmpty)
             const _NoData(
               emoji: 'habits',
@@ -393,24 +469,32 @@ class DetailScreen extends StatelessWidget {
               body: 'Add a habit and it gets its own streak, counted from the days you actually tick it.',
             )
           else
-            GlassList(children: [
-              for (var i = 0; i < state.habits.length; i++)
-                GlassRow(
-                  title: state.habits[i].name,
-                  // Real streak, and a 30-day rate computed from the stored
-                  // checklist rather than derived from the streak.
-                  subtitle: '${state.habits[i].streak}-day streak · '
-                      '${state.habitRate(i, 30)}% of the last 30 days',
-                  leading: TrackRecordIcon(label: state.habits[i].name, color: state.habits[i].color, size: 29, iconSize: 16),
-                  accent: state.habits[i].color,
-                  showChevron: false,
-                  trailing: Icon(
-                    state.habits[i].done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                    color: state.habits[i].done ? TrackTheme.green : TrackTheme.label3(dark),
+            GlassList(
+              children: [
+                for (var i = 0; i < state.habits.length; i++)
+                  GlassRow(
+                    title: state.habits[i].name,
+                    // Real streak, and a 30-day rate computed from the stored
+                    // checklist rather than derived from the streak.
+                    subtitle:
+                        '${state.habits[i].streak}-day streak · '
+                        '${state.habitRate(i, 30)}% of the last 30 days',
+                    leading: TrackRecordIcon(
+                      label: state.habits[i].name,
+                      color: state.habits[i].color,
+                      size: 29,
+                      iconSize: 16,
+                    ),
+                    accent: state.habits[i].color,
+                    showChevron: false,
+                    trailing: Icon(
+                      state.habits[i].done ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+                      color: state.habits[i].done ? TrackTheme.green : TrackTheme.label3(dark),
+                    ),
+                    onTap: () => state.toggleHabit(i),
                   ),
-                  onTap: () => state.toggleHabit(i),
-                ),
-            ]),
+              ],
+            ),
         ];
 
       case 'calories':
@@ -421,54 +505,80 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'food',
               title: 'Nothing eaten yet today',
-              body: 'Use quick-add or type a number. The day total is the sum of what you logged — nothing is estimated for you.',
+              body:
+                  'Use quick-add or type a number. The day total is the sum of what you logged — nothing is estimated for you.',
             )
           else
-            GlassList(children: [
-              for (final f in entries.take(6))
-                GlassRow(
-                  title: f.title,
-                  subtitle: '${f.when} · ${f.source == 'manual' ? 'added by you' : f.source}',
-                  leading: const Icon(Icons.restaurant_outlined, size: 18, color: TrackTheme.orange),
-                  accent: TrackTheme.orange,
-                  showChevron: false,
-                  trailing: Text('${f.kcal.round()} kcal',
-                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
-                ),
-            ]),
+            GlassList(
+              children: [
+                for (final f in entries.take(6))
+                  GlassRow(
+                    title: f.title,
+                    subtitle: '${f.when} · ${f.source == 'manual' ? 'added by you' : f.source}',
+                    leading: const Icon(Icons.restaurant_outlined, size: 18, color: TrackTheme.orange),
+                    accent: TrackTheme.orange,
+                    showChevron: false,
+                    trailing: Text(
+                      '${f.kcal.round()} kcal',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+                    ),
+                  ),
+              ],
+            ),
           const SectionLabel('7-day intake'),
-          if ([for (final v in state.week('calories')) if (v > 0) v].isEmpty)
-            const _NoData(emoji: 'food', title: 'No intake to chart', body: 'Log a meal and this becomes your real weekly intake.')
+          if ([
+            for (final v in state.week('calories'))
+              if (v > 0) v,
+          ].isEmpty)
+            const _NoData(
+              emoji: 'food',
+              title: 'No intake to chart',
+              body: 'Log a meal and this becomes your real weekly intake.',
+            )
           else
-            _Card(child: MiniChart(values: state.week('calories'), color: t.accent, height: 110, barRadius: 5)),
+            _Card(
+              child: MiniChart(values: state.week('calories'), color: t.accent, height: 110, barRadius: 5),
+            ),
         ];
 
       case 'steps':
-        final steps7 = [for (final v in state.week('steps')) if (v > 0) v];
+        final steps7 = [
+          for (final v in state.week('steps'))
+            if (v > 0) v,
+        ];
         return [
           const SectionLabel('This week'),
           if (steps7.isEmpty)
             const _NoData(
               emoji: 'steps',
               title: 'No step data',
-              body: 'Android does not let an app read step counts on its own. Connect Health Connect in Settings, '
+              body:
+                  'Android does not let an app read step counts on its own. Connect Health Connect in Settings, '
                   'or log a number by hand — both land in the same history.',
             )
           else
-            _Card(child: MiniChart(values: state.week('steps'), color: t.accent, height: 110, barRadius: 5)),
-          const SectionLabel('Summary'),
-          Row(children: [
-            Expanded(child: StatTile(value: '${state.avg('steps', 7).round()}', label: '7-day avg')),
-            const SizedBox(width: 10),
-            Expanded(child: StatTile(value: '${state.best('steps').round()}', label: 'Best day')),
-            const SizedBox(width: 10),
-            Expanded(
-              child: StatTile(
-                value: '${(state.week('steps').where((v) => v >= t.goal).length)}',
-                label: 'Days at goal',
-              ),
+            _Card(
+              child: MiniChart(values: state.week('steps'), color: t.accent, height: 110, barRadius: 5),
             ),
-          ]),
+          const SectionLabel('Summary'),
+          Row(
+            children: [
+              Expanded(
+                child: StatTile(value: '${state.avg('steps', 7).round()}', label: '7-day avg'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatTile(value: '${state.best('steps').round()}', label: 'Best day'),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatTile(
+                  value: '${(state.week('steps').where((v) => v >= t.goal).length)}',
+                  label: 'Days at goal',
+                ),
+              ),
+            ],
+          ),
           // Distance and active calories are deliberately absent: converting
           // steps to calories needs a weight and a stride model, and Health
           // Connect already reports those separately. Showing a made-up number
@@ -483,34 +593,49 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'period',
               title: 'No period logged yet',
-              body: 'Log the first day of your period. Predictions only appear once you have two cycles to measure — '
+              body:
+                  'Log the first day of your period. Predictions only appear once you have two cycles to measure — '
                   'before that, any date would be invented.',
             )
           else ...[
-            Row(children: [
-              Expanded(child: StatTile(value: cycle.hasPrediction ? '${cycle.averageLength.round()}' : '—', label: 'Avg cycle')),
-              const SizedBox(width: 10),
-              Expanded(
-                child: StatTile(
-                  value: cycle.periodLengthAvg > 0 ? cycle.periodLengthAvg.toStringAsFixed(1) : '—',
-                  label: 'Avg period',
+            Row(
+              children: [
+                Expanded(
+                  child: StatTile(
+                    value: cycle.hasPrediction ? '${cycle.averageLength.round()}' : '—',
+                    label: 'Avg cycle',
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: StatTile(
-                  value: cycle.hasPrediction ? (cycle.isIrregular ? 'varies' : 'steady') : '—',
-                  label: 'Regularity',
+                const SizedBox(width: 10),
+                Expanded(
+                  child: StatTile(
+                    value: cycle.periodLengthAvg > 0 ? cycle.periodLengthAvg.toStringAsFixed(1) : '—',
+                    label: 'Avg period',
+                  ),
                 ),
-              ),
-            ]),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: StatTile(
+                    value: cycle.hasPrediction ? (cycle.isIrregular ? 'varies' : 'steady') : '—',
+                    label: 'Regularity',
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             _Card(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(cycle.summary,
-                      style: TextStyle(fontSize: 13.5, height: 1.45, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+                  Text(
+                    cycle.summary,
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      height: 1.45,
+                      fontWeight: FontWeight.w500,
+                      color: TrackTheme.label2(dark),
+                    ),
+                  ),
                   if (cycle.nextWindow != null) ...[
                     const SizedBox(height: 10),
                     Text(
@@ -519,34 +644,46 @@ class DetailScreen extends StatelessWidget {
                       style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
                     ),
                     const SizedBox(height: 4),
-                    Text('An estimate from your own logged starts, not medical advice or birth control.',
-                        style: TextStyle(fontSize: 11.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                    Text(
+                      'An estimate from your own logged starts, not medical advice or birth control.',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: TrackTheme.label3(dark),
+                      ),
+                    ),
                   ],
                 ],
               ),
             ),
             if (cycle.starts.length > 1) ...[
               const SectionLabel('Cycle history'),
-              GlassList(children: [
-                for (var i = cycle.starts.length - 1; i >= 0; i--)
-                  GlassRow(
-                    title: _dayLabel(cycle.starts[i], withYear: true),
-                    subtitle: i == 0
-                        ? 'First logged cycle'
-                        : '${cycle.starts[i] - cycle.starts[i - 1]}-day cycle',
-                    leading: const Icon(Icons.calendar_month_outlined, size: 18, color: TrackTheme.orange),
-                    accent: t.accent,
-                    showChevron: false,
-                    trailing: Text(i == cycle.starts.length - 1 ? 'latest' : '',
-                        style: TextStyle(fontSize: 13, color: TrackTheme.label3(dark))),
-                  ),
-              ]),
+              GlassList(
+                children: [
+                  for (var i = cycle.starts.length - 1; i >= 0; i--)
+                    GlassRow(
+                      title: _dayLabel(cycle.starts[i], withYear: true),
+                      subtitle: i == 0 ? 'First logged cycle' : '${cycle.starts[i] - cycle.starts[i - 1]}-day cycle',
+                      leading: const Icon(Icons.calendar_month_outlined, size: 18, color: TrackTheme.orange),
+                      accent: t.accent,
+                      showChevron: false,
+                      trailing: Text(
+                        i == cycle.starts.length - 1 ? 'latest' : '',
+                        style: TextStyle(fontSize: 13, color: TrackTheme.label3(dark)),
+                      ),
+                    ),
+                ],
+              ),
             ],
           ],
         ];
 
       case 'screen':
-        final hasScreenData = [for (final v in state.historyOf('screen')) if (v > 0) v].isNotEmpty;
+        final hasScreenData = [
+          for (final v in state.historyOf('screen'))
+            if (v > 0) v,
+        ].isNotEmpty;
         final granted = state.screenTimeConnected;
         final available = state.screenTimeAvailable;
         return [
@@ -559,7 +696,8 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'screen',
               title: 'Automatic screen time is Android-only',
-              body: 'This build cannot read usage data on this platform. '
+              body:
+                  'This build cannot read usage data on this platform. '
                   'The totals you log yourself are real and charted below.',
             )
           else if (!granted)
@@ -568,31 +706,38 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'screen',
               title: 'Nothing reported yet',
-              body: 'Usage access is granted, but this device has not reported screen time yet. '
+              body:
+                  'Usage access is granted, but this device has not reported screen time yet. '
                   'Some Android builds report with a delay right after the grant — Sync now in a minute.',
             )
           else
-            GlassList(children: [
-              for (final app in state.screenTimeApps)
-                GlassRow(
-                  title: app.label,
-                  subtitle: app.packageName,
-                  trailing: Text(fmtValue(t, app.minutes),
-                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
-                  showChevron: false,
-                ),
-            ]),
+            GlassList(
+              children: [
+                for (final app in state.screenTimeApps)
+                  GlassRow(
+                    title: app.label,
+                    subtitle: app.packageName,
+                    trailing: Text(
+                      fmtValue(t, app.minutes),
+                      style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark)),
+                    ),
+                    showChevron: false,
+                  ),
+              ],
+            ),
           if (available && granted) ...[
             const SizedBox(height: 10),
-            Row(children: [
-              Expanded(
-                child: TrackTintedButton(
-                  label: state.screenTimeSyncing ? 'Syncing…' : 'Sync now',
-                  color: t.accent,
-                  onTap: state.screenTimeSyncing ? null : () => state.syncScreenTime(),
+            Row(
+              children: [
+                Expanded(
+                  child: TrackTintedButton(
+                    label: state.screenTimeSyncing ? 'Syncing…' : 'Sync now',
+                    color: t.accent,
+                    onTap: state.screenTimeSyncing ? null : () => state.syncScreenTime(),
+                  ),
                 ),
-              ),
-            ]),
+              ],
+            ),
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
@@ -606,7 +751,9 @@ class DetailScreen extends StatelessWidget {
           ],
           if (hasScreenData) ...[
             const SectionLabel('7-day screen time'),
-            _Card(child: MiniChart(values: state.week('screen'), color: t.accent, height: 110, barRadius: 5)),
+            _Card(
+              child: MiniChart(values: state.week('screen'), color: t.accent, height: 110, barRadius: 5),
+            ),
             if (granted)
               Padding(
                 padding: const EdgeInsets.only(top: 8, left: 2, right: 2),
@@ -631,7 +778,10 @@ class DetailScreen extends StatelessWidget {
         // Through `series()`: on a shorter-than-expected cache the free window is
         // simply shorter, instead of a RangeError out of `sublist`.
         final series = state.isPro ? full : state.series('weight', ProConfig.freeHistoryDays);
-        final weights = [for (final v in series) if (v > 0) v];
+        final weights = [
+          for (final v in series)
+            if (v > 0) v,
+        ];
         final change = weights.length >= 2 ? weights.last - weights.first : null;
         final firstIndex = series.indexWhere((v) => v > 0);
         final spanDays = firstIndex < 0 ? 0 : series.length - 1 - firstIndex;
@@ -651,7 +801,8 @@ class DetailScreen extends StatelessWidget {
             const _NoData(
               emoji: 'weight',
               title: 'No weigh-ins yet',
-              body: 'Weight moves daily, so this chart is built from the days you actually logged — '
+              body:
+                  'Weight moves daily, so this chart is built from the days you actually logged — '
                   'and it will not draw a line through the gaps.',
             )
           else
@@ -670,34 +821,33 @@ class DetailScreen extends StatelessWidget {
               },
             ),
           const SectionLabel('Latest'),
-          Row(children: [
-            Expanded(
-              child: StatTile(
-                value: weights.isEmpty ? '—' : weights.last.toStringAsFixed(1),
-                label: 'Latest (kg)',
+          Row(
+            children: [
+              Expanded(
+                child: StatTile(value: weights.isEmpty ? '—' : weights.last.toStringAsFixed(1), label: 'Latest (kg)'),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: StatTile(
-                value: change == null ? '—' : '${change <= 0 ? '−' : '+'}${change.abs().toStringAsFixed(1)}',
-                label: 'Change (kg)',
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: GestureDetector(
-                // BMI needs a height. It is not invented — and now the tile that
-                // says "set height" is the thing that lets you set it, instead of
-                // pointing at a setting that did not exist anywhere in the app.
-                onTap: () => _promptHeight(context, state),
+              const SizedBox(width: 10),
+              Expanded(
                 child: StatTile(
-                  value: state.bmi?.toStringAsFixed(1) ?? '—',
-                  label: state.bmi == null ? 'BMI · tap to set height' : 'BMI',
+                  value: change == null ? '—' : '${change <= 0 ? '−' : '+'}${change.abs().toStringAsFixed(1)}',
+                  label: 'Change (kg)',
                 ),
               ),
-            ),
-          ]),
+              const SizedBox(width: 10),
+              Expanded(
+                child: GestureDetector(
+                  // BMI needs a height. It is not invented — and now the tile that
+                  // says "set height" is the thing that lets you set it, instead of
+                  // pointing at a setting that did not exist anywhere in the app.
+                  onTap: () => _promptHeight(context, state),
+                  child: StatTile(
+                    value: state.bmi?.toStringAsFixed(1) ?? '—',
+                    label: state.bmi == null ? 'BMI · tap to set height' : 'BMI',
+                  ),
+                ),
+              ),
+            ],
+          ),
         ];
     }
   }
@@ -715,16 +865,27 @@ class DetailScreen extends StatelessWidget {
     return withYear || date.year != DateTime.now().year ? '$label ${date.year}' : label;
   }
 
-  static const List<String> _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  static const List<String> _months = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
 }
 
 /// The honest empty state: names what is missing and what fills it.
 /// Asks for a height (needed for BMI) and stores it. Optional by design: the app
 /// works fine without it and simply reports BMI as unavailable.
 Future<void> _promptHeight(BuildContext context, AppState state) async {
-  final controller = TextEditingController(
-    text: state.heightCm == null ? '' : state.heightCm!.toStringAsFixed(0),
-  );
+  final controller = TextEditingController(text: state.heightCm == null ? '' : state.heightCm!.toStringAsFixed(0));
   final dark = Theme.of(context).brightness == Brightness.dark;
   final result = await showDialog<double>(
     context: context,
@@ -752,10 +913,7 @@ Future<void> _promptHeight(BuildContext context, AppState state) async {
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(dialogContext).pop(),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.of(dialogContext).pop(), child: const Text('Cancel')),
         FilledButton(
           onPressed: () => Navigator.of(dialogContext).pop(double.tryParse(controller.text.trim())),
           child: const Text('Save'),
@@ -805,11 +963,25 @@ class _NoData extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -.2, color: TrackTheme.label(dark))),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.2,
+                    color: TrackTheme.label(dark),
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(body,
-                    style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+                Text(
+                  body,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                    color: TrackTheme.label2(dark),
+                  ),
+                ),
               ],
             ),
           ),
@@ -874,7 +1046,8 @@ class _ScreenTimeOnboardingState extends State<_ScreenTimeOnboarding> {
       showTrackDialog(
         context,
         title: 'Usage access',
-        body: 'Open Android Settings → Apps → Special access → Usage access, '
+        body:
+            'Open Android Settings → Apps → Special access → Usage access, '
             'then enable Track Pro. Return here and the chart will fill in automatically.',
       );
     }
@@ -1002,15 +1175,17 @@ class _RhythmListState extends State<_RhythmList> {
     // `reduce` on an empty list throws; the series is never empty in practice, but a
     // bucket helper that decided otherwise would take the whole detail screen down.
     final maxValue = rhythm.values.isEmpty ? 0.0 : rhythm.values.reduce((a, b) => a > b ? a : b);
-    return GlassList(children: [
-      for (var i = 0; i < rhythm.values.length; i++)
-        _Bar(
-          label: rhythm.labels[i],
-          value: rhythm.values[i].round(),
-          max: maxValue <= 0 ? 1 : maxValue.round(),
-          color: widget.tracker.accent,
-        ),
-    ]);
+    return GlassList(
+      children: [
+        for (var i = 0; i < rhythm.values.length; i++)
+          _Bar(
+            label: rhythm.labels[i],
+            value: rhythm.values[i].round(),
+            max: maxValue <= 0 ? 1 : maxValue.round(),
+            color: widget.tracker.accent,
+          ),
+      ],
+    );
   }
 }
 
@@ -1028,7 +1203,10 @@ class _Card extends StatelessWidget {
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
         boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+        border: Border.all(
+          color: dark ? Colors.white.withValues(alpha: .05) : Colors.black.withValues(alpha: .03),
+          width: .5,
+        ),
       ),
       child: child,
     );
@@ -1061,18 +1239,20 @@ class _Bar extends StatelessWidget {
     final text = money
         ? '₹$value'
         : duration
-            ? '${value ~/ 60}h ${value % 60}m'
-            : '$value${suffix.isEmpty ? '' : ' $suffix'}';
+        ? '${value ~/ 60}h ${value % 60}m'
+        : '$value${suffix.isEmpty ? '' : ' $suffix'}';
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
       child: Row(
         children: [
           SizedBox(
             width: width,
-            child: Text(label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: TrackTheme.label(dark))),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: TrackTheme.label(dark)),
+            ),
           ),
           Expanded(
             child: TweenAnimationBuilder<double>(
@@ -1086,10 +1266,7 @@ class _Bar extends StatelessWidget {
                     Container(height: 8, color: TrackTheme.fill(dark)),
                     FractionallySizedBox(
                       widthFactor: v,
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(color: color),
-                      ),
+                      child: Container(height: 8, decoration: BoxDecoration(color: color)),
                     ),
                   ],
                 ),
@@ -1099,9 +1276,11 @@ class _Bar extends StatelessWidget {
           const SizedBox(width: 10),
           SizedBox(
             width: 62,
-            child: Text(text,
-                textAlign: TextAlign.right,
-                style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
+            child: Text(
+              text,
+              textAlign: TextAlign.right,
+              style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark)),
+            ),
           ),
         ],
       ),
@@ -1148,11 +1327,16 @@ class _HistoryRow extends StatelessWidget {
       subtitle: '${shortDate(date)} · $provenance',
       leading: isToday
           ? Icon(Icons.today_outlined, size: 18, color: tracker.accent)
-          : Text('${date.day}', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
+          : Text(
+              '${date.day}',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark)),
+            ),
       accent: tracker.accent,
       onTap: onTap,
-      trailing: Text(fmtValue(tracker, value),
-          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+      trailing: Text(
+        fmtValue(tracker, value),
+        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+      ),
     );
   }
 }
@@ -1169,12 +1353,7 @@ class _HistoryRow extends StatelessWidget {
 /// 3. A read failure was invisible: the list simply looked empty. The empty state and the
 ///    failure state are now different, and only one of them says "nothing logged yet".
 class _HistorySection extends StatefulWidget {
-  const _HistorySection({
-    required this.tracker,
-    required this.limit,
-    required this.isPro,
-    required this.onLockedTap,
-  });
+  const _HistorySection({required this.tracker, required this.limit, required this.isPro, required this.onLockedTap});
 
   final Tracker tracker;
   final int limit;
@@ -1233,7 +1412,8 @@ class _HistorySectionState extends State<_HistorySection> {
       return _NoData(
         emoji: 'warning',
         title: 'History could not be read',
-        body: 'The entries are still in the database, but this screen could not load them. '
+        body:
+            'The entries are still in the database, but this screen could not load them. '
             'Reopening this tracker usually clears it.',
       );
     }
@@ -1241,15 +1421,17 @@ class _HistorySectionState extends State<_HistorySection> {
     if (_days == null) {
       // Deliberately quiet: a spinner over a short database read is noise, but an empty
       // list *before* the read finishes would be a claim about the data.
-      return GlassList(children: [
-        GlassRow(
-          title: 'Reading history…',
-          subtitle: 'From the database on this device',
-          accent: t.accent,
-          showChevron: false,
-          trailing: Text('—', style: TextStyle(fontSize: 15, color: TrackTheme.label3(dark))),
-        ),
-      ]);
+      return GlassList(
+        children: [
+          GlassRow(
+            title: 'Reading history…',
+            subtitle: 'From the database on this device',
+            accent: t.accent,
+            showChevron: false,
+            trailing: Text('—', style: TextStyle(fontSize: 15, color: TrackTheme.label3(dark))),
+          ),
+        ],
+      );
     }
 
     final days = _days!;
@@ -1257,7 +1439,8 @@ class _HistorySectionState extends State<_HistorySection> {
       return _NoData(
         emoji: 'calendar',
         title: 'No entries yet',
-        body: 'Days you log appear here, one row each. Nothing is filled in for you: a day '
+        body:
+            'Days you log appear here, one row each. Nothing is filled in for you: a day '
             'with no entry stays empty rather than showing a 0.',
       );
     }

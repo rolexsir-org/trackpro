@@ -39,8 +39,11 @@ void main() {
     test('a key round-trips through its midnight', () {
       for (final k in [20260101, 20260228, 20280229, 20260307, 20261231, 20261031]) {
         expect(dayKey(dateOfDayKey(k)), k, reason: 'midnight on day $k must still be day $k');
-        expect(weekdayOfDayKey(k), inInclusiveRange(1, 7),
-            reason: 'weekday is 1..7 — a 0 would index past the label list in `weekdayName`');
+        expect(
+          weekdayOfDayKey(k),
+          inInclusiveRange(1, 7),
+          reason: 'weekday is 1..7 — a 0 would index past the label list in `weekdayName`',
+        );
       }
     });
 
@@ -98,8 +101,11 @@ void main() {
     test('a window of N days spans N-1 gaps and is symmetric', () {
       for (final n in [1, 2, 7, 28, 60, 365]) {
         final start = dayKeyFromToday(n - 1);
-        expect(daysBetweenKeys(start, todayKey()), n - 1,
-            reason: 'a $n-day window (the chart width) must cover exactly $n day keys');
+        expect(
+          daysBetweenKeys(start, todayKey()),
+          n - 1,
+          reason: 'a $n-day window (the chart width) must cover exactly $n day keys',
+        );
         expect(daysBetweenKeys(todayKey(), start), -(n - 1));
       }
       // `series()` builds exactly `days` slots from `dayKeysEndingToday`; the invariant

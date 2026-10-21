@@ -106,11 +106,7 @@ class EntryRepository {
     final all = DefaultTrackers.all();
     await dao.upsertAllTrackers([
       for (var i = 0; i < all.length; i++)
-        _trackerRow(
-          all[i],
-          sort: i,
-          hidden: !DefaultTrackers.enabledByDefault.contains(all[i].id),
-        ),
+        _trackerRow(all[i], sort: i, hidden: !DefaultTrackers.enabledByDefault.contains(all[i].id)),
     ]);
     return true;
   }
@@ -229,7 +225,6 @@ class EntryRepository {
     return written;
   }
 
-
   /// The days this tracker actually has a record for, newest first.
   ///
   /// This exists because the UI's history list was rendering the *gap-filled* series:
@@ -241,9 +236,7 @@ class EntryRepository {
   /// [limit] bounds the query; the caller passes the visible window.
   Future<List<RecordedDay>> recordedDays(String trackerId, {int limit = 30}) async {
     final rows = await dao.dailyRowsFor(trackerId, days: limit);
-    final out = <RecordedDay>[
-      for (final r in rows) (day: r.day, value: r.value, source: r.source),
-    ];
+    final out = <RecordedDay>[for (final r in rows) (day: r.day, value: r.value, source: r.source)];
     out.sort((a, b) => b.day.compareTo(a.day));
     return out;
   }
@@ -487,9 +480,7 @@ class EntryRepository {
         'days': await dao.trackedDayCount(),
         'demo_rows': rows.where((r) => r.source == 'demo').length,
       },
-      'provenance': {
-        for (final s in await dao.entryCountBySource()) s.source: s.count,
-      },
+      'provenance': {for (final s in await dao.entryCountBySource()) s.source: s.count},
       'trackers': [
         for (final t in trackers)
           {
@@ -497,10 +488,8 @@ class EntryRepository {
             'name': t.name,
             'goal': t.goal,
             'unit': t.unit,
-            'history': {
-              for (final r in rows.where((r) => r.trackerId == t.id)) isoDayKey(r.day): r.value,
-            },
-          }
+            'history': {for (final r in rows.where((r) => r.trackerId == t.id)) isoDayKey(r.day): r.value},
+          },
       ],
       'events': [
         for (final e in events)
@@ -556,21 +545,21 @@ class EntryRepository {
   }
 
   TrackerRowsCompanion _trackerRow(Tracker t, {required int sort, bool? hidden}) => TrackerRowsCompanion.insert(
-        id: t.id,
-        name: t.name,
-        emoji: t.emoji,
-        kind: t.kind.name,
-        unit: t.unit,
-        blurb: t.blurb,
-        insight: t.insight,
-        accent: t.accent.toARGB32(),
-        accent2: t.accent2.toARGB32(),
-        goal: t.goal,
-        step: t.step,
-        hero: Value(t.hero),
-        hidden: Value(hidden ?? t.hidden),
-        sort: Value(sort),
-      );
+    id: t.id,
+    name: t.name,
+    emoji: t.emoji,
+    kind: t.kind.name,
+    unit: t.unit,
+    blurb: t.blurb,
+    insight: t.insight,
+    accent: t.accent.toARGB32(),
+    accent2: t.accent2.toARGB32(),
+    goal: t.goal,
+    step: t.step,
+    hero: Value(t.hero),
+    hidden: Value(hidden ?? t.hidden),
+    sort: Value(sort),
+  );
 
   String? _metaOf(String? meta, String key) {
     if (meta == null || meta.isEmpty) return null;
@@ -636,11 +625,13 @@ List<int>? decodeHabitMeta(String? meta) {
     if (decoded is! Map) return null;
     final done = decoded['done'];
     if (done is! List) return null;
-    return [for (final v in done) if (v is int) v];
+    return [
+      for (final v in done)
+        if (v is int) v,
+    ];
   } catch (_) {
     return null;
   }
 }
 
 String encodeHabitMeta(List<int> done) => jsonEncode({'done': done});
-

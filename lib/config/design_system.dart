@@ -146,8 +146,8 @@ class Editorial {
 
   /// Card surface used by every new screen.
   static BoxDecoration card({Color? border, Color? fill}) => BoxDecoration(
-        color: fill ?? surface,
-        borderRadius: BorderRadius.circular(rCard),
-        border: Border.all(color: border ?? hairline, width: 0.5),
-      );
+    color: fill ?? surface,
+    borderRadius: BorderRadius.circular(rCard),
+    border: Border.all(color: border ?? hairline, width: 0.5),
+  );
 }

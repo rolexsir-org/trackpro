@@ -1,12 +1,8 @@
-import 'dart:ui' show Color;
-
 /// Focus Lock — the model layer.
 ///
 /// Deliberately free of Flutter, drift and platform imports: everything here is
 /// plain data, which is what lets `FocusEngine` (pure) and the tests run without a
-/// device, a database or a channel. The one exception is [Color] from `dart:ui`,
-/// used for the optional accent a session inherits from the routine it is linked
-/// to; it is a value type, not a widget.
+/// device, a database or a channel.
 ///
 /// Three invariants are encoded in these types rather than in comments:
 ///
@@ -22,6 +18,7 @@ import 'dart:ui' show Color;
 ///     countdown.
 ///  3. **Nothing is deleted to make a state look tidy.** An interrupted session is a
 ///     row with an honest outcome, never a gap.
+library;
 
 /// How strict a session is.
 ///
@@ -147,9 +144,7 @@ enum FocusEnforcement {
   /// because "set up, no evidence yet" is still not proof, and the honest thing is to
   /// say so rather than to let a green dot imply more than it knows.
   bool get needsAttention =>
-      this == FocusEnforcement.unavailable ||
-      this == FocusEnforcement.armed ||
-      this == FocusEnforcement.lost;
+      this == FocusEnforcement.unavailable || this == FocusEnforcement.armed || this == FocusEnforcement.lost;
 
   static FocusEnforcement fromStorage(String? raw) {
     for (final e in FocusEnforcement.values) {
@@ -323,33 +318,32 @@ class FocusSession {
     List<String>? blockedPackages,
     int? endedAtWallMs,
     String? reflection,
-  }) =>
-      FocusSession(
-        id: id,
-        mode: mode,
-        plannedMinutes: plannedMinutes,
-        goalLabel: goalLabel,
-        commitmentId: commitmentId,
-        startedAtWallMs: startedAtWallMs,
-        startedAtRealtimeMs: startedAtRealtimeMs,
-        segmentStartedAtRealtimeMs: clearSegment ? null : (segmentStartedAtRealtimeMs ?? this.segmentStartedAtRealtimeMs),
-        pausedAtWallMs: clearPause ? null : (pausedAtWallMs ?? this.pausedAtWallMs),
-        focusMs: focusMs ?? this.focusMs,
-        pausedMs: pausedMs ?? this.pausedMs,
-        state: state ?? this.state,
-        outcome: outcome ?? this.outcome,
-        enforcement: enforcement ?? this.enforcement,
-        endReason: endReason ?? this.endReason,
-        blockedAttempts: blockedAttempts ?? this.blockedAttempts,
-        overlayShows: overlayShows ?? this.overlayShows,
-        detectionEvents: detectionEvents ?? this.detectionEvents,
-        timingVerified: timingVerified ?? this.timingVerified,
-        blockedPackages: blockedPackages ?? this.blockedPackages,
-        endedAtWallMs: endedAtWallMs ?? this.endedAtWallMs,
-        reflection: reflection ?? this.reflection,
-        day: day,
-        source: source,
-      );
+  }) => FocusSession(
+    id: id,
+    mode: mode,
+    plannedMinutes: plannedMinutes,
+    goalLabel: goalLabel,
+    commitmentId: commitmentId,
+    startedAtWallMs: startedAtWallMs,
+    startedAtRealtimeMs: startedAtRealtimeMs,
+    segmentStartedAtRealtimeMs: clearSegment ? null : (segmentStartedAtRealtimeMs ?? this.segmentStartedAtRealtimeMs),
+    pausedAtWallMs: clearPause ? null : (pausedAtWallMs ?? this.pausedAtWallMs),
+    focusMs: focusMs ?? this.focusMs,
+    pausedMs: pausedMs ?? this.pausedMs,
+    state: state ?? this.state,
+    outcome: outcome ?? this.outcome,
+    enforcement: enforcement ?? this.enforcement,
+    endReason: endReason ?? this.endReason,
+    blockedAttempts: blockedAttempts ?? this.blockedAttempts,
+    overlayShows: overlayShows ?? this.overlayShows,
+    detectionEvents: detectionEvents ?? this.detectionEvents,
+    timingVerified: timingVerified ?? this.timingVerified,
+    blockedPackages: blockedPackages ?? this.blockedPackages,
+    endedAtWallMs: endedAtWallMs ?? this.endedAtWallMs,
+    reflection: reflection ?? this.reflection,
+    day: day,
+    source: source,
+  );
 }
 
 /// The arithmetic outcome of reading a session back after the app was away.
@@ -403,8 +397,7 @@ class FocusRecovery {
   Duration get elapsed => Duration(milliseconds: elapsedMs);
   Duration get remaining => Duration(milliseconds: remainingMs);
 
-  double get progress =>
-      session.plannedMs <= 0 ? 1 : (elapsedMs / session.plannedMs).clamp(0.0, 1.0).toDouble();
+  double get progress => session.plannedMs <= 0 ? 1 : (elapsedMs / session.plannedMs).clamp(0.0, 1.0).toDouble();
 }
 
 /// A reusable rule set: mode + duration + the apps to restrict. Pro.
@@ -427,16 +420,22 @@ class FocusProfile {
   final List<String> packages;
   final int sort;
 
-  FocusProfile copyWith({String? name, FocusMode? mode, int? minutes, String? commitmentId, List<String>? packages, int? sort}) =>
-      FocusProfile(
-        id: id,
-        name: name ?? this.name,
-        mode: mode ?? this.mode,
-        minutes: minutes ?? this.minutes,
-        commitmentId: commitmentId ?? this.commitmentId,
-        packages: packages ?? this.packages,
-        sort: sort ?? this.sort,
-      );
+  FocusProfile copyWith({
+    String? name,
+    FocusMode? mode,
+    int? minutes,
+    String? commitmentId,
+    List<String>? packages,
+    int? sort,
+  }) => FocusProfile(
+    id: id,
+    name: name ?? this.name,
+    mode: mode ?? this.mode,
+    minutes: minutes ?? this.minutes,
+    commitmentId: commitmentId ?? this.commitmentId,
+    packages: packages ?? this.packages,
+    sort: sort ?? this.sort,
+  );
 }
 
 /// A recurring reminder to *start* a focus session. Pro.
@@ -564,15 +563,12 @@ class FocusStats {
 
   /// Share of ended sessions that were fully enforced, or null below
   /// [minSessionsForShare]: two sessions is not a rate.
-  double? get cleanShare =>
-      endedSessions < minSessionsForShare ? null : completed / endedSessions * 100;
+  double? get cleanShare => endedSessions < minSessionsForShare ? null : completed / endedSessions * 100;
 
   /// Ended sessions spent actually focusing, as a share of ended time. Null below
   /// the same threshold. This is the number that separates "I use focus sessions"
   /// from "I have started focus sessions".
-  double? get servedShare => endedSessions < minSessionsForShare
-      ? null
-      : (completed + degraded) / endedSessions * 100;
+  double? get servedShare => endedSessions < minSessionsForShare ? null : (completed + degraded) / endedSessions * 100;
 
   /// Below this many ended sessions, no share is reported.
   static const int minSessionsForShare = 3;

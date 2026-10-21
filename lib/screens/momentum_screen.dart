@@ -42,16 +42,13 @@ class MomentumScreen extends StatelessWidget {
           subtitle: commitments.isEmpty
               ? 'Your progress at a glance'
               : '${commitments.length} routine${commitments.length == 1 ? '' : 's'} · '
-                  'last ${MomentumEngine.rateWindowDays} days',
+                    'last ${MomentumEngine.rateWindowDays} days',
         ),
         SliverPadding(
           padding: const EdgeInsets.fromLTRB(Editorial.s5, Editorial.s1, Editorial.s5, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              if (state.hasFocusSupport) ...[
-                _FocusHero(state: state),
-                const SizedBox(height: Editorial.s4),
-              ],
+              if (state.hasFocusSupport) ...[_FocusHero(state: state), const SizedBox(height: Editorial.s4)],
               if (commitments.isEmpty && !state.focusStats.hasAny)
                 _EmptyMomentum(showFocus: false)
               else ...[
@@ -89,9 +86,7 @@ class MomentumScreen extends StatelessWidget {
                       children: [
                         Icon(Icons.info_outline_rounded, size: 20, color: Editorial.inkTertiary),
                         const SizedBox(width: Editorial.s3),
-                        Expanded(
-                          child: Text('How momentum is calculated', style: Editorial.figure),
-                        ),
+                        Expanded(child: Text('How momentum is calculated', style: Editorial.figure)),
                         Icon(Icons.chevron_right_rounded, size: 20, color: Editorial.inkTertiary),
                       ],
                     ),
@@ -105,7 +100,6 @@ class MomentumScreen extends StatelessWidget {
     );
   }
 }
-
 
 /// The primary Focus entry point. A live session exposes its real countdown and
 /// opens the dedicated session route; an idle state offers only genuine presets
@@ -121,14 +115,12 @@ class _FocusHero extends StatelessWidget {
     final live = session != null;
     final plannedMs = session?.plannedMs ?? 0;
     final remaining = session == null ? 0 : state.focusRemainingMs.clamp(0, plannedMs).toInt();
-    final progress = plannedMs > 0
-        ? (1 - remaining / plannedMs).clamp(0.0, 1.0).toDouble()
-        : 0.0;
+    final progress = plannedMs > 0 ? (1 - remaining / plannedMs).clamp(0.0, 1.0).toDouble() : 0.0;
     final accent = Editorial.accent;
 
     return Container(
       decoration: Editorial.card(
-        border: live ? accent.withOpacity(.55) : Editorial.hairline,
+        border: live ? accent.withValues(alpha: .55) : Editorial.hairline,
         fill: live ? Editorial.well : Editorial.surface,
       ),
       padding: const EdgeInsets.all(Editorial.s5),
@@ -141,8 +133,7 @@ class _FocusHero extends StatelessWidget {
               const SizedBox(width: Editorial.s2),
               Text(live ? 'FOCUS IN PROGRESS' : 'FOCUS', style: Editorial.label.copyWith(color: accent)),
               const Spacer(),
-              if (session?.isPaused ?? false)
-                Text('PAUSED', style: Editorial.label.copyWith(color: Editorial.minimum)),
+              if (session?.isPaused ?? false) Text('PAUSED', style: Editorial.label.copyWith(color: Editorial.minimum)),
             ],
           ),
           const SizedBox(height: Editorial.s4),
@@ -177,10 +168,7 @@ class _FocusHero extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Editorial.s5),
-            TrackFilledButton(
-              label: 'Open focus session',
-              onTap: () => openFocusSession(context),
-            ),
+            TrackFilledButton(label: 'Open focus session', onTap: () => openFocusSession(context)),
           ] else ...[
             Center(
               child: Container(
@@ -203,7 +191,11 @@ class _FocusHero extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Editorial.s4),
-            Text('Choose a duration to configure your next session.', textAlign: TextAlign.center, style: Editorial.body),
+            Text(
+              'Choose a duration to configure your next session.',
+              textAlign: TextAlign.center,
+              style: Editorial.body,
+            ),
             const SizedBox(height: Editorial.s4),
             Row(
               children: [
@@ -219,16 +211,12 @@ class _FocusHero extends StatelessWidget {
               ],
             ),
             const SizedBox(height: Editorial.s3),
-            TrackFilledButton(
-              label: 'Set up focus',
-              onTap: () => showFocusStartSheet(context, minutes: 25),
-            ),
+            TrackFilledButton(label: 'Set up focus', onTap: () => showFocusStartSheet(context, minutes: 25)),
           ],
           const SizedBox(height: Editorial.s2),
           TextButton.icon(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
-            ),
+            onPressed: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen())),
             icon: const Icon(Icons.history_rounded, size: 18),
             label: const Text('Focus history'),
             style: TextButton.styleFrom(foregroundColor: Editorial.inkSecondary),
@@ -254,22 +242,22 @@ class _FocusPreset extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Material(
-        color: Editorial.canvas,
-        borderRadius: BorderRadius.circular(Editorial.rSmall),
-        child: InkWell(
-          onTap: onTap,
+    color: Editorial.canvas,
+    borderRadius: BorderRadius.circular(Editorial.rSmall),
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(Editorial.rSmall),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 46),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(Editorial.rSmall),
-          child: Container(
-            constraints: const BoxConstraints(minHeight: 46),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(Editorial.rSmall),
-              border: Border.all(color: Editorial.hairline, width: .5),
-            ),
-            child: Text('$minutes min', style: Editorial.figure.copyWith(fontSize: 13)),
-          ),
+          border: Border.all(color: Editorial.hairline, width: .5),
         ),
-      );
+        child: Text('$minutes min', style: Editorial.figure.copyWith(fontSize: 13)),
+      ),
+    ),
+  );
 }
 
 /// The one number the screen is about — or an honest account of why there isn't one.
@@ -309,8 +297,10 @@ class _HeadlineCard extends StatelessWidget {
               ],
             )
           else ...[
-            Text('$decided of ${MomentumEngine.minDecidedDaysForRate} days counted',
-                style: Editorial.display.copyWith(fontSize: 26)),
+            Text(
+              '$decided of ${MomentumEngine.minDecidedDaysForRate} days counted',
+              style: Editorial.display.copyWith(fontSize: 26),
+            ),
             const SizedBox(height: Editorial.s2),
             Text(
               'Momentum appears after ${MomentumEngine.minDecidedDaysForRate} days, so it reflects a habit '
@@ -333,7 +323,6 @@ class _HeadlineCard extends StatelessWidget {
     );
   }
 }
-
 
 /// Real focus time, from the sessions the user actually finished. This is the same
 /// record the Focus history screen reads, shown where progress is expected to live;
@@ -378,18 +367,14 @@ class _FocusProgressCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: TrackFilledButton(
-                  label: 'Start a session',
-                  onTap: () => showFocusStartSheet(context),
-                ),
+                child: TrackFilledButton(label: 'Start a session', onTap: () => showFocusStartSheet(context)),
               ),
               const SizedBox(width: Editorial.s2),
               Expanded(
                 child: TrackTintedButton(
                   label: 'Focus history',
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()),
-                  ),
+                  onTap: () =>
+                      Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen())),
                 ),
               ),
             ],
@@ -414,7 +399,7 @@ class _RestartCard extends StatelessWidget {
     final plan = state.momentumFor(first.id)!.restart!;
 
     return Container(
-      decoration: Editorial.card(border: Editorial.minimum.withOpacity(.55)),
+      decoration: Editorial.card(border: Editorial.minimum.withValues(alpha: .55)),
       padding: const EdgeInsets.all(Editorial.s5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -517,7 +502,12 @@ class _CommitmentCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Editorial.s4),
-          _Strip(commitment: c, recorded: recorded, pauses: state.commitmentRepo.pauses, todayKey: state.commitmentRepo.todayKey),
+          _Strip(
+            commitment: c,
+            recorded: recorded,
+            pauses: state.commitmentRepo.pauses,
+            todayKey: state.commitmentRepo.todayKey,
+          ),
           const SizedBox(height: Editorial.s4),
           Row(
             children: [
@@ -529,16 +519,12 @@ class _CommitmentCard extends StatelessWidget {
                   detail: snap == null
                       ? 'No days yet'
                       : (snap.rate == null
-                          ? '${snap.decidedDays} of ${MomentumEngine.minDecidedDaysForRate} days'
-                          : '${snap.decidedDays} days counted'),
+                            ? '${snap.decidedDays} of ${MomentumEngine.minDecidedDaysForRate} days'
+                            : '${snap.decidedDays} days counted'),
                 ),
               ),
               Expanded(
-                child: _MiniStat(
-                  label: 'STREAK',
-                  value: '${snap?.keepGoingStreak ?? 0}',
-                  detail: 'days in a row',
-                ),
+                child: _MiniStat(label: 'STREAK', value: '${snap?.keepGoingStreak ?? 0}', detail: 'days in a row'),
               ),
             ],
           ),
@@ -580,7 +566,7 @@ class _TodayRow extends StatelessWidget {
       return GestureDetector(
         onTap: () => showOutcomeSheet(context, c),
         child: Container(
-          decoration: Editorial.card(fill: tint.withOpacity(.12), border: tint.withOpacity(.5)),
+          decoration: Editorial.card(fill: tint.withValues(alpha: .12), border: tint.withValues(alpha: .5)),
           padding: const EdgeInsets.symmetric(horizontal: Editorial.s4, vertical: Editorial.s3),
           child: Row(
             children: [
@@ -645,58 +631,57 @@ class _Strip extends StatelessWidget {
           children: [
             for (var i = 0; i < _days; i++)
               Expanded(
-                child: Builder(builder: (context) {
-                  var day = from;
-                  for (var k = 0; k < i; k++) {
-                    day = nextDayKey(day);
-                  }
-                  final planned = MomentumEngine.isPlanned(commitment, day, pauses);
-                  final outcome = recorded[day]?.outcome;
-                  final isToday = day == todayKey;
-                  final isFuture = day > todayKey;
+                child: Builder(
+                  builder: (context) {
+                    var day = from;
+                    for (var k = 0; k < i; k++) {
+                      day = nextDayKey(day);
+                    }
+                    final planned = MomentumEngine.isPlanned(commitment, day, pauses);
+                    final outcome = recorded[day]?.outcome;
+                    final isToday = day == todayKey;
+                    final isFuture = day > todayKey;
 
-                  final Color fill;
-                  final Color border;
-                  if (outcome == DayOutcome.full) {
-                    fill = Editorial.full;
-                    border = Editorial.full;
-                  } else if (outcome == DayOutcome.minimum) {
-                    fill = Editorial.minimum;
-                    border = Editorial.minimum;
-                  } else if (outcome == DayOutcome.rest || outcome == DayOutcome.skipped) {
-                    fill = Editorial.rest;
-                    border = Editorial.rest;
-                  } else if (outcome == DayOutcome.missed || (planned && day < todayKey && !isFuture)) {
-                    fill = Editorial.missed.withOpacity(.28);
-                    border = Editorial.missed.withOpacity(.5);
-                  } else {
-                    // Not planned, in the future, or today and still open.
-                    fill = Colors.transparent;
-                    border = Editorial.hairline;
-                  }
+                    final Color fill;
+                    final Color border;
+                    if (outcome == DayOutcome.full) {
+                      fill = Editorial.full;
+                      border = Editorial.full;
+                    } else if (outcome == DayOutcome.minimum) {
+                      fill = Editorial.minimum;
+                      border = Editorial.minimum;
+                    } else if (outcome == DayOutcome.rest || outcome == DayOutcome.skipped) {
+                      fill = Editorial.rest;
+                      border = Editorial.rest;
+                    } else if (outcome == DayOutcome.missed || (planned && day < todayKey && !isFuture)) {
+                      fill = Editorial.missed.withValues(alpha: .28);
+                      border = Editorial.missed.withValues(alpha: .5);
+                    } else {
+                      // Not planned, in the future, or today and still open.
+                      fill = Colors.transparent;
+                      border = Editorial.hairline;
+                    }
 
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 3),
-                    child: Container(
-                      height: 26,
-                      decoration: BoxDecoration(
-                        color: fill,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isToday ? Editorial.ink : border,
-                          width: isToday ? 1.2 : 0.8,
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 3),
+                      child: Container(
+                        height: 26,
+                        decoration: BoxDecoration(
+                          color: fill,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: isToday ? Editorial.ink : border, width: isToday ? 1.2 : 0.8),
                         ),
                       ),
-                    ),
-                  );
-                }),
+                    );
+                  },
+                ),
               ),
           ],
         ),
         const SizedBox(height: Editorial.s2),
         Row(
           children: [
-            Text('${_days} days ago', style: Editorial.caption),
+            Text('$_days days ago', style: Editorial.caption),
             const Spacer(),
             Text('Today', style: Editorial.caption),
           ],
@@ -767,25 +752,31 @@ class _PatternsSection extends StatelessWidget {
 
     for (final c in commitments) {
       for (final p in state.patternsFor(c.id)) {
-        rows.add(_Finding(
-          title: '${c.name} is missed most on ${weekdayName(p.weekday)}',
-          body: 'Missed ${p.missed} of ${p.decided} ${weekdayName(p.weekday, short: true)}s'
-              ' (${(p.missRate * 100).round()}%), against ${(p.overallMissRate * 100).round()}% on your '
-              'other planned days.',
-          hint: 'This is about timing, not willpower. A smaller target for that day usually helps.',
-          color: Editorial.minimum,
-        ));
+        rows.add(
+          _Finding(
+            title: '${c.name} is missed most on ${weekdayName(p.weekday)}',
+            body:
+                'Missed ${p.missed} of ${p.decided} ${weekdayName(p.weekday, short: true)}s'
+                ' (${(p.missRate * 100).round()}%), against ${(p.overallMissRate * 100).round()}% on your '
+                'other planned days.',
+            hint: 'This is about timing, not willpower. A smaller target for that day usually helps.',
+            color: Editorial.minimum,
+          ),
+        );
       }
       final imp = state.improvementFor(c.id);
       if (imp != null) {
-        rows.add(_Finding(
-          title: '${c.name} is improving',
-          body: '${imp.recentRate.round()}% in the last ${imp.windowDays} days, against '
-              '${imp.previousRate.round()}% in the ${imp.windowDays} before '
-              '(+${imp.delta.round()} points).',
-          hint: 'Both periods had enough logged days to compare.',
-          color: Editorial.full,
-        ));
+        rows.add(
+          _Finding(
+            title: '${c.name} is improving',
+            body:
+                '${imp.recentRate.round()}% in the last ${imp.windowDays} days, against '
+                '${imp.previousRate.round()}% in the ${imp.windowDays} before '
+                '(+${imp.delta.round()} points).',
+            hint: 'Both periods had enough logged days to compare.',
+            color: Editorial.full,
+          ),
+        );
       }
     }
 
@@ -812,10 +803,7 @@ class _PatternsSection extends StatelessWidget {
             ),
           )
         else
-          for (final r in rows) ...[
-            r,
-            const SizedBox(height: Editorial.s3),
-          ],
+          for (final r in rows) ...[r, const SizedBox(height: Editorial.s3)],
       ],
     );
   }
@@ -839,7 +827,11 @@ class _Finding extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(width: 8, height: 8, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              Container(
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
               const SizedBox(width: Editorial.s2),
               Expanded(child: Text(title, style: Editorial.figure)),
             ],
@@ -912,7 +904,9 @@ class _WeeklyReviewCard extends StatelessWidget {
                   children: [
                     Icon(Icons.repeat_rounded, size: 17, color: Editorial.accent),
                     const SizedBox(width: Editorial.s2),
-                    Expanded(child: Text(line.name, style: Editorial.body.copyWith(color: Editorial.ink, fontSize: 14))),
+                    Expanded(
+                      child: Text(line.name, style: Editorial.body.copyWith(color: Editorial.ink, fontSize: 14)),
+                    ),
                     Text(
                       line.decided == 0
                           ? 'no planned days'
@@ -964,7 +958,11 @@ class _FigureRow extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: Editorial.s2),
       child: Row(
         children: [
-          Container(width: 8, height: 8, decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(color: tint, borderRadius: BorderRadius.circular(2)),
+          ),
           const SizedBox(width: Editorial.s3),
           Expanded(child: Text(label, style: Editorial.body.copyWith(fontSize: 14))),
           Text(value, style: Editorial.figure),
@@ -998,20 +996,13 @@ class _EmptyMomentum extends StatelessWidget {
             style: Editorial.body,
           ),
           const SizedBox(height: Editorial.s5),
-          TrackFilledButton(
-            label: 'Create a routine',
-            onTap: () => showTemplatePicker(context),
-          ),
+          TrackFilledButton(label: 'Create a routine', onTap: () => showTemplatePicker(context)),
           if (showFocus) ...[
             const SizedBox(height: Editorial.s2),
-            TrackTintedButton(
-              label: 'Start a focus session',
-              onTap: () => showFocusStartSheet(context),
-            ),
+            TrackTintedButton(label: 'Start a focus session', onTap: () => showFocusStartSheet(context)),
           ],
         ],
       ),
     );
   }
 }
-

@@ -68,7 +68,7 @@ class ProAnalytics {
     return bought / views;
   }
 
-  static const String trialConversionQuery = '''
+  static const String trialConversionQuery = r'''
 -- Trial → paid, the metric that decides whether the plan is priced right.
 -- Called from the backend once RTDN is wired; kept here as the contract.
 SELECT
@@ -79,7 +79,7 @@ FROM track_events
 WHERE name IN ('trial_started', 'purchase_completed');
 ''';
 
-  static const String hardPaywallSkewQuery = '''
+  static const String hardPaywallSkewQuery = r'''
 -- Which trigger converts, so the paywall can be moved to where it earns.
 SELECT
   json_extract(meta, '$.trigger') AS trigger,

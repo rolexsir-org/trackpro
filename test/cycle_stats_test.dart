@@ -82,8 +82,11 @@ void main() {
 
     test('a 14-day gap is too short to be a cycle and is refused the same way', () {
       final stats = CycleStats.fromSeries(flows(60, [(10, runLength: 3), (24, runLength: 3)]));
-      expect(stats.hasPrediction, isFalse,
-          reason: '15 days is the floor the file sets, for bleeding/spotting confusion');
+      expect(
+        stats.hasPrediction,
+        isFalse,
+        reason: '15 days is the floor the file sets, for bleeding/spotting confusion',
+      );
       expect(stats.summary, contains('outside a usable range'));
     });
   });
@@ -108,26 +111,33 @@ void main() {
 
   group('irregularity is measured, not smoothed', () {
     test('variability is the spread of this user\'s own gaps', () {
-      final stats = CycleStats.fromSeries(flows(200, [
-        (10, runLength: 4),
-        (38, runLength: 4), // 28
-        (80, runLength: 4), // 42
-      ]));
+      final stats = CycleStats.fromSeries(
+        flows(200, [
+          (10, runLength: 4),
+          (38, runLength: 4), // 28
+          (80, runLength: 4), // 42
+        ]),
+      );
       expect(stats.shortestLength, 28);
       expect(stats.longestLength, 42);
       expect(stats.variability, 14);
       expect(stats.isIrregular, isTrue);
       expect(stats.summary, contains('vary by 14 days'));
-      expect(stats.summary, isNot(contains('28 days')),
-          reason: 'the population average must never be presented as this person\'s cycle');
+      expect(
+        stats.summary,
+        isNot(contains('28 days')),
+        reason: 'the population average must never be presented as this person\'s cycle',
+      );
     });
 
     test('a 0-8 day spread is regular for them', () {
-      final stats = CycleStats.fromSeries(flows(200, [
-        (10, runLength: 4),
-        (38, runLength: 4), // 28
-        (68, runLength: 4), // 30
-      ]));
+      final stats = CycleStats.fromSeries(
+        flows(200, [
+          (10, runLength: 4),
+          (38, runLength: 4), // 28
+          (68, runLength: 4), // 30
+        ]),
+      );
       expect(stats.variability, 2);
       expect(stats.isIrregular, isFalse);
       expect(stats.hasPrediction, isTrue);

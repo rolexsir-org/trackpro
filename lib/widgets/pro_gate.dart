@@ -26,10 +26,7 @@ class ProChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.symmetric(horizontal: compact ? 6 : 8, vertical: compact ? 2 : 3),
-      decoration: BoxDecoration(
-        color: ProPalette.gold,
-        borderRadius: BorderRadius.circular(7),
-      ),
+      decoration: BoxDecoration(color: ProPalette.gold, borderRadius: BorderRadius.circular(7)),
       child: Text(
         label,
         style: TextStyle(
@@ -84,9 +81,7 @@ class ProGate extends StatelessWidget {
           // fabricating a glossy layer behind the lock message.
           IgnorePointer(child: Opacity(opacity: .32, child: child)),
           Positioned.fill(
-            child: ColoredBox(
-              color: dark ? Colors.black.withOpacity(.72) : Colors.white.withOpacity(.82),
-            ),
+            child: ColoredBox(color: dark ? Colors.black.withValues(alpha: .72) : Colors.white.withValues(alpha: .82)),
           ),
           Padding(
             padding: const EdgeInsets.all(18),
@@ -170,7 +165,7 @@ class ProLockedRow extends StatelessWidget {
               height: 29,
               alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: ProPalette.gold.withOpacity(.16),
+                color: ProPalette.gold.withValues(alpha: .16),
                 borderRadius: BorderRadius.circular(9),
               ),
               child: Icon(Icons.lock_outline_rounded, size: 16, color: ProPalette.gold),
@@ -323,24 +318,28 @@ class ProUsageMeter extends StatelessWidget {
         color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
         boxShadow: TrackTheme.cardShadow(dark),
-        border: Border.all(color: atLimit ? ProPalette.gold.withOpacity(.5) : Colors.transparent, width: .5),
+        border: Border.all(color: atLimit ? ProPalette.gold.withValues(alpha: .5) : Colors.transparent, width: .5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Text('Free plan',
-                  style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
+              Text(
+                'Free plan',
+                style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
+              ),
               const SizedBox(width: 8),
               const ProChip(compact: true, label: 'FREE'),
               const Spacer(),
-              Text('$used of $limit $unit',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: atLimit ? ProPalette.goldDeep : TrackTheme.label2(dark),
-                  )),
+              Text(
+                '$used of $limit $unit',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: atLimit ? ProPalette.goldDeep : TrackTheme.label2(dark),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 9),
@@ -353,9 +352,7 @@ class ProUsageMeter extends StatelessWidget {
                   widthFactor: progress,
                   child: Container(
                     height: 7,
-                    decoration: BoxDecoration(
-                      color: atLimit ? ProPalette.gold : TrackTheme.blue,
-                    ),
+                    decoration: BoxDecoration(color: atLimit ? ProPalette.gold : TrackTheme.blue),
                   ),
                 ),
               ],
@@ -369,7 +366,12 @@ class ProUsageMeter extends StatelessWidget {
                   atLimit
                       ? 'You have filled the free plan. Pro removes the ceiling.'
                       : '${limit - used} $unit left on the free plan. Pro makes it unlimited.',
-                  style: TextStyle(fontSize: 12.5, height: 1.35, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    fontWeight: FontWeight.w500,
+                    color: TrackTheme.label2(dark),
+                  ),
                 ),
               ),
               const SizedBox(width: 10),

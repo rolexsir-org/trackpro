@@ -100,14 +100,9 @@ class DemoFixtures {
     final history = this.history();
     for (final t in DefaultTrackers.all()) {
       final values = history[t.id]!;
-      await dao.replaceSeries(
-        t.id,
-        <int, double>{
-          for (var i = 0; i < values.length; i++)
-            dayKeyFromToday(values.length - 1 - i): values[i],
-        },
-        source: source,
-      );
+      await dao.replaceSeries(t.id, <int, double>{
+        for (var i = 0; i < values.length; i++) dayKeyFromToday(values.length - 1 - i): values[i],
+      }, source: source);
     }
   }
 }

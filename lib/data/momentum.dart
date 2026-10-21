@@ -216,7 +216,8 @@ class MomentumEngine {
       final upcoming = _nextPlannedDays(c, pauses, from: today, count: 4);
       final backOn = upcoming.isEmpty ? null : upcoming.last;
       plan = RestartPlan(
-        reason: '$missedRun planned days in a row went unlogged. '
+        reason:
+            '$missedRun planned days in a row went unlogged. '
             'The last full day on record was '
             '${lastFull == 0 ? 'none yet' : shortDayKey(lastFull)}.',
         missedRun: missedRun,
@@ -226,14 +227,13 @@ class MomentumEngine {
             detail: 'Do the smallest version and log it. This rebuilds the record, not the fitness.',
           ),
           RestartStep(
-            title: backOn == null
-                ? 'Then the full target again'
-                : 'Then the full target on ${shortDayKey(backOn)}',
+            title: backOn == null ? 'Then the full target again' : 'Then the full target on ${shortDayKey(backOn)}',
             detail: 'One full day is enough to start with. The plan does not ask for a week of them.',
           ),
           RestartStep(
             title: 'If it slips again, change the commitment',
-            detail: 'Misses clustering on one weekday are a scheduling problem, not a character '
+            detail:
+                'Misses clustering on one weekday are a scheduling problem, not a character '
                 'problem. Drop that weekday, or lower the full target and keep the minimum.',
           ),
         ],
@@ -318,12 +318,7 @@ class MomentumEngine {
       final misses = entry.value.where((o) => o == null || o == DayOutcome.missed).length;
       final rate = misses / n;
       if (rate < .5 || rate - overall < .25) continue;
-      found.add(WeekdayPattern(
-        weekday: entry.key,
-        decided: n,
-        missed: misses,
-        overallMissRate: overall,
-      ));
+      found.add(WeekdayPattern(weekday: entry.key, decided: n, missed: misses, overallMissRate: overall));
     }
     found.sort((a, b) => b.missRate.compareTo(a.missRate));
     return found;
@@ -468,16 +463,18 @@ class MomentumEngine {
       excluded += cExcluded;
       credit += cCredit;
 
-      lines.add(CommitmentWeek(
-        name: c.name,
-        emoji: c.emoji,
-        planned: cDecided + cExcluded,
-        decided: cDecided,
-        full: cFull,
-        minimum: cMinimum,
-        missed: cMissed,
-        excluded: cExcluded,
-      ));
+      lines.add(
+        CommitmentWeek(
+          name: c.name,
+          emoji: c.emoji,
+          planned: cDecided + cExcluded,
+          decided: cDecided,
+          full: cFull,
+          minimum: cMinimum,
+          missed: cMissed,
+          excluded: cExcluded,
+        ),
+      );
     }
 
     return WeeklyReview(

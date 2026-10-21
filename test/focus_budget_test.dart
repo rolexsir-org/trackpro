@@ -42,8 +42,11 @@ void main() {
     });
 
     test('free covers a real number of apps, and it is not zero or one', () {
-      expect(ProConfig.freeBlockedApps, greaterThanOrEqualTo(3),
-          reason: 'one app is not a focus session, it is a demo of one');
+      expect(
+        ProConfig.freeBlockedApps,
+        greaterThanOrEqualTo(3),
+        reason: 'one app is not a focus session, it is a demo of one',
+      );
     });
 
     test('free keeps a usable history window and never deletes the rest', () {
@@ -80,13 +83,18 @@ void main() {
 
   group('pause budgets — stated before the session, never discovered during it', () {
     test('every mode with enforcement has a finite budget, and standard has none', () {
-      expect(FocusEngine.pauseBudgetFor(FocusMode.standard), isNull,
-          reason: 'standard enforces nothing, so pausing costs nothing');
+      expect(
+        FocusEngine.pauseBudgetFor(FocusMode.standard),
+        isNull,
+        reason: 'standard enforces nothing, so pausing costs nothing',
+      );
       expect(FocusEngine.pauseBudgetFor(FocusMode.blocking), isNotNull);
       expect(FocusEngine.pauseBudgetFor(FocusMode.deep), isNotNull);
-      expect(FocusEngine.pauseBudgetFor(FocusMode.deep)!.inMinutes,
-          lessThan(FocusEngine.pauseBudgetFor(FocusMode.blocking)!.inMinutes),
-          reason: 'deep is the stricter mode; its pause budget cannot be the looser one');
+      expect(
+        FocusEngine.pauseBudgetFor(FocusMode.deep)!.inMinutes,
+        lessThan(FocusEngine.pauseBudgetFor(FocusMode.blocking)!.inMinutes),
+        reason: 'deep is the stricter mode; its pause budget cannot be the looser one',
+      );
     });
 
     test('the boundary is exclusive: exactly the budget is still inside it', () {

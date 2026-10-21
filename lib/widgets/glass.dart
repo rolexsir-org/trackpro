@@ -15,22 +15,15 @@ class AmbientBackground extends StatelessWidget {
   final Color accent2;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-        color: TrackTheme.bg(Theme.of(context).brightness == Brightness.dark),
-      );
+  Widget build(BuildContext context) =>
+      ColoredBox(color: TrackTheme.bg(Theme.of(context).brightness == Brightness.dark));
 }
 
 /// A stable vector mark for stored routines and trackers. Historical emoji values
 /// remain in the data model and exports for compatibility, but product UI no longer
 /// renders platform-dependent emoji glyphs as navigation or status icons.
 class TrackRecordIcon extends StatelessWidget {
-  const TrackRecordIcon({
-    super.key,
-    required this.label,
-    required this.color,
-    this.size = 42,
-    this.iconSize = 21,
-  });
+  const TrackRecordIcon({super.key, required this.label, required this.color, this.size = 42, this.iconSize = 21});
 
   final String label;
   final Color color;
@@ -39,27 +32,26 @@ class TrackRecordIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        width: size,
-        height: size,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: color.withOpacity(.15),
-          borderRadius: BorderRadius.circular(size * .32),
-        ),
-        child: Icon(_recordIcon(label), size: iconSize, color: color),
-      );
+    width: size,
+    height: size,
+    alignment: Alignment.center,
+    decoration: BoxDecoration(color: color.withValues(alpha: .15), borderRadius: BorderRadius.circular(size * .32)),
+    child: Icon(_recordIcon(label), size: iconSize, color: color),
+  );
 }
 
 IconData _recordIcon(String label) {
   final value = label.toLowerCase();
   if (value.contains('water')) return Icons.water_drop_outlined;
   if (value.contains('mood')) return Icons.sentiment_satisfied_alt_outlined;
-  if (value.contains('money') || value.contains('expense') || value.contains('spend')) return Icons.account_balance_wallet_outlined;
+  if (value.contains('money') || value.contains('expense') || value.contains('spend'))
+    return Icons.account_balance_wallet_outlined;
   if (value.contains('sleep')) return Icons.bedtime_outlined;
   if (value.contains('calor') || value.contains('food')) return Icons.restaurant_outlined;
   if (value.contains('step') || value.contains('walk')) return Icons.directions_walk_outlined;
   if (value.contains('run')) return Icons.directions_run_outlined;
-  if (value.contains('workout') || value.contains('train') || value.contains('lift')) return Icons.fitness_center_outlined;
+  if (value.contains('workout') || value.contains('train') || value.contains('lift'))
+    return Icons.fitness_center_outlined;
   if (value.contains('read') || value.contains('book')) return Icons.menu_book_outlined;
   if (value.contains('meditat') || value.contains('breath')) return Icons.self_improvement_outlined;
   if (value.contains('write') || value.contains('journal')) return Icons.edit_note_outlined;
@@ -86,7 +78,7 @@ Future<T?> showGlassSheet<T>(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Dismiss',
-    barrierColor: Colors.black.withOpacity(.62),
+    barrierColor: Colors.black.withValues(alpha: .62),
     transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (_, __, ___) => const SizedBox.shrink(),
     transitionBuilder: (context, anim, secondary, _) {
@@ -162,74 +154,78 @@ class _SheetSurfaceState extends State<_SheetSurface> {
           boxShadow: TrackTheme.sheetShadow,
         ),
         child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 9),
-                Container(width: 38, height: 5, decoration: BoxDecoration(color: TrackTheme.label3(dark), borderRadius: BorderRadius.circular(3))),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.title,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 9),
+            Container(
+              width: 38,
+              height: 5,
+              decoration: BoxDecoration(color: TrackTheme.label3(dark), borderRadius: BorderRadius.circular(3)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 14, 20, 8),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -.4,
+                            color: TrackTheme.label(dark),
+                          ),
+                        ),
+                        if (widget.subtitle != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 3),
+                            child: Text(
+                              widget.subtitle!,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 19,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -.4,
-                                color: TrackTheme.label(dark),
+                                fontSize: 13,
+                                height: 1.35,
+                                fontWeight: FontWeight.w500,
+                                color: TrackTheme.label3(dark),
                               ),
                             ),
-                            if (widget.subtitle != null)
-                              Padding(
-                                padding: const EdgeInsets.only(top: 3),
-                                child: Text(
-                                  widget.subtitle!,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.35,
-                                    fontWeight: FontWeight.w500,
-                                    color: TrackTheme.label3(dark),
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Flexible(
-                  child: SingleChildScrollView(
-                    physics: const ClampingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-                    child: widget.body,
-                  ),
-                ),
-                if (widget.actions.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-                    child: Column(
-                      children: [
-                        for (var i = 0; i < widget.actions.length; i++) ...[
-                          widget.actions[i],
-                          if (i < widget.actions.length - 1) const SizedBox(height: 9),
-                        ],
+                          ),
                       ],
                     ),
-                  )
-                else
-                  const SizedBox(height: 26),
-              ],
+                  ),
+                ],
+              ),
             ),
+            Flexible(
+              child: SingleChildScrollView(
+                physics: const ClampingScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+                child: widget.body,
+              ),
+            ),
+            if (widget.actions.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                child: Column(
+                  children: [
+                    for (var i = 0; i < widget.actions.length; i++) ...[
+                      widget.actions[i],
+                      if (i < widget.actions.length - 1) const SizedBox(height: 9),
+                    ],
+                  ],
+                ),
+              )
+            else
+              const SizedBox(height: 26),
+          ],
+        ),
       ),
     );
   }
@@ -245,12 +241,7 @@ class TrackFilledButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _Btn(
-      label: label,
-      onTap: onTap,
-      bg: color,
-      fg: Colors.black,
-    );
+    return _Btn(label: label, onTap: onTap, bg: color, fg: Colors.black);
   }
 }
 
@@ -318,7 +309,9 @@ class _BtnState extends State<_Btn> {
                 color: widget.bg ?? widget.flatColor,
                 borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
                 border: Border.all(
-                  color: widget.bg == null ? TrackTheme.separator(Theme.of(context).brightness == Brightness.dark) : Colors.transparent,
+                  color: widget.bg == null
+                      ? TrackTheme.separator(Theme.of(context).brightness == Brightness.dark)
+                      : Colors.transparent,
                   width: .5,
                 ),
               ),
@@ -403,8 +396,7 @@ class _SubmitOnceState extends State<SubmitOnce> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      widget.builder(context, (_busy || _done) ? null : () => unawaited(_run()));
+  Widget build(BuildContext context) => widget.builder(context, (_busy || _done) ? null : () => unawaited(_run()));
 }
 
 class TrackBackButton extends StatelessWidget {
@@ -457,10 +449,7 @@ class SectionLabel extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) ...[
-            const SizedBox(width: 8),
-            Flexible(fit: FlexFit.loose, child: trailing!),
-          ],
+          if (trailing != null) ...[const SizedBox(width: 8), Flexible(fit: FlexFit.loose, child: trailing!)],
         ],
       ),
     );
@@ -538,7 +527,7 @@ class GlassRow extends StatelessWidget {
                 width: 29,
                 height: 29,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(color: accent.withOpacity(.15), borderRadius: BorderRadius.circular(9)),
+                decoration: BoxDecoration(color: accent.withValues(alpha: .15), borderRadius: BorderRadius.circular(9)),
                 child: leading,
               ),
               const SizedBox(width: 12),
@@ -646,7 +635,14 @@ class StatTile extends StatelessWidget {
 
 /// Tinted insight card — the "pattern we found" surface.
 class InsightCard extends StatelessWidget {
-  const InsightCard({super.key, required this.emoji, required this.title, required this.body, required this.accent, this.accent2 = TrackTheme.indigo});
+  const InsightCard({
+    super.key,
+    required this.emoji,
+    required this.title,
+    required this.body,
+    required this.accent,
+    this.accent2 = TrackTheme.indigo,
+  });
 
   final String emoji;
   final String title;
@@ -674,11 +670,26 @@ class InsightCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title,
-                    style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, letterSpacing: -.24, height: 1.35, color: TrackTheme.label(dark))),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14.5,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.24,
+                    height: 1.35,
+                    color: TrackTheme.label(dark),
+                  ),
+                ),
                 const SizedBox(height: 3),
-                Text(body,
-                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, height: 1.45, color: TrackTheme.label2(dark))),
+                Text(
+                  body,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w500,
+                    height: 1.45,
+                    color: TrackTheme.label2(dark),
+                  ),
+                ),
               ],
             ),
           ),
@@ -708,7 +719,7 @@ Future<String?> showTrackContextMenu(
     context: context,
     barrierDismissible: true,
     barrierLabel: 'Menu',
-    barrierColor: Colors.black.withOpacity(.18),
+    barrierColor: Colors.black.withValues(alpha: .18),
     transitionDuration: const Duration(milliseconds: 280),
     pageBuilder: (_, __, ___) => const SizedBox.shrink(),
     transitionBuilder: (context, anim, _, __) {
@@ -737,38 +748,41 @@ Future<String?> showTrackContextMenu(
                       border: Border.all(color: TrackTheme.separator(dark), width: .5),
                     ),
                     child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final item in items)
-                              GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  Haptics.selection();
-                                  Navigator.of(context).pop(item[0] as String);
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
-                                  decoration: BoxDecoration(
-                                    border: Border(
-                                      bottom: BorderSide(color: TrackTheme.separator(dark), width: .5),
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (final item in items)
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: () {
+                              Haptics.selection();
+                              Navigator.of(context).pop(item[0] as String);
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 13),
+                              decoration: BoxDecoration(
+                                border: Border(bottom: BorderSide(color: TrackTheme.separator(dark), width: .5)),
+                              ),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      item[0] as String,
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w400,
+                                        letterSpacing: -.3,
+                                        color: item.length > 2 && item[2] == true
+                                            ? TrackTheme.red
+                                            : TrackTheme.label(dark),
+                                      ),
                                     ),
                                   ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: Text(item[0] as String,
-                                            style: TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w400,
-                                                letterSpacing: -.3,
-                                                color: item.length > 2 && item[2] == true ? TrackTheme.red : TrackTheme.label(dark))),
-                                      ),
-                                      Icon(item[1] as IconData, size: 17, color: TrackTheme.label3(dark)),
-                                    ],
-                                  ),
-                                ),
+                                  Icon(item[1] as IconData, size: 17, color: TrackTheme.label3(dark)),
+                                ],
                               ),
-                          ],
+                            ),
+                          ),
+                      ],
                     ),
                   ),
                 ),

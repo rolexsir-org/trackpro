@@ -55,10 +55,11 @@ class WidgetBridge {
   /// have a hard RemoteViews size and complexity budget.
   Map<String, Object?> buildPayload(AppState state) {
     final trackers = state.visibleTrackers;
-    final top = (trackers.where((t) => t.id != 'period' && t.id != 'weight').toList()
-          ..sort((a, b) => ringPct(b, state.today(b.id)).compareTo(ringPct(a, state.today(a.id)))))
-        .take(state.widgetRingCount) // 1 ring free, 3 with Pro
-        .toList();
+    final top =
+        (trackers.where((t) => t.id != 'period' && t.id != 'weight').toList()
+              ..sort((a, b) => ringPct(b, state.today(b.id)).compareTo(ringPct(a, state.today(a.id)))))
+            .take(state.widgetRingCount) // 1 ring free, 3 with Pro
+            .toList();
 
     // The commitment queue is the product now, so the widget leads with it: how
     // many commitments are still open today, and the longest current streak across
@@ -77,8 +78,8 @@ class WidgetBridge {
       'hasCommitments': state.hasCommitments,
       'summary': state.hasCommitments
           ? (openCommitments == 0
-              ? 'All commitments logged today'
-              : '$openCommitments commitment${openCommitments == 1 ? '' : 's'} still open today')
+                ? 'All commitments logged today'
+                : '$openCommitments commitment${openCommitments == 1 ? '' : 's'} still open today')
           : _summary(state),
       // The widget draws a small lock hint from this instead of an empty slot,
       // so the home screen quietly sells Pro every time it is glanced at.

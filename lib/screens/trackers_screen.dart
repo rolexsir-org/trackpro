@@ -47,8 +47,10 @@ class TrackersScreen extends StatelessWidget {
             onTap: state.toggleEditing,
             child: Padding(
               padding: const EdgeInsets.only(left: 8, right: 4),
-              child: Text(state.editing ? 'Done' : 'Edit',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: TrackTheme.blue)),
+              child: Text(
+                state.editing ? 'Done' : 'Edit',
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: TrackTheme.blue),
+              ),
             ),
           ),
         ),
@@ -56,36 +58,42 @@ class TrackersScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 4, 20, 130),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              GlassList(children: [
-                for (var i = 0; i < list.length; i++)
-                  _TrackerRow(
-                    tracker: list[i],
-                    index: i,
-                    total: list.length,
-                    editing: state.editing,
-                    values: state.historyOf(list[i].id),
-                  ),
-              ]),
+              GlassList(
+                children: [
+                  for (var i = 0; i < list.length; i++)
+                    _TrackerRow(
+                      tracker: list[i],
+                      index: i,
+                      total: list.length,
+                      editing: state.editing,
+                      values: state.historyOf(list[i].id),
+                    ),
+                ],
+              ),
               const SizedBox(height: 12),
-              Row(children: [
-                // "Reorder / remove" is gone: the header's Edit toggle is the same action,
-                // and two controls for one mode read as two different modes. Edit stays in
-                // the header, where the Android editing action remains easy to reach.
-                GestureDetector(
-                  onTap: () => openGoalsSheet(context),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
-                    decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(11)),
-                    child: Text('Goal settings',
-                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
+              Row(
+                children: [
+                  // "Reorder / remove" is gone: the header's Edit toggle is the same action,
+                  // and two controls for one mode read as two different modes. Edit stays in
+                  // the header, where the Android editing action remains easy to reach.
+                  GestureDetector(
+                    onTap: () => openGoalsSheet(context),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
+                      decoration: BoxDecoration(color: TrackTheme.fill(dark), borderRadius: BorderRadius.circular(11)),
+                      child: Text(
+                        'Goal settings',
+                        style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
+                      ),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  state.editing ? 'Editing · tap Done to finish' : 'Tap Edit to reorder or hide',
-                  style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
-                ),
-              ]),
+                  const SizedBox(width: 8),
+                  Text(
+                    state.editing ? 'Editing · tap Done to finish' : 'Tap Edit to reorder or hide',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                  ),
+                ],
+              ),
               SectionLabel(
                 'Add more · one app, ten more habits',
                 trailing: state.isPro ? null : const ProChip(compact: true),
@@ -98,43 +106,56 @@ class TrackersScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
               ],
-              GlassList(children: [
-                for (final e in DefaultTrackers.addable)
-                  GlassRow(
-                    title: e.name,
-                    subtitle: e.blurb,
-                    leading: Icon(Icons.add_circle_outline_rounded, size: 18, color: Color(e.accent)),
-                    accent: Color(e.accent),
-                    showChevron: false,
-                    onTap: () {
-                      final app = context.read<AppState>();
-                      // The free ceiling: adding beyond it is the single most
-                      // honest moment to ask, because the user is mid-action and
-                      // the value is concrete.
-                      if (!app.canAddTracker() && !state.added.contains(e.id)) {
-                        app.analytics?.log('pro_gate_tapped', {'gate': 'tracker_limit', 'target': e.id});
-                        showPaywall(context, trigger: PaywallTrigger.trackerLimit);
-                        return;
-                      }
-                      app.toggleAdded(e.id);
-                      showTrackToast(
-                        context,
-                        state.added.contains(e.id) ? '${e.name} tracker added' : '${e.name} tracker removed',
-                      );
-                    },
-                    trailing: state.added.contains(e.id)
-                        ? Text('Added',
-                            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.green))
-                        : state.canAddTracker()
-                            ? Text('Add',
-                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue))
-                            : const Row(mainAxisSize: MainAxisSize.min, children: [
+              GlassList(
+                children: [
+                  for (final e in DefaultTrackers.addable)
+                    GlassRow(
+                      title: e.name,
+                      subtitle: e.blurb,
+                      leading: Icon(Icons.add_circle_outline_rounded, size: 18, color: Color(e.accent)),
+                      accent: Color(e.accent),
+                      showChevron: false,
+                      onTap: () {
+                        final app = context.read<AppState>();
+                        // The free ceiling: adding beyond it is the single most
+                        // honest moment to ask, because the user is mid-action and
+                        // the value is concrete.
+                        if (!app.canAddTracker() && !state.added.contains(e.id)) {
+                          app.analytics?.log('pro_gate_tapped', {'gate': 'tracker_limit', 'target': e.id});
+                          showPaywall(context, trigger: PaywallTrigger.trackerLimit);
+                          return;
+                        }
+                        app.toggleAdded(e.id);
+                        showTrackToast(
+                          context,
+                          state.added.contains(e.id) ? '${e.name} tracker added' : '${e.name} tracker removed',
+                        );
+                      },
+                      trailing: state.added.contains(e.id)
+                          ? Text(
+                              'Added',
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w500,
+                                color: TrackTheme.green,
+                              ),
+                            )
+                          : state.canAddTracker()
+                          ? Text(
+                              'Add',
+                              style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.blue),
+                            )
+                          : const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
                                 Icon(Icons.lock_outline_rounded, size: 14, color: ProPalette.goldDeep),
                                 SizedBox(width: 5),
                                 ProChip(compact: true),
-                              ]),
-                  ),
-              ]),
+                              ],
+                            ),
+                    ),
+                ],
+              ),
               const SizedBox(height: 14),
               InsightCard(
                 emoji: 'trackers',
@@ -144,13 +165,13 @@ class TrackersScreen extends StatelessWidget {
                 title: state.entryCount == 0
                     ? 'Nothing logged yet — ${state.visibleTrackers.length} trackers ready'
                     : '${state.entryCount} ${state.entryCount == 1 ? 'entry' : 'entries'} across '
-                        '${state.visibleTrackers.length} trackers'
-                        '${state.trackingSince == null ? '' : ' since ${shortDate(state.trackingSince!)}'}',
+                          '${state.visibleTrackers.length} trackers'
+                          '${state.trackingSince == null ? '' : ' since ${shortDate(state.trackingSince!)}'}',
                 body: state.entryCount == 0
                     ? 'Log anything — a glass of water counts. Your history stays on this device, '
-                        'and export is always free.'
+                          'and export is always free.'
                     : 'Your history lives here permanently — export it any time, and the longer you '
-                        'track, the sharper the insights get.',
+                          'track, the sharper the insights get.',
                 accent: TrackTheme.blue,
                 accent2: TrackTheme.indigo,
               ),
@@ -197,42 +218,64 @@ class _TrackerRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(tracker.name,
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
-                  Text('${fmtGoalLong(tracker)} · ${fmtValue(tracker, v)} today · ${streakOf(tracker, values)}-day streak',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                  Text(
+                    tracker.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -.32,
+                      color: TrackTheme.label(dark),
+                    ),
+                  ),
+                  Text(
+                    '${fmtGoalLong(tracker)} · ${fmtValue(tracker, v)} today · ${streakOf(tracker, values)}-day streak',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                  ),
                 ],
               ),
             ),
           ),
           if (editing)
-            Row(children: [
-              _RowBtn(icon: Icons.arrow_upward_rounded, enabled: index > 0, onTap: () => state.move(tracker.id, -1)),
-              const SizedBox(width: 4),
-              _RowBtn(icon: Icons.arrow_downward_rounded, enabled: index < total - 1, onTap: () => state.move(tracker.id, 1)),
-              const SizedBox(width: 4),
-              _RowBtn(
-                icon: Icons.visibility_off_outlined,
-                color: TrackTheme.red,
-                onTap: () {
-                  state.toggleHidden(tracker.id);
-                  // The button toggles, so the message has to follow what happened
-                  // rather than what the icon suggests. "retired — history kept" over a
-                  // tracker that had just been *shown again* was one of three words this
-                  // screen used for one state (hide / retire / dashboard).
-                  showTrackToast(
-                    context,
-                    tracker.hidden
-                        ? '${tracker.name} hidden from Today — history kept'
-                        : '${tracker.name} shown on Today again',
-                  );
-                },
-              ),
-            ])
+            Row(
+              children: [
+                _RowBtn(icon: Icons.arrow_upward_rounded, enabled: index > 0, onTap: () => state.move(tracker.id, -1)),
+                const SizedBox(width: 4),
+                _RowBtn(
+                  icon: Icons.arrow_downward_rounded,
+                  enabled: index < total - 1,
+                  onTap: () => state.move(tracker.id, 1),
+                ),
+                const SizedBox(width: 4),
+                _RowBtn(
+                  icon: Icons.visibility_off_outlined,
+                  color: TrackTheme.red,
+                  onTap: () {
+                    state.toggleHidden(tracker.id);
+                    // The button toggles, so the message has to follow what happened
+                    // rather than what the icon suggests. "retired — history kept" over a
+                    // tracker that had just been *shown again* was one of three words this
+                    // screen used for one state (hide / retire / dashboard).
+                    showTrackToast(
+                      context,
+                      tracker.hidden
+                          ? '${tracker.name} hidden from Today — history kept'
+                          : '${tracker.name} shown on Today again',
+                    );
+                  },
+                ),
+              ],
+            )
           else ...[
-            ProgressRing(pct: ringPct(tracker, v), size: 30, stroke: 4, colorA: tracker.accent, colorB: tracker.accent2, duration: const Duration(milliseconds: 900)),
+            ProgressRing(
+              pct: ringPct(tracker, v),
+              size: 30,
+              stroke: 4,
+              colorA: tracker.accent,
+              colorB: tracker.accent2,
+              duration: const Duration(milliseconds: 900),
+            ),
             const SizedBox(width: 8),
             _MiniSwitch(
               value: !tracker.hidden,
@@ -314,7 +357,9 @@ class _MiniSwitch extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(.15), blurRadius: 8, offset: const Offset(0, 3))],
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: .15), blurRadius: 8, offset: const Offset(0, 3)),
+              ],
             ),
           ),
         ),

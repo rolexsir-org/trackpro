@@ -1,7 +1,6 @@
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:track/data/db/database.dart';
-import 'package:track/data/focus_engine.dart';
 import 'package:track/data/focus_repository.dart';
 import 'package:track/models/focus_models.dart';
 import 'package:track/services/focus_platform.dart';
@@ -130,12 +129,7 @@ void main() {
     db = TrackDatabase.forTesting(NativeDatabase.memory());
     enforcer = FakeEnforcer();
     now = DateTime(2026, 10, 16, 9, 0);
-    repo = FocusRepository(
-      db: db,
-      enforcer: enforcer,
-      now: () => now,
-      idFactory: _SequenceIds().next,
-    );
+    repo = FocusRepository(db: db, enforcer: enforcer, now: () => now, idFactory: _SequenceIds().next);
     await repo.hydrate();
   });
 
@@ -145,8 +139,7 @@ void main() {
     FocusMode mode = FocusMode.blocking,
     int minutes = 25,
     List<String> packages = const <String>['com.instagram.android'],
-  }) =>
-      repo.start(mode: mode, minutes: minutes, requestedPackages: packages, goalLabel: 'Writing');
+  }) => repo.start(mode: mode, minutes: minutes, requestedPackages: packages, goalLabel: 'Writing');
 
   group('one live session, and only one', () {
     test('a second start is refused rather than silently stacked', () async {
@@ -168,19 +161,21 @@ void main() {
 
       // Reopen the finished session as live, alongside a newer one: the store-level
       // equivalent of two open rows.
-      await db.focusDao.upsert(FocusSessionsCompanion.insert(
-        id: first.id,
-        mode: first.mode.storage,
-        plannedMinutes: first.plannedMinutes,
-        goalLabel: first.goalLabel,
-        startedAtWallMs: first.startedAtWallMs,
-        startedAtRealtimeMs: first.startedAtRealtimeMs,
-        state: FocusSessionState.running.storage,
-        // Required column, no default: a row with nothing to say about enforcement
-        // would be a row the app could not describe honestly.
-        enforcement: FocusEnforcement.armed.storage,
-        day: first.day,
-      ));
+      await db.focusDao.upsert(
+        FocusSessionsCompanion.insert(
+          id: first.id,
+          mode: first.mode.storage,
+          plannedMinutes: first.plannedMinutes,
+          goalLabel: first.goalLabel,
+          startedAtWallMs: first.startedAtWallMs,
+          startedAtRealtimeMs: first.startedAtRealtimeMs,
+          state: FocusSessionState.running.storage,
+          // Required column, no default: a row with nothing to say about enforcement
+          // would be a row the app could not describe honestly.
+          enforcement: FocusEnforcement.armed.storage,
+          day: first.day,
+        ),
+      );
       final second = await start(minutes: 15);
       await repo.hydrate();
 
@@ -223,8 +218,11 @@ void main() {
       expect(recovered, isNotNull);
       expect(recovered!.state, FocusSessionState.ended);
       expect(recovered.focusMs, 25 * 60 * 1000, reason: 'never more than promised');
-      expect(recovered.outcome, FocusOutcome.completedDegraded,
-          reason: 'enforcement was never confirmed by the platform');
+      expect(
+        recovered.outcome,
+        FocusOutcome.completedDegraded,
+        reason: 'enforcement was never confirmed by the platform',
+      );
       expect(repo.liveSession, isNull);
 
       // Idempotent: recovering again must not produce a second ending or move any number.
@@ -254,8 +252,7 @@ void main() {
       await repo.syncNative();
       final rowAfter = (await db.focusDao.byId(session.id))!.focusMs;
       expect(rowAfter, rowBefore, reason: 'inside the checkpoint window the row is untouched');
-      expect(repo.byId(session.id)!.focusMs, greaterThan(rowAfter),
-          reason: 'the countdown still moves every tick');
+      expect(repo.byId(session.id)!.focusMs, greaterThan(rowAfter), reason: 'the countdown still moves every tick');
     });
 
     test('a reboot is an interruption, and the session does not gain time it never had', () async {
@@ -285,14 +282,20 @@ void main() {
         overlay: true,
       );
       final synced = await repo.syncNative(force: true);
-      expect(synced!.enforcement, FocusEnforcement.lost,
-          reason: 'a grant revoked after an armed session is a mid-session loss');
+      expect(
+        synced!.enforcement,
+        FocusEnforcement.lost,
+        reason: 'a grant revoked after an armed session is a mid-session loss',
+      );
 
       now = now.add(const Duration(minutes: 26));
       enforcer.monotonic += 26 * 60 * 1000;
       final ended = await repo.recover();
-      expect(ended!.outcome, FocusOutcome.interrupted,
-          reason: 'a revoked grant at expiry is not a clean timer completion');
+      expect(
+        ended!.outcome,
+        FocusOutcome.interrupted,
+        reason: 'a revoked grant at expiry is not a clean timer completion',
+      );
       expect(ended.endReason, FocusEndReason.permissionRevoked);
       expect(ended.enforcement, FocusEnforcement.lost);
     });
@@ -327,8 +330,11 @@ void main() {
         overlay: true,
       );
       final recovered = await repo.syncNative(force: true);
-      expect(recovered!.enforcement, FocusEnforcement.lost,
-          reason: 'new coverage does not rewrite the known uncovered interval');
+      expect(
+        recovered!.enforcement,
+        FocusEnforcement.lost,
+        reason: 'new coverage does not rewrite the known uncovered interval',
+      );
     });
   });
 
@@ -377,8 +383,11 @@ void main() {
       );
 
       final synced = await repo.syncNative(force: true);
-      expect(synced!.enforcement, FocusEnforcement.armed,
-          reason: 'foreground detection alone does not prove Android allowed the panel');
+      expect(
+        synced!.enforcement,
+        FocusEnforcement.armed,
+        reason: 'foreground detection alone does not prove Android allowed the panel',
+      );
       expect(synced.enforcement.isConfirmed, isFalse);
     });
 
@@ -392,11 +401,9 @@ void main() {
     });
 
     test('protected packages are refused at the repository, and surfaced', () async {
-      final session = await start(packages: const <String>[
-        'com.instagram.android',
-        'com.android.dialer',
-        'com.android.systemui',
-      ]);
+      final session = await start(
+        packages: const <String>['com.instagram.android', 'com.android.dialer', 'com.android.systemui'],
+      );
       expect(session.blockedPackages, ['com.instagram.android']);
       expect(session.blockedPackages, isNot(contains('com.android.dialer')));
     });
@@ -505,8 +512,11 @@ void main() {
 
       final stillPaused = await repo.syncNative(force: true);
       expect(stillPaused!.state, FocusSessionState.paused);
-      expect(stillPaused.enforcement, FocusEnforcement.verified,
-          reason: 'pause intentionally suspends coverage; it is not a service crash');
+      expect(
+        stillPaused.enforcement,
+        FocusEnforcement.verified,
+        reason: 'pause intentionally suspends coverage; it is not a service crash',
+      );
     });
 
     test('a resume the platform refuses records the resumed stretch as lost', () async {
@@ -518,8 +528,11 @@ void main() {
       enforcer.startSucceeds = false;
       final resumed = await repo.resume();
       expect(resumed!.state, FocusSessionState.running);
-      expect(resumed.enforcement, FocusEnforcement.lost,
-          reason: 'focus resumed without a coverage service, so that later interval is known unprotected');
+      expect(
+        resumed.enforcement,
+        FocusEnforcement.lost,
+        reason: 'focus resumed without a coverage service, so that later interval is known unprotected',
+      );
     });
 
     test('pausing past the mode budget is recorded as a degraded completion', () async {
@@ -535,8 +548,7 @@ void main() {
       enforcer.native = FocusNativeState.idle;
 
       final ended = await repo.recover();
-      expect(ended!.outcome, FocusOutcome.interrupted,
-          reason: 'the detector died after focus resumed');
+      expect(ended!.outcome, FocusOutcome.interrupted, reason: 'the detector died after focus resumed');
       expect(ended.endReason, FocusEndReason.serviceLost);
     });
 
@@ -604,8 +616,10 @@ void main() {
       final sessions = payload['sessions'] as List<Object?>;
       expect(sessions, hasLength(1));
       final csv = repo.exportCsv();
-      expect(csv.split('\n').first,
-          'date,mode,goal,planned_minutes,focused_minutes,paused_minutes,outcome,end_reason,enforcement,blocked_apps,reflection');
+      expect(
+        csv.split('\n').first,
+        'date,mode,goal,planned_minutes,focused_minutes,paused_minutes,outcome,end_reason,enforcement,blocked_apps,reflection',
+      );
       expect(csv, contains('blocking'));
       expect(csv, contains('held'));
     });
@@ -618,8 +632,7 @@ void main() {
       final removed = await repo.deleteAllUserData(keepDefinitions: true);
       expect(removed.values.reduce((a, b) => a + b), greaterThan(0));
       expect(repo.history, isEmpty);
-      expect(repo.profiles.map((p) => p.name), ['Keep me'],
-          reason: 'a profile is configuration, not history');
+      expect(repo.profiles.map((p) => p.name), ['Keep me'], reason: 'a profile is configuration, not history');
     });
   });
 
@@ -630,16 +643,18 @@ void main() {
       now = now.add(const Duration(minutes: 1));
 
       final first = await repo.syncNative(force: true);
-      expect(first!.focusMs, closeTo(60 * 1000, 1000),
-          reason: 'one minute elapsed, and one minute is what is banked');
+      expect(first!.focusMs, closeTo(60 * 1000, 1000), reason: 'one minute elapsed, and one minute is what is banked');
 
       // Another minute passes with no forced write. The projection must read two
       // minutes — the old code added the whole stretch since the start again here.
       enforcer.monotonic += 60 * 1000;
       now = now.add(const Duration(minutes: 1));
       final second = await repo.syncNative();
-      expect(second!.focusMs, closeTo(120 * 1000, 1500),
-          reason: 'the segment restarts at each checkpoint, so elapsed cannot double');
+      expect(
+        second!.focusMs,
+        closeTo(120 * 1000, 1500),
+        reason: 'the segment restarts at each checkpoint, so elapsed cannot double',
+      );
       expect(second.focusMs, lessThan(3 * 60 * 1000));
       expect((await db.focusDao.byId(session.id))!.focusMs, lessThanOrEqualTo(120 * 1000));
     });
@@ -656,18 +671,16 @@ void main() {
       // A second launch: hydrate reads the persisted row, then recovery reconciles it
       // with the monotonic clock. The persisted checkpoint and its segment start
       // describe the same instant, so recovery adds only the minute since then.
-      final relaunched = FocusRepository(
-        db: db,
-        enforcer: enforcer,
-        now: () => now,
-        idFactory: _SequenceIds().next,
-      );
+      final relaunched = FocusRepository(db: db, enforcer: enforcer, now: () => now, idFactory: _SequenceIds().next);
       await relaunched.hydrate();
       final recovered = await relaunched.recover();
 
       expect(recovered, isNotNull);
-      expect(recovered!.focusMs, closeTo(120 * 1000, 1500),
-          reason: 'two minutes of a 25-minute session, not four minutes of it');
+      expect(
+        recovered!.focusMs,
+        closeTo(120 * 1000, 1500),
+        reason: 'two minutes of a 25-minute session, not four minutes of it',
+      );
       expect(recovered.state, FocusSessionState.running);
     });
 
@@ -687,8 +700,11 @@ void main() {
       final resumed = await repo.resume();
       expect(resumed!.state, FocusSessionState.running);
       expect(resumed.focusMs, closeTo(5 * 60 * 1000, 1000));
-      expect(resumed.pausedMs, closeTo(10 * 60 * 1000, 1500),
-          reason: 'the pause is banked when it ends, not when the session does');
+      expect(
+        resumed.pausedMs,
+        closeTo(10 * 60 * 1000, 1500),
+        reason: 'the pause is banked when it ends, not when the session does',
+      );
 
       enforcer.monotonic += 2 * 60 * 1000;
       now = now.add(const Duration(minutes: 2));

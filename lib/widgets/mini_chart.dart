@@ -79,7 +79,7 @@ class _Bar extends StatelessWidget {
           child: DecoratedBox(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(radius),
-              color: dim ? color.withOpacity(.4) : color,
+              color: dim ? color.withValues(alpha: .4) : color,
             ),
             child: const SizedBox.expand(),
           ),
@@ -92,13 +92,7 @@ class _Bar extends StatelessWidget {
 /// Smooth trend line (weight, mood-vs-sleep) with a gradient area fill and a
 /// left-to-right reveal.
 class TrendLine extends StatelessWidget {
-  const TrendLine({
-    super.key,
-    required this.values,
-    required this.colorA,
-    required this.colorB,
-    this.height = 96,
-  });
+  const TrendLine({super.key, required this.values, required this.colorA, required this.colorB, this.height = 96});
 
   final List<double> values;
   final Color colorA;
@@ -138,10 +132,12 @@ class _LinePainter extends CustomPainter {
     final span = (max - min) == 0 ? 1.0 : (max - min);
     final pts = <Offset>[];
     for (var i = 0; i < values.length; i++) {
-      pts.add(Offset(
-        i / (values.length - 1) * size.width,
-        size.height - 10 - ((values[i] - min) / span) * (size.height - 26),
-      ));
+      pts.add(
+        Offset(
+          i / (values.length - 1) * size.width,
+          size.height - 10 - ((values[i] - min) / span) * (size.height - 26),
+        ),
+      );
     }
 
     canvas.save();
@@ -159,11 +155,7 @@ class _LinePainter extends CustomPainter {
       ..lineTo(size.width, size.height)
       ..lineTo(0, size.height)
       ..close();
-    canvas.drawPath(
-      area,
-      Paint()
-        ..color = a.withOpacity(.14),
-    );
+    canvas.drawPath(area, Paint()..color = a.withValues(alpha: .14));
     canvas.drawPath(
       path,
       Paint()
@@ -176,10 +168,14 @@ class _LinePainter extends CustomPainter {
     canvas.restore();
 
     canvas.drawCircle(pts.last, 5, Paint()..color = a);
-    canvas.drawCircle(pts.last, 5, Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
-      ..color = bg);
+    canvas.drawCircle(
+      pts.last,
+      5,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..color = bg,
+    );
   }
 
   @override

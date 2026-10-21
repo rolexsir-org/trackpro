@@ -45,8 +45,7 @@ class ScreenTimeAppUsage {
 }
 
 class ScreenTimeService {
-  ScreenTimeService({MethodChannel? channel})
-      : _channel = channel ?? const MethodChannel('track/screen_time');
+  ScreenTimeService({MethodChannel? channel}) : _channel = channel ?? const MethodChannel('track/screen_time');
 
   final MethodChannel _channel;
 
@@ -75,9 +74,7 @@ class ScreenTimeService {
     if (!await isAvailable) return ScreenTimePermissionState.unavailable;
     final map = await _method<Map<Object?, Object?>>('permission');
     if (map == null) return ScreenTimePermissionState.unavailable;
-    return map['usageAccess'] == true
-        ? ScreenTimePermissionState.granted
-        : ScreenTimePermissionState.denied;
+    return map['usageAccess'] == true ? ScreenTimePermissionState.granted : ScreenTimePermissionState.denied;
   }
 
   /// Opens Android's "Usage access" settings screen. A false return means the
@@ -112,11 +109,7 @@ class ScreenTimeService {
   ///    storage enforces — and non-finite values are dropped, never stored;
   ///  * duplicate days are summed, then clamped again: the platform is allowed
   ///    to split a day into more than one bucket.
-  static Map<int, double> parseDailyMinutes(
-    Object? raw, {
-    required DateTime now,
-    int days = defaultLookbackDays,
-  }) {
+  static Map<int, double> parseDailyMinutes(Object? raw, {required DateTime now, int days = defaultLookbackDays}) {
     if (raw is! List) return const <int, double>{};
     // Calendar arithmetic, never `Duration` subtraction: on a 23- or 25-hour day
     // the elapsed-time shortcut lands one row off (see `day_key.dart`).
@@ -134,9 +127,7 @@ class ScreenTimeService {
       if (day < windowStart || day > windowEnd) continue;
       summed[day] = (summed[day] ?? 0) + value;
     }
-    return {
-      for (final e in summed.entries) e.key: e.value.clamp(0, 1440.0).toDouble(),
-    };
+    return {for (final e in summed.entries) e.key: e.value.clamp(0, 1440.0).toDouble()};
   }
 
   /// Channel payload → today's per-app list. Pure: unknown shapes are dropped
@@ -155,11 +146,13 @@ class ScreenTimeService {
       final value = minutes.toDouble();
       if (!value.isFinite || value <= 0) continue;
       final label = entry['label'];
-      out.add(ScreenTimeAppUsage(
-        packageName: pkg,
-        label: label is String && label.trim().isNotEmpty ? label.trim() : pkg,
-        minutes: value.clamp(0, 1440.0).toDouble(),
-      ));
+      out.add(
+        ScreenTimeAppUsage(
+          packageName: pkg,
+          label: label is String && label.trim().isNotEmpty ? label.trim() : pkg,
+          minutes: value.clamp(0, 1440.0).toDouble(),
+        ),
+      );
     }
     out.sort((a, b) => b.minutes.compareTo(a.minutes));
     return out.take(limit.clamp(0, 25).toInt()).toList();

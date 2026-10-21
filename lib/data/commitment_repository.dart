@@ -17,8 +17,7 @@ import 'momentum.dart';
 /// the same rows always produces the same figure, and a screen can never show a
 /// number the database does not support.
 class CommitmentRepository {
-  CommitmentRepository(this.db, {this.now = DateTime.now, String Function()? idFactory})
-      : _idFactory = idFactory;
+  CommitmentRepository(this.db, {this.now = DateTime.now, String Function()? idFactory}) : _idFactory = idFactory;
 
   final TrackDatabase db;
   CommitmentDao get dao => db.commitmentDao;
@@ -102,7 +101,9 @@ class CommitmentRepository {
       outcome: outcome.trim(),
       minimumAction: minimumAction.trim(),
       fullAction: fullAction.trim(),
-      revisions: [ScheduleRevision(day, weekdays.isEmpty ? const {1, 2, 3, 4, 5, 6, 7} : weekdays)],
+      revisions: [
+        ScheduleRevision(day, weekdays.isEmpty ? const {1, 2, 3, 4, 5, 6, 7} : weekdays),
+      ],
       createdDay: day,
       sort: _commitments.length,
     );
@@ -116,10 +117,12 @@ class CommitmentRepository {
     if (newWeekdays != null && !_sameDays(newWeekdays, updated.schedule)) {
       // A schedule change is a new revision starting today. Past days keep the
       // schedule that was in force when they happened — see MomentumEngine.isPlanned.
-      next = updated.copyWith(revisions: [
-        ...updated.revisions,
-        ScheduleRevision(todayKey, newWeekdays.isEmpty ? updated.schedule : newWeekdays),
-      ]);
+      next = updated.copyWith(
+        revisions: [
+          ...updated.revisions,
+          ScheduleRevision(todayKey, newWeekdays.isEmpty ? updated.schedule : newWeekdays),
+        ],
+      );
     }
     await dao.upsert(_toRow(next));
     final i = _commitments.indexWhere((c) => c.id == next.id);
@@ -163,13 +166,7 @@ class CommitmentRepository {
     String? note,
   }) async {
     final key = day ?? todayKey;
-    await dao.recordDay(
-      commitmentId: commitmentId,
-      day: key,
-      outcome: outcome.storage,
-      value: value,
-      note: note,
-    );
+    await dao.recordDay(commitmentId: commitmentId, day: key, outcome: outcome.storage, value: value, note: note);
     final rec = CommitmentDay(commitmentId: commitmentId, day: key, outcome: outcome, value: value, note: note);
     _days.putIfAbsent(commitmentId, () => <int, CommitmentDay>{})[key] = rec;
     return rec;
@@ -212,20 +209,14 @@ class CommitmentRepository {
   MomentumSnapshot? snapshotFor(String id, {int? today}) {
     final c = _byId(id);
     if (c == null) return null;
-    return MomentumEngine.compute(
-      c: c,
-      recorded: daysFor(id),
-      pauses: _pauses,
-      today: today ?? todayKey,
-    );
+    return MomentumEngine.compute(c: c, recorded: daysFor(id), pauses: _pauses, today: today ?? todayKey);
   }
 
   /// Snapshots for every live commitment, newest-created last.
   Map<String, MomentumSnapshot> snapshots({int? today}) {
     final key = today ?? todayKey;
     return {
-      for (final c in active)
-        c.id: MomentumEngine.compute(c: c, recorded: daysFor(c.id), pauses: _pauses, today: key),
+      for (final c in active) c.id: MomentumEngine.compute(c: c, recorded: daysFor(c.id), pauses: _pauses, today: key),
     };
   }
 
@@ -283,23 +274,13 @@ class CommitmentRepository {
   List<WeekdayPattern> patternsFor(String id, {int? today}) {
     final c = _byId(id);
     if (c == null) return const <WeekdayPattern>[];
-    return MomentumEngine.weekdayPatterns(
-      c: c,
-      recorded: daysFor(id),
-      pauses: _pauses,
-      today: today ?? todayKey,
-    );
+    return MomentumEngine.weekdayPatterns(c: c, recorded: daysFor(id), pauses: _pauses, today: today ?? todayKey);
   }
 
   Improvement? improvementFor(String id, {int? today}) {
     final c = _byId(id);
     if (c == null) return null;
-    return MomentumEngine.improvement(
-      c: c,
-      recorded: daysFor(id),
-      pauses: _pauses,
-      today: today ?? todayKey,
-    );
+    return MomentumEngine.improvement(c: c, recorded: daysFor(id), pauses: _pauses, today: today ?? todayKey);
   }
 
   /// Everything the user recorded for one commitment, oldest first — the shape an
@@ -318,52 +299,46 @@ class CommitmentRepository {
   /// This exists because "export is always free" has to include the habit data, not
   /// just the measurements. It is also what a migration test can assert against.
   Map<String, Object?> exportPayload() => {
-        'format': 'track.commitments.v1',
-        'totals': {
-          'routines': _commitments.length,
-          'active': active.length,
-          'recorded_days': _days.values.fold<int>(0, (a, m) => a + m.length),
+    'format': 'track.commitments.v1',
+    'totals': {
+      'routines': _commitments.length,
+      'active': active.length,
+      'recorded_days': _days.values.fold<int>(0, (a, m) => a + m.length),
+    },
+    'routines': [
+      for (final c in _commitments)
+        {
+          'id': c.id,
+          'name': c.name,
+          'emoji': c.emoji,
+          'colour': c.color.toARGB32(),
+          'outcome': c.outcome,
+          'minimum': c.minimumAction,
+          'full': c.fullAction,
+          'schedule': [
+            for (final r in c.revisions) {'from': isoDayKey(r.fromDay), 'days': (r.weekdays.toList()..sort())},
+          ],
+          'created': isoDayKey(c.createdDay),
+          'archived': c.archived,
+          'archived_on': c.archivedDay == null ? null : isoDayKey(c.archivedDay!),
+          'days': [
+            for (final rec in historyFor(c.id))
+              {'date': isoDayKey(rec.day), 'outcome': rec.outcome.storage, 'value': rec.value, 'note': rec.note},
+          ],
         },
-        'routines': [
-          for (final c in _commitments)
-            {
-              'id': c.id,
-              'name': c.name,
-              'emoji': c.emoji,
-              'colour': c.color.toARGB32(),
-              'outcome': c.outcome,
-              'minimum': c.minimumAction,
-              'full': c.fullAction,
-              'schedule': [
-                for (final r in c.revisions)
-                  {'from': isoDayKey(r.fromDay), 'days': (r.weekdays.toList()..sort())},
-              ],
-              'created': isoDayKey(c.createdDay),
-              'archived': c.archived,
-              'archived_on': c.archivedDay == null ? null : isoDayKey(c.archivedDay!),
-              'days': [
-                for (final rec in historyFor(c.id))
-                  {
-                    'date': isoDayKey(rec.day),
-                    'outcome': rec.outcome.storage,
-                    'value': rec.value,
-                    'note': rec.note,
-                  },
-              ],
-            },
-        ],
-        'pauses': [
-          for (final p in _pauses)
-            {
-              'routine': p.commitmentId,
-              'from': isoDayKey(p.fromDay),
-              'to': p.toDay == null ? null : isoDayKey(p.toDay!),
-              'reason': p.reason,
-            },
-        ],
-      };
+    ],
+    'pauses': [
+      for (final p in _pauses)
+        {
+          'routine': p.commitmentId,
+          'from': isoDayKey(p.fromDay),
+          'to': p.toDay == null ? null : isoDayKey(p.toDay!),
+          'reason': p.reason,
+        },
+    ],
+  };
 
-  /// One row per recorded day — the shape a spreadsheet wants.
+  // One row per recorded day — the shape a spreadsheet wants.
   // ------------------------------------------------------------- data rights
   /// Deletes every routine and every day recorded against it.
   ///
@@ -384,13 +359,15 @@ class CommitmentRepository {
     final lines = <String>['date,routine,outcome,value,note'];
     for (final c in _commitments) {
       for (final rec in historyFor(c.id)) {
-        lines.add([
-          isoDayKey(rec.day),
-          _csv(c.name),
-          rec.outcome.storage,
-          rec.value?.toString() ?? '',
-          _csv(rec.note ?? ''),
-        ].join(','));
+        lines.add(
+          [
+            isoDayKey(rec.day),
+            _csv(c.name),
+            rec.outcome.storage,
+            rec.value?.toString() ?? '',
+            _csv(rec.note ?? ''),
+          ].join(','),
+        );
       }
     }
     return lines.join('\n');
@@ -464,18 +441,22 @@ class CommitmentRepository {
         }
         final createdDay = completed.isEmpty ? todayKey : completed.reduce((a, b) => a < b ? a : b);
 
-        await dao.upsert(CommitmentRowsCompanion.insert(
-          id: id,
-          name: name,
-          emoji: emoji,
-          color: color,
-          outcome: name,
-          minimumAction: 'Do a smaller version of: $name',
-          fullAction: name,
-          scheduleJson: jsonEncode([ScheduleRevision(createdDay, const {1, 2, 3, 4, 5, 6, 7}).toJson()]),
-          createdDay: createdDay,
-          sort: Value(_commitments.length + imported),
-        ));
+        await dao.upsert(
+          CommitmentRowsCompanion.insert(
+            id: id,
+            name: name,
+            emoji: emoji,
+            color: color,
+            outcome: name,
+            minimumAction: 'Do a smaller version of: $name',
+            fullAction: name,
+            scheduleJson: jsonEncode([
+              ScheduleRevision(createdDay, const {1, 2, 3, 4, 5, 6, 7}).toJson(),
+            ]),
+            createdDay: createdDay,
+            sort: Value(_commitments.length + imported),
+          ),
+        );
         for (final day in completed) {
           await dao.recordDay(commitmentId: id, day: day, outcome: DayOutcome.full.storage, source: 'import');
           days++;
@@ -494,7 +475,7 @@ class CommitmentRepository {
       limitation: imported == 0
           ? null
           : 'Imported as full completions only, using today\'s habit list to read the old '
-              'checklist positions. Days the checklist was never opened carry no record.',
+                'checklist positions. Days the checklist was never opened carry no record.',
     );
   }
 
@@ -505,7 +486,10 @@ class CommitmentRepository {
       if (decoded is! Map) return const <int>[];
       final done = decoded['done'];
       if (done is! List) return const <int>[];
-      return [for (final v in done) if (v is int) v];
+      return [
+        for (final v in done)
+          if (v is int) v,
+      ];
     } catch (_) {
       return const <int>[];
     }
@@ -534,34 +518,34 @@ class CommitmentRepository {
   static bool _sameDays(Set<int> a, Set<int> b) => a.length == b.length && a.every(b.contains);
 
   static Commitment _toModel(CommitmentRow r) => Commitment(
-        id: r.id,
-        name: r.name,
-        emoji: r.emoji,
-        color: Color(r.color),
-        outcome: r.outcome,
-        minimumAction: r.minimumAction,
-        fullAction: r.fullAction,
-        revisions: decodeSchedule(r.scheduleJson, fallbackDay: r.createdDay),
-        createdDay: r.createdDay,
-        archived: r.archived,
-        archivedDay: r.archivedDay,
-        sort: r.sort,
-      );
+    id: r.id,
+    name: r.name,
+    emoji: r.emoji,
+    color: Color(r.color),
+    outcome: r.outcome,
+    minimumAction: r.minimumAction,
+    fullAction: r.fullAction,
+    revisions: decodeSchedule(r.scheduleJson, fallbackDay: r.createdDay),
+    createdDay: r.createdDay,
+    archived: r.archived,
+    archivedDay: r.archivedDay,
+    sort: r.sort,
+  );
 
   static CommitmentRowsCompanion _toRow(Commitment c) => CommitmentRowsCompanion.insert(
-        id: c.id,
-        name: c.name,
-        emoji: c.emoji,
-        color: c.color.toARGB32(),
-        outcome: c.outcome,
-        minimumAction: c.minimumAction,
-        fullAction: c.fullAction,
-        scheduleJson: jsonEncode([for (final r in c.revisions) r.toJson()]),
-        createdDay: c.createdDay,
-        archived: Value(c.archived),
-        archivedDay: Value(c.archivedDay),
-        sort: Value(c.sort),
-      );
+    id: c.id,
+    name: c.name,
+    emoji: c.emoji,
+    color: c.color.toARGB32(),
+    outcome: c.outcome,
+    minimumAction: c.minimumAction,
+    fullAction: c.fullAction,
+    scheduleJson: jsonEncode([for (final r in c.revisions) r.toJson()]),
+    createdDay: c.createdDay,
+    archived: Value(c.archived),
+    archivedDay: Value(c.archivedDay),
+    sort: Value(c.sort),
+  );
 }
 
 /// Decodes the stored schedule. A corrupt blob must not produce a commitment with
@@ -578,26 +562,31 @@ List<ScheduleRevision> decodeSchedule(String raw, {required int fallbackDay}) {
         final from = item['from'];
         final days = item['days'];
         if (from is! int || days is! List) continue;
-        out.add(ScheduleRevision(from, {for (final d in days) if (d is int && d >= 1 && d <= 7) d}));
+        out.add(
+          ScheduleRevision(from, {
+            for (final d in days)
+              if (d is int && d >= 1 && d <= 7) d,
+          }),
+        );
       }
       out.sort((a, b) => a.fromDay.compareTo(b.fromDay));
-      final usable = [for (final r in out) if (r.weekdays.isNotEmpty) r];
+      final usable = [
+        for (final r in out)
+          if (r.weekdays.isNotEmpty) r,
+      ];
       if (usable.isNotEmpty) return usable;
     }
   } catch (_) {
     // fall through to the conservative default below
   }
-  return [ScheduleRevision(fallbackDay, const {1, 2, 3, 4, 5, 6, 7})];
+  return [
+    ScheduleRevision(fallbackDay, const {1, 2, 3, 4, 5, 6, 7}),
+  ];
 }
 
 /// What a legacy import did, including the limitation it could not avoid.
 class LegacyImportReport {
-  const LegacyImportReport({
-    required this.alreadyImported,
-    required this.habits,
-    required this.days,
-    this.limitation,
-  });
+  const LegacyImportReport({required this.alreadyImported, required this.habits, required this.days, this.limitation});
 
   final bool alreadyImported;
   final int habits;

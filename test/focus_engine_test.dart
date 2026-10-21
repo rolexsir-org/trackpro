@@ -352,9 +352,7 @@ void main() {
     });
 
     test('duplicates and blanks are collapsed', () {
-      final result = FocusEngine.sanitizeBlockList(
-        const ['com.a', 'com.a', '  ', 'com.b'],
-      );
+      final result = FocusEngine.sanitizeBlockList(const ['com.a', 'com.a', '  ', 'com.b']);
       expect(result.allowed, ['com.a', 'com.b']);
     });
   });
@@ -396,24 +394,18 @@ void main() {
     });
 
     test('two sessions is not a rate; three is the threshold', () {
-      final two = FocusEngine.statsFor(
-        [
-          session(outcome: FocusOutcome.completed, state: FocusSessionState.ended, focusMs: 25 * minutes),
-          session(outcome: FocusOutcome.cancelled, state: FocusSessionState.ended, focusMs: 4 * minutes),
-        ],
-        todayKey: 20261016,
-      );
+      final two = FocusEngine.statsFor([
+        session(outcome: FocusOutcome.completed, state: FocusSessionState.ended, focusMs: 25 * minutes),
+        session(outcome: FocusOutcome.cancelled, state: FocusSessionState.ended, focusMs: 4 * minutes),
+      ], todayKey: 20261016);
       expect(two.endedSessions, 2);
       expect(two.cleanShare, isNull, reason: 'below minSessionsForShare');
 
-      final three = FocusEngine.statsFor(
-        [
-          session(outcome: FocusOutcome.completed, state: FocusSessionState.ended, focusMs: 25 * minutes),
-          session(outcome: FocusOutcome.cancelled, state: FocusSessionState.ended, focusMs: 4 * minutes),
-          session(outcome: FocusOutcome.completedDegraded, state: FocusSessionState.ended, focusMs: 25 * minutes),
-        ],
-        todayKey: 20261016,
-      );
+      final three = FocusEngine.statsFor([
+        session(outcome: FocusOutcome.completed, state: FocusSessionState.ended, focusMs: 25 * minutes),
+        session(outcome: FocusOutcome.cancelled, state: FocusSessionState.ended, focusMs: 4 * minutes),
+        session(outcome: FocusOutcome.completedDegraded, state: FocusSessionState.ended, focusMs: 25 * minutes),
+      ], todayKey: 20261016);
       expect(three.endedSessions, 3);
       expect(three.cleanShare, isNotNull);
       expect(three.cleanShare!.round(), 33);
@@ -422,48 +414,42 @@ void main() {
     test('the clean streak stops at the first session that was not clean', () {
       // Distinct start times: the streak is counted most-recent-first, so the order has
       // to be a fact of the data, not a coincidence of `sort`.
-      final stats = FocusEngine.statsFor(
-        [
-          session(
-            outcome: FocusOutcome.completed,
-            state: FocusSessionState.ended,
-            focusMs: 25 * minutes,
-            startedAtWallMs: 1_700_000_400_000,
-          ),
-          session(
-            outcome: FocusOutcome.completed,
-            state: FocusSessionState.ended,
-            focusMs: 45 * minutes,
-            startedAtWallMs: 1_700_000_300_000,
-          ),
-          session(
-            outcome: FocusOutcome.cancelled,
-            state: FocusSessionState.ended,
-            focusMs: 2 * minutes,
-            startedAtWallMs: 1_700_000_200_000,
-          ),
-          session(
-            outcome: FocusOutcome.completed,
-            state: FocusSessionState.ended,
-            focusMs: 25 * minutes,
-            startedAtWallMs: 1_700_000_100_000,
-          ),
-        ],
-        todayKey: 20261016,
-      );
+      final stats = FocusEngine.statsFor([
+        session(
+          outcome: FocusOutcome.completed,
+          state: FocusSessionState.ended,
+          focusMs: 25 * minutes,
+          startedAtWallMs: 1_700_000_400_000,
+        ),
+        session(
+          outcome: FocusOutcome.completed,
+          state: FocusSessionState.ended,
+          focusMs: 45 * minutes,
+          startedAtWallMs: 1_700_000_300_000,
+        ),
+        session(
+          outcome: FocusOutcome.cancelled,
+          state: FocusSessionState.ended,
+          focusMs: 2 * minutes,
+          startedAtWallMs: 1_700_000_200_000,
+        ),
+        session(
+          outcome: FocusOutcome.completed,
+          state: FocusSessionState.ended,
+          focusMs: 25 * minutes,
+          startedAtWallMs: 1_700_000_100_000,
+        ),
+      ], todayKey: 20261016);
       expect(stats.cleanStreak, 2, reason: 'newest two were clean, then a cancellation');
     });
 
     test('only served time counts: an interrupted stretch is not focus minutes', () {
-      final stats = FocusEngine.statsFor(
-        [
-          session(outcome: FocusOutcome.completed, state: FocusSessionState.ended, focusMs: 25 * minutes),
-          session(outcome: FocusOutcome.completedDegraded, state: FocusSessionState.ended, focusMs: 25 * minutes),
-          session(outcome: FocusOutcome.cancelled, state: FocusSessionState.ended, focusMs: 6 * minutes),
-          session(outcome: FocusOutcome.interrupted, state: FocusSessionState.ended, focusMs: 9 * minutes),
-        ],
-        todayKey: 20261016,
-      );
+      final stats = FocusEngine.statsFor([
+        session(outcome: FocusOutcome.completed, state: FocusSessionState.ended, focusMs: 25 * minutes),
+        session(outcome: FocusOutcome.completedDegraded, state: FocusSessionState.ended, focusMs: 25 * minutes),
+        session(outcome: FocusOutcome.cancelled, state: FocusSessionState.ended, focusMs: 6 * minutes),
+        session(outcome: FocusOutcome.interrupted, state: FocusSessionState.ended, focusMs: 9 * minutes),
+      ], todayKey: 20261016);
       // 25 + 25. The cancelled and the interrupted stretches are in the history — the
       // user can read every session in full — but they are not added to the totals, or
       // "minutes focused" would reward the sessions that did not happen.
@@ -474,14 +460,16 @@ void main() {
 
   group('summary — the sentence shown after a session', () {
     test('a clean session says so, and does not overstate the block', () {
-      final s = FocusEngine.summaryFor(session(
-        outcome: FocusOutcome.completed,
-        state: FocusSessionState.ended,
-        enforcement: FocusEnforcement.verified,
-        blockedPackages: const ['com.instagram.android'],
-        blockedAttempts: 3,
-        focusMs: 25 * minutes,
-      ));
+      final s = FocusEngine.summaryFor(
+        session(
+          outcome: FocusOutcome.completed,
+          state: FocusSessionState.ended,
+          enforcement: FocusEnforcement.verified,
+          blockedPackages: const ['com.instagram.android'],
+          blockedAttempts: 3,
+          focusMs: 25 * minutes,
+        ),
+      );
       expect(s.minutesFocused, 25);
       expect(s.headline, '25-minute focus session');
       // A clean session has nothing to disclose, so the note is empty — the UI shows
@@ -491,13 +479,15 @@ void main() {
     });
 
     test('a degraded session explains the degradation rather than blaming the user', () {
-      final s = FocusEngine.summaryFor(session(
-        outcome: FocusOutcome.completedDegraded,
-        state: FocusSessionState.ended,
-        enforcement: FocusEnforcement.armed,
-        blockedPackages: const ['com.instagram.android'],
-        focusMs: 25 * minutes,
-      ));
+      final s = FocusEngine.summaryFor(
+        session(
+          outcome: FocusOutcome.completedDegraded,
+          state: FocusSessionState.ended,
+          enforcement: FocusEnforcement.armed,
+          blockedPackages: const ['com.instagram.android'],
+          focusMs: 25 * minutes,
+        ),
+      );
       expect(s.cleanlinessNote, contains('never confirmed'));
       expect(s.cleanlinessNote, contains('degraded session rather than a clean one'));
     });

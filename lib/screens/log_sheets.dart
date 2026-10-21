@@ -88,7 +88,8 @@ class _ToastHost extends StatefulWidget {
 }
 
 class _ToastHostState extends State<_ToastHost> with SingleTickerProviderStateMixin {
-  late final AnimationController c = AnimationController(vsync: this, duration: const Duration(milliseconds: 260))..forward();
+  late final AnimationController c = AnimationController(vsync: this, duration: const Duration(milliseconds: 260))
+    ..forward();
 
   @override
   void initState() {
@@ -130,12 +131,21 @@ class _ToastHostState extends State<_ToastHost> with SingleTickerProviderStateMi
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: TrackTheme.green,
-                      boxShadow: [BoxShadow(color: TrackTheme.green.withOpacity(.5), blurRadius: 8, spreadRadius: 2)],
+                      boxShadow: [
+                        BoxShadow(color: TrackTheme.green.withValues(alpha: .5), blurRadius: 8, spreadRadius: 2),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 9),
-                  Text(widget.message,
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: -.2, color: TrackTheme.label(widget.dark))),
+                  Text(
+                    widget.message,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -.2,
+                      color: TrackTheme.label(widget.dark),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -160,14 +170,18 @@ Future<void> openLogSheet(BuildContext context, Tracker t) async {
         title: 'How was today?',
         subtitle: 'Mood · tap a face to log instantly',
         accent: t.accent,
-        body: _MoodBody(onPick: (v) {
-          // Write first, then close: the toast describes what was stored, not what was
-          // intended.
-          final ok = state.log(t.id, v);
-          Navigator.of(context).pop();
-          showTrackToast(context,
-              ok ? 'Mood logged · ${fmtValue(t, v)}' : 'That entry was refused — nothing was logged.');
-        }),
+        body: _MoodBody(
+          onPick: (v) {
+            // Write first, then close: the toast describes what was stored, not what was
+            // intended.
+            final ok = state.log(t.id, v);
+            Navigator.of(context).pop();
+            showTrackToast(
+              context,
+              ok ? 'Mood logged · ${fmtValue(t, v)}' : 'That entry was refused — nothing was logged.',
+            );
+          },
+        ),
         actions: [TrackTintedButton(label: 'Cancel', onTap: () => Navigator.of(context).pop())],
       );
     case 'habits':
@@ -237,12 +251,16 @@ Future<void> openLogSheet(BuildContext context, Tracker t) async {
         title: 'Add food',
         subtitle: '${fmtValue(t, state.today(t.id))} of ${t.goal.round()} kcal today',
         accent: t.accent,
-        body: _CalorieBody(value: value, onFood: (kcal, name) {
-          // A food item is a genuine *delta* — it is added to today's running total.
-          final ok = state.logAdd('calories', kcal);
-          Navigator.of(context).pop();
-          showTrackToast(context, ok ? 'Added $name · $kcal kcal' : '$name was not added — that amount was refused.');
-        }, start: state.today('calories')),
+        body: _CalorieBody(
+          value: value,
+          onFood: (kcal, name) {
+            // A food item is a genuine *delta* — it is added to today's running total.
+            final ok = state.logAdd('calories', kcal);
+            Navigator.of(context).pop();
+            showTrackToast(context, ok ? 'Added $name · $kcal kcal' : '$name was not added — that amount was refused.');
+          },
+          start: state.today('calories'),
+        ),
         actions: [
           _sheetAction(
             context: context,
@@ -383,10 +401,17 @@ class _StepperBodyState extends State<_StepperBody> {
                 children: [
                   Text(
                     t.kind == MetricKind.money ? '₹${widget.value.value.round()}' : fmtValue(t, widget.value.value),
-                    style: TextStyle(fontSize: 40, fontWeight: FontWeight.w700, letterSpacing: -1.4, color: TrackTheme.label(dark)),
+                    style: TextStyle(
+                      fontSize: 40,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -1.4,
+                      color: TrackTheme.label(dark),
+                    ),
                   ),
-                  Text('of ${fmtGoalLong(t)}',
-                      style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
+                  Text(
+                    'of ${fmtGoalLong(t)}',
+                    style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                  ),
                 ],
               ),
             ),
@@ -470,14 +495,24 @@ class _ChipState extends State<_Chip> {
             color: widget.active ? widget.color : TrackTheme.fill(dark),
             borderRadius: BorderRadius.circular(11),
             boxShadow: widget.active
-                ? [BoxShadow(color: widget.color.withOpacity(.5), blurRadius: 16, offset: const Offset(0, 6), spreadRadius: -8)]
+                ? [
+                    BoxShadow(
+                      color: widget.color.withValues(alpha: .5),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                      spreadRadius: -8,
+                    ),
+                  ]
                 : null,
           ),
-          child: Text(widget.label,
-              style: TextStyle(
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w600,
-                  color: widget.active ? Colors.white : TrackTheme.label(dark))),
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              fontSize: 13.5,
+              fontWeight: FontWeight.w600,
+              color: widget.active ? Colors.white : TrackTheme.label(dark),
+            ),
+          ),
         ),
       ),
     );
@@ -512,18 +547,21 @@ class _MoodBody extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: Theme.of(context).brightness == Brightness.dark
                         ? TrackTheme.fill(true)
-                        : TrackTheme.orange.withOpacity(.1),
+                        : TrackTheme.orange.withValues(alpha: .1),
                     borderRadius: BorderRadius.circular(14),
                   ),
                   child: Column(
                     children: [
                       Icon(faces[i], size: 26, color: TrackTheme.orange),
                       const SizedBox(height: 5),
-                      Text(words[i],
-                          style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: TrackTheme.label2(Theme.of(context).brightness == Brightness.dark))),
+                      Text(
+                        words[i],
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w600,
+                          color: TrackTheme.label2(Theme.of(context).brightness == Brightness.dark),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -564,10 +602,23 @@ class _HabitBody extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(state.habits[i].name,
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: -.32, color: TrackTheme.label(dark))),
-                          Text('${state.habits[i].streak}-day streak',
-                              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                          Text(
+                            state.habits[i].name,
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: -.32,
+                              color: TrackTheme.label(dark),
+                            ),
+                          ),
+                          Text(
+                            '${state.habits[i].streak}-day streak',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w500,
+                              color: TrackTheme.label3(dark),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -629,18 +680,18 @@ class _ExpenseBodyState extends State<_ExpenseBody> {
 }
 
 Tracker _moneyTracker() => Tracker(
-      id: 'expenses',
-      name: 'Expenses',
-      emoji: '💰',
-      accent: TrackTheme.green,
-      accent2: TrackTheme.mint,
-      kind: MetricKind.money,
-      goal: 1500,
-      step: 10,
-      unit: '₹',
-      blurb: '',
-      insight: '',
-    );
+  id: 'expenses',
+  name: 'Expenses',
+  emoji: '💰',
+  accent: TrackTheme.green,
+  accent2: TrackTheme.mint,
+  kind: MetricKind.money,
+  goal: 1500,
+  step: 10,
+  unit: '₹',
+  blurb: '',
+  insight: '',
+);
 
 /// Sleep: hours stepper + a quality segmented control.
 class _SleepBody extends StatefulWidget {
@@ -700,11 +751,14 @@ class _SleepBodyState extends State<_SleepBody> {
           ],
         ),
         const SizedBox(height: 4),
-        Text('Quality feeds the sleep ⇄ mood pattern on Insights.',
-            style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: TrackTheme.label3(Theme.of(context).brightness == Brightness.dark))),
+        Text(
+          'Quality feeds the sleep ⇄ mood pattern on Insights.',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+            color: TrackTheme.label3(Theme.of(context).brightness == Brightness.dark),
+          ),
+        ),
       ],
     );
   }
@@ -745,8 +799,10 @@ class _CalorieBody extends StatelessWidget {
                 title: f.name,
                 subtitle: 'tap to add',
                 leading: const Icon(Icons.restaurant_outlined, size: 18, color: TrackTheme.orange),
-                trailing: Text('${f.kcal} kcal',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+                trailing: Text(
+                  '${f.kcal} kcal',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+                ),
                 accent: TrackTheme.orange,
                 showChevron: false,
                 onTap: () => onFood(f.kcal, f.name),
@@ -880,11 +936,12 @@ Future<void> openDaySheet(
   await showGlassSheet<void>(
     context,
     title: '$when · ${t.name}',
-    subtitle: '${switch (source) {
-      'health' => 'Health Connect entry',
-      'usage' => 'Android Usage Access entry',
-      _ => 'Your entry',
-    }}, ${_sourceWords(source)}',
+    subtitle:
+        '${switch (source) {
+          'health' => 'Health Connect entry',
+          'usage' => 'Android Usage Access entry',
+          _ => 'Your entry',
+        }}, ${_sourceWords(source)}',
     accent: t.accent,
     body: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -903,9 +960,13 @@ Future<void> openDaySheet(
               // Same row, same upsert: it is today's entry, wherever it is edited from.
               ? 'This is the same entry the log sheet writes — editing it here changes today.'
               : 'Editing ${shortDayKey(day)} changes only that day. Streaks, averages and '
-                  'insights are recomputed from the stored rows, so nothing else moves silently.',
-          style: TextStyle(fontSize: 12, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label3(
-              Theme.of(context).brightness == Brightness.dark)),
+                    'insights are recomputed from the stored rows, so nothing else moves silently.',
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.4,
+            fontWeight: FontWeight.w500,
+            color: TrackTheme.label3(Theme.of(context).brightness == Brightness.dark),
+          ),
         ),
       ],
     ),
@@ -972,10 +1033,7 @@ Future<bool> _confirmClearDay(BuildContext context, Tracker t, int day) async {
           style: TextStyle(color: TrackTheme.label2(dark), height: 1.4),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Keep it'),
-          ),
+          TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Keep it')),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: TrackTheme.red, foregroundColor: Colors.white),
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -1007,10 +1065,11 @@ Future<void> openGoalsSheet(BuildContext context) async {
           Text(
             'No active trackers yet. Add one from the Trackers screen and its goal appears here.',
             style: TextStyle(
-                fontSize: 13.5,
-                height: 1.4,
-                fontWeight: FontWeight.w500,
-                color: TrackTheme.label3(Theme.of(context).brightness == Brightness.dark)),
+              fontSize: 13.5,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+              color: TrackTheme.label3(Theme.of(context).brightness == Brightness.dark),
+            ),
           )
         else
           for (final t in trackers)
@@ -1061,8 +1120,7 @@ Future<void> openGoalSheet(BuildContext context, Tracker t) async {
           showTrackToast(context, 'Goal set to ${fmtGoalLong(t)}');
           return true;
         },
-        builder: (context, submit) =>
-            TrackFilledButton(label: 'Update goal', color: t.accent, onTap: submit),
+        builder: (context, submit) => TrackFilledButton(label: 'Update goal', color: t.accent, onTap: submit),
       ),
       TrackTintedButton(label: 'Cancel', onTap: () => Navigator.of(context).pop()),
     ],
@@ -1105,14 +1163,27 @@ Future<void> showQuickAdd(BuildContext context) async {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(t.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w600, letterSpacing: -.24, color: TrackTheme.label(dark))),
-                          Text(fmtGoalLong(t),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                          Text(
+                            t.name,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 14.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: -.24,
+                              color: TrackTheme.label(dark),
+                            ),
+                          ),
+                          Text(
+                            fmtGoalLong(t),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w500,
+                              color: TrackTheme.label3(dark),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -1136,10 +1207,6 @@ class _Switch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
-        child: Switch(
-          value: value,
-          activeColor: TrackTheme.green,
-          onChanged: (_) {},
-        ),
-      );
+    child: Switch(value: value, activeThumbColor: TrackTheme.green, onChanged: (_) {}),
+  );
 }

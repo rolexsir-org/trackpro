@@ -1,3 +1,12 @@
+/// Everything a commitment needs from the user: recording a day, defining one,
+/// picking a starter, and reading the rules.
+///
+/// All four go through `showGlassSheet`, so the visual language matches the rest of
+/// the app. None of them writes anything the player cannot see: a sheet never saves
+/// a value the user did not type, and never claims a result before the write
+/// returns.
+library;
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,19 +21,13 @@ import '../state/app_state.dart';
 import '../util/day_key.dart';
 import '../widgets/glass.dart';
 import 'focus_history_screen.dart';
+import 'focus_screen.dart';
 import 'focus_setup_sheets.dart';
 import 'log_sheets.dart';
 import 'paywall_screen.dart';
+import 'settings_screen.dart';
 
-/// Everything a commitment needs from the user: recording a day, defining one,
-/// picking a starter, and reading the rules.
-///
-/// All four go through `showGlassSheet`, so the visual language matches the rest of
-/// the app. None of them writes anything the player cannot see: a sheet never saves
-/// a value the user did not type, and never claims a result before the write
-/// returns.
-
-/// ---------------------------------------------------------------- record a day
+// ---------------------------------------------------------------- record a day
 /// "What actually happened today?" — the tap that makes the whole system work.
 ///
 /// The sheet always shows the commitment's own text (its full target and its
@@ -156,11 +159,7 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
         const SizedBox(height: Editorial.s4),
         Text('AMOUNT (OPTIONAL)', style: Editorial.label),
         const SizedBox(height: Editorial.s2),
-        _AmountField(
-          initial: _amount,
-          unit: c.fullAction,
-          onChanged: (v) => _amount = v,
-        ),
+        _AmountField(initial: _amount, unit: c.fullAction, onChanged: (v) => _amount = v),
         const SizedBox(height: Editorial.s4),
         Text('NOTE (OPTIONAL)', style: Editorial.label),
         const SizedBox(height: Editorial.s2),
@@ -183,16 +182,13 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
           TrackTintedButton(label: 'Clear this day', color: Editorial.danger, onTap: _busy ? null : _clear),
           const SizedBox(height: Editorial.s2),
           Text(
-            isToday
-                ? 'Clearing leaves today open.'
-                : 'Clearing makes this day unlogged again.',
+            isToday ? 'Clearing leaves today open.' : 'Clearing makes this day unlogged again.',
             style: Editorial.caption,
           ),
         ],
       ],
     );
   }
-
 }
 
 class _DefinitionRow extends StatelessWidget {
@@ -209,11 +205,16 @@ class _DefinitionRow extends StatelessWidget {
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-          decoration: BoxDecoration(color: color.withOpacity(.16), borderRadius: BorderRadius.circular(6)),
+          decoration: BoxDecoration(color: color.withValues(alpha: .16), borderRadius: BorderRadius.circular(6)),
           child: Text(label, style: Editorial.label.copyWith(color: color, letterSpacing: .8)),
         ),
         const SizedBox(width: Editorial.s3),
-        Expanded(child: Text(text, style: Editorial.body.copyWith(color: Editorial.ink, fontWeight: FontWeight.w600))),
+        Expanded(
+          child: Text(
+            text,
+            style: Editorial.body.copyWith(color: Editorial.ink, fontWeight: FontWeight.w600),
+          ),
+        ),
       ],
     );
   }
@@ -235,12 +236,12 @@ class _OutcomeTile extends StatelessWidget {
   final VoidCallback? onTap;
 
   Color get _tint => switch (outcome) {
-        DayOutcome.full => Editorial.full,
-        DayOutcome.minimum => Editorial.minimum,
-        DayOutcome.missed => Editorial.missed,
-        DayOutcome.rest => Editorial.rest,
-        DayOutcome.skipped => Editorial.rest,
-      };
+    DayOutcome.full => Editorial.full,
+    DayOutcome.minimum => Editorial.minimum,
+    DayOutcome.missed => Editorial.missed,
+    DayOutcome.rest => Editorial.rest,
+    DayOutcome.skipped => Editorial.rest,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -252,13 +253,17 @@ class _OutcomeTile extends StatelessWidget {
           duration: Editorial.medium,
           curve: Editorial.ease,
           decoration: Editorial.card(
-            fill: selected ? _tint.withOpacity(.14) : Editorial.well,
+            fill: selected ? _tint.withValues(alpha: .14) : Editorial.well,
             border: selected ? _tint : Editorial.hairline,
           ),
           padding: const EdgeInsets.symmetric(horizontal: Editorial.s4, vertical: Editorial.s3),
           child: Row(
             children: [
-              Container(width: 10, height: 10, decoration: BoxDecoration(color: _tint, shape: BoxShape.circle)),
+              Container(
+                width: 10,
+                height: 10,
+                decoration: BoxDecoration(color: _tint, shape: BoxShape.circle),
+              ),
               const SizedBox(width: Editorial.s3),
               Expanded(
                 child: Column(
@@ -294,7 +299,9 @@ class _AmountField extends StatefulWidget {
 
 class _AmountFieldState extends State<_AmountField> {
   late final TextEditingController _c = TextEditingController(
-    text: widget.initial == null ? '' : (widget.initial! % 1 == 0 ? widget.initial!.toInt().toString() : widget.initial!.toString()),
+    text: widget.initial == null
+        ? ''
+        : (widget.initial! % 1 == 0 ? widget.initial!.toInt().toString() : widget.initial!.toString()),
   );
 
   @override
@@ -359,11 +366,14 @@ class _TemplateBody extends StatelessWidget {
           Container(
             margin: const EdgeInsets.only(bottom: Editorial.s4),
             padding: const EdgeInsets.all(Editorial.s4),
-            decoration: Editorial.card(border: Editorial.accent.withOpacity(.5)),
+            decoration: Editorial.card(border: Editorial.accent.withValues(alpha: .5)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Free runs ${ProConfig.freeCommitmentLimit} routines at once', style: Editorial.title.copyWith(fontSize: 16)),
+                Text(
+                  'Free runs ${ProConfig.freeCommitmentLimit} routines at once',
+                  style: Editorial.title.copyWith(fontSize: 16),
+                ),
                 const SizedBox(height: Editorial.s2),
                 Text(ProConfig.commitmentCeilingCopy, style: Editorial.caption),
                 const SizedBox(height: Editorial.s3),
@@ -406,7 +416,10 @@ class _TemplateBody extends StatelessWidget {
                           children: [
                             Text(t.name, style: Editorial.figure),
                             const SizedBox(height: 2),
-                            Text('Full: ${t.fullAction}', style: Editorial.caption.copyWith(color: Editorial.inkSecondary)),
+                            Text(
+                              'Full: ${t.fullAction}',
+                              style: Editorial.caption.copyWith(color: Editorial.inkSecondary),
+                            ),
                             Text('Minimum: ${t.minimumAction}', style: Editorial.caption),
                           ],
                         ),
@@ -470,18 +483,23 @@ class _EditorBodyState extends State<_EditorBody> {
     '🧹': Icons.cleaning_services_outlined,
   };
   static const _colors = [
-    Color(0xFF5B7CFA), Color(0xFF3FB27F), Color(0xFFE0A44A), Color(0xFFE5484D),
-    Color(0xFF8B5CF6), Color(0xFF22B8CF),
+    Color(0xFF5B7CFA),
+    Color(0xFF3FB27F),
+    Color(0xFFE0A44A),
+    Color(0xFFE5484D),
+    Color(0xFF8B5CF6),
+    Color(0xFF22B8CF),
   ];
 
   late final TextEditingController _name = TextEditingController(text: widget.existing?.name ?? '');
   late final TextEditingController _outcome = TextEditingController(text: widget.existing?.outcome ?? '');
-  late final TextEditingController _minimum =
-      TextEditingController(text: widget.existing?.minimumAction ?? '');
+  late final TextEditingController _minimum = TextEditingController(text: widget.existing?.minimumAction ?? '');
   late final TextEditingController _full = TextEditingController(text: widget.existing?.fullAction ?? '');
   late String _emoji = widget.existing?.emoji ?? '🚶';
   late Color _color = widget.existing?.color ?? const Color(0xFF5B7CFA);
-  late Set<int> _days = {...(widget.existing?.schedule ?? const {1, 2, 3, 4, 5, 6, 7})};
+  late Set<int> _days = {
+    ...(widget.existing?.schedule ?? const {1, 2, 3, 4, 5, 6, 7}),
+  };
 
   /// Validation messages that appear only after the user tries to save, so an empty
   /// form does not open already scolding.
@@ -580,12 +598,14 @@ class _EditorBodyState extends State<_EditorBody> {
                   duration: Editorial.fast,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: _days.contains(d) ? _color.withOpacity(.2) : Editorial.well,
+                    color: _days.contains(d) ? _color.withValues(alpha: .2) : Editorial.well,
                     borderRadius: BorderRadius.circular(Editorial.rPill),
                     border: Border.all(color: _days.contains(d) ? _color : Editorial.hairline, width: .5),
                   ),
-                  child: Text(weekdayName(d, short: true),
-                      style: Editorial.caption.copyWith(color: _days.contains(d) ? Editorial.ink : Editorial.inkTertiary)),
+                  child: Text(
+                    weekdayName(d, short: true),
+                    style: Editorial.caption.copyWith(color: _days.contains(d) ? Editorial.ink : Editorial.inkTertiary),
+                  ),
                 ),
               ),
           ],
@@ -605,7 +625,7 @@ class _EditorBodyState extends State<_EditorBody> {
                   height: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _emoji == choice.key ? _color.withOpacity(.18) : Editorial.well,
+                    color: _emoji == choice.key ? _color.withValues(alpha: .18) : Editorial.well,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: _emoji == choice.key ? _color : Editorial.hairline, width: .5),
                   ),
@@ -649,57 +669,60 @@ class _EditorBodyState extends State<_EditorBody> {
         if (existing != null) ...[
           Text('PAUSING AND ENDING', style: Editorial.label),
           const SizedBox(height: Editorial.s2),
-          GlassList(children: [
-            GlassRow(
-              title: state.isCommitmentPaused(existing.id) ? 'Resume counting' : 'Pause for a while',
-              subtitle: state.isCommitmentPaused(existing.id)
-                  ? 'Days are counted again, starting today'
-                  : 'Paused days are not counted, and are not judged as misses',
-              leading: const Icon(Icons.pause_circle_outline_rounded, size: 18, color: Editorial.minimum),
-              accent: Editorial.minimum,
-              showChevron: false,
-              onTap: () async {
-                if (state.isCommitmentPaused(existing.id)) {
-                  await state.resumeCommitment(existing.id);
-                } else {
-                  await state.pauseCommitment(existing.id);
-                }
-                if (context.mounted) setState(() {});
-              },
-            ),
-            GlassRow(
-              title: existing.archived ? 'Bring it back' : 'Archive it',
-              subtitle: existing.archived
-                  ? 'Returns to your active routines with its history intact'
-                  : 'Stops counting, keeps every recorded day',
-              leading: const Icon(Icons.archive_outlined, size: 18, color: Editorial.accent),
-              accent: Editorial.accent,
-              showChevron: false,
-              onTap: () async {
-                await state.archiveCommitment(existing.id, archived: !existing.archived);
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            ),
-            GlassRow(
-              title: 'Delete for good',
-              subtitle: 'Removes the routine and every day recorded against it',
-              leading: const Icon(Icons.delete_outline_rounded, size: 18, color: Editorial.danger),
-              accent: Editorial.danger,
-              showChevron: false,
-              onTap: () async {
-                final ok = await showTrackConfirm(
-                  context,
-                  title: 'Delete “${existing.name}”?',
-                  body: 'This deletes the routine and its ${state.commitmentRepo.daysFor(existing.id).length} '
-                      'recorded days. Export first from Profile if you want a copy.',
-                  confirmLabel: 'Delete',
-                );
-                if (!ok) return;
-                await state.deleteCommitment(existing.id);
-                if (context.mounted) Navigator.of(context).pop();
-              },
-            ),
-          ]),
+          GlassList(
+            children: [
+              GlassRow(
+                title: state.isCommitmentPaused(existing.id) ? 'Resume counting' : 'Pause for a while',
+                subtitle: state.isCommitmentPaused(existing.id)
+                    ? 'Days are counted again, starting today'
+                    : 'Paused days are not counted, and are not judged as misses',
+                leading: const Icon(Icons.pause_circle_outline_rounded, size: 18, color: Editorial.minimum),
+                accent: Editorial.minimum,
+                showChevron: false,
+                onTap: () async {
+                  if (state.isCommitmentPaused(existing.id)) {
+                    await state.resumeCommitment(existing.id);
+                  } else {
+                    await state.pauseCommitment(existing.id);
+                  }
+                  if (context.mounted) setState(() {});
+                },
+              ),
+              GlassRow(
+                title: existing.archived ? 'Bring it back' : 'Archive it',
+                subtitle: existing.archived
+                    ? 'Returns to your active routines with its history intact'
+                    : 'Stops counting, keeps every recorded day',
+                leading: const Icon(Icons.archive_outlined, size: 18, color: Editorial.accent),
+                accent: Editorial.accent,
+                showChevron: false,
+                onTap: () async {
+                  await state.archiveCommitment(existing.id, archived: !existing.archived);
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
+              GlassRow(
+                title: 'Delete for good',
+                subtitle: 'Removes the routine and every day recorded against it',
+                leading: const Icon(Icons.delete_outline_rounded, size: 18, color: Editorial.danger),
+                accent: Editorial.danger,
+                showChevron: false,
+                onTap: () async {
+                  final ok = await showTrackConfirm(
+                    context,
+                    title: 'Delete “${existing.name}”?',
+                    body:
+                        'This deletes the routine and its ${state.commitmentRepo.daysFor(existing.id).length} '
+                        'recorded days. Export first from Profile if you want a copy.',
+                    confirmLabel: 'Delete',
+                  );
+                  if (!ok) return;
+                  await state.deleteCommitment(existing.id);
+                  if (context.mounted) Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
         ],
       ],
     );
@@ -752,25 +775,29 @@ Future<void> showMomentumExplainer(BuildContext context) async {
       children: [
         _Rule(
           title: 'Which days count',
-          body: 'The weekdays you picked for the routine. Rest days, pauses and days before you '
+          body:
+              'The weekdays you picked for the routine. Rest days, pauses and days before you '
               'created it never count for or against you.',
         ),
         _Rule(
           title: 'What counts',
-          body: 'A full day counts fully. A minimum keeps your streak alive and counts partly. '
+          body:
+              'A full day counts fully. A minimum keeps your streak alive and counts partly. '
               'A miss counts as a day you planned and did not do. Today is never judged until '
               'it is over.',
         ),
         _Rule(
           title: 'The percentage',
-          body: 'Your kept days divided by the days you planned, over the last '
+          body:
+              'Your kept days divided by the days you planned, over the last '
               '${MomentumEngine.rateWindowDays} days. It appears once there are '
               '${MomentumEngine.minDecidedDaysForRate} days to measure, because a percentage of '
               'two days is noise.',
         ),
         _Rule(
           title: 'Streaks and restarts',
-          body: 'A streak counts consecutive planned days you kept. After '
+          body:
+              'A streak counts consecutive planned days you kept. After '
               '${MomentumEngine.recoveryGap} planned days with nothing logged, Momentum suggests a '
               'smaller way back in.',
         ),
@@ -822,63 +849,66 @@ class _FocusLink extends StatelessWidget {
   Widget build(BuildContext context) {
     final app = context.watch<AppState>();
     final live = app.activeFocusSession;
+    final dark = Theme.of(context).brightness == Brightness.dark;
 
-    return GlassList(children: [
-      GlassRow(
-        title: live == null ? 'Start a focus session for this' : 'A session is already running',
-        subtitle: live == null
-            ? 'Timer, blocking or deep focus — linked to ${commitment.name}'
-            : '${live.goalLabel} · ${live.mode.label}',
-        leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
-        accent: commitment.color,
-        onTap: () async {
-          // This sheet is closing, so the follow-up runs through the navigator's own
-          // context (which outlives the pop) rather than through a context that is on
-          // its way out.
-          final navigator = Navigator.of(context);
-          final host = navigator.context;
-          navigator.pop();
-          if (live == null) {
-            await showFocusStartSheet(
-              host,
-              commitmentId: commitment.id,
-              goalLabel: commitment.name,
-              // A profile already linked to this routine carries the app list the user
-              // chose for it, so the sheet opens pre-filled rather than blank.
-              packages: app.focusProfiles
-                  .where((p) => p.commitmentId == commitment.id)
-                  .expand((p) => p.packages)
-                  .toSet()
-                  .toList(),
-            );
-          } else {
-            await openFocusSession(host);
-          }
-        },
-      ),
-      GlassRow(
-        title: 'Focus history',
-        subtitle: app.focusStats.endedSessions == 0
-            ? 'Nothing recorded yet'
-            : '${app.focusStats.endedSessions} session${app.focusStats.endedSessions == 1 ? '' : 's'} · '
-                '${app.focusStats.minutesTotal} minutes',
-        leading: const Icon(Icons.history_rounded, size: 18, color: TrackTheme.orange),
-        accent: TrackTheme.indigo,
-        onTap: () {
-          final navigator = Navigator.of(context);
-          navigator.pop();
-          navigator.push(MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()));
-        },
-      ),
-      if (!app.hasFocusSupport)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(15, 10, 15, 12),
-          child: Text(
-            'This build has no focus channel behind it, so a session here would be a timer only — and it '
-            'would say so rather than pretend.',
-            style: TextStyle(fontSize: 12, height: 1.45, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
-          ),
+    return GlassList(
+      children: [
+        GlassRow(
+          title: live == null ? 'Start a focus session for this' : 'A session is already running',
+          subtitle: live == null
+              ? 'Timer, blocking or deep focus — linked to ${commitment.name}'
+              : '${live.goalLabel} · ${live.mode.label}',
+          leading: const Icon(Icons.track_changes_outlined, size: 18, color: TrackTheme.orange),
+          accent: commitment.color,
+          onTap: () async {
+            // This sheet is closing, so the follow-up runs through the navigator's own
+            // context (which outlives the pop) rather than through a context that is on
+            // its way out.
+            final navigator = Navigator.of(context);
+            final host = navigator.context;
+            navigator.pop();
+            if (live == null) {
+              await showFocusStartSheet(
+                host,
+                commitmentId: commitment.id,
+                goalLabel: commitment.name,
+                // A profile already linked to this routine carries the app list the user
+                // chose for it, so the sheet opens pre-filled rather than blank.
+                packages: app.focusProfiles
+                    .where((p) => p.commitmentId == commitment.id)
+                    .expand((p) => p.packages)
+                    .toSet()
+                    .toList(),
+              );
+            } else {
+              await openFocusSession(host);
+            }
+          },
         ),
-    ]);
+        GlassRow(
+          title: 'Focus history',
+          subtitle: app.focusStats.endedSessions == 0
+              ? 'Nothing recorded yet'
+              : '${app.focusStats.endedSessions} session${app.focusStats.endedSessions == 1 ? '' : 's'} · '
+                    '${app.focusStats.minutesTotal} minutes',
+          leading: const Icon(Icons.history_rounded, size: 18, color: TrackTheme.orange),
+          accent: TrackTheme.indigo,
+          onTap: () {
+            final navigator = Navigator.of(context);
+            navigator.pop();
+            navigator.push(MaterialPageRoute<void>(builder: (_) => const FocusHistoryScreen()));
+          },
+        ),
+        if (!app.hasFocusSupport)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(15, 10, 15, 12),
+            child: Text(
+              'This build has no focus channel behind it, so a session here would be a timer only — and it '
+              'would say so rather than pretend.',
+              style: TextStyle(fontSize: 12, height: 1.45, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+            ),
+          ),
+      ],
+    );
   }
 }

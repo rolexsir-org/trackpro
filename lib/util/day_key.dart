@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 /// Day-key helpers, in one place.
 ///
 /// A "day key" is the local calendar day as `yyyymmdd` — an int, so it sorts and
@@ -24,6 +22,8 @@ import 'package:flutter/material.dart';
 /// into the wrong slot of every chart, streak and average for the hours around
 /// a transition.
 library;
+
+import 'package:flutter/material.dart';
 
 int dayKey(DateTime d) => d.year * 10000 + d.month * 100 + d.day;
 
@@ -72,8 +72,7 @@ int weekdayOfDayKey(int day) => DateTime(day ~/ 10000, (day ~/ 100) % 100, day %
 /// **0** — which reads as "same day" to every streak, window and "days since"
 /// label in the app. A 25-hour day would read as 1 instead of 2 going the other
 /// way. Rounding is exact for any 23-to-25-hour span.
-int daysBetweenKeys(int from, int to) =>
-    (dateOfDayKey(to).difference(dateOfDayKey(from)).inHours / 24).round();
+int daysBetweenKeys(int from, int to) => (dateOfDayKey(to).difference(dateOfDayKey(from)).inHours / 24).round();
 
 /// The Monday that starts the week containing [day] — the anchor for weekly
 /// reviews. Weeks in this app run Monday to Sunday regardless of locale, so the

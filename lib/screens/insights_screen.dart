@@ -31,13 +31,15 @@ class InsightsScreen extends StatelessWidget {
     // Requested window from the segmented control; the series in memory is the
     // ceiling. `range` is already clamped to 'week' for free users by AppState, so
     // this cannot expose paid depth.
-    final requested = switch (state.range) { 'month' => 28, 'quarter' => 90, _ => 7 };
+    final requested = switch (state.range) {
+      'month' => 28,
+      'quarter' => 90,
+      _ => 7,
+    };
     final available = state.loadedDays;
     final days = requested < available ? requested : available;
     final start = available - days;
-    final scores = [
-      for (var i = start; i < available; i++) activityScore(state.trackers, state.history, i),
-    ];
+    final scores = [for (var i = start; i < available; i++) activityScore(state.trackers, state.history, i)];
     final avgScore = scores.isEmpty ? 0.0 : scores.reduce((a, b) => a + b) / scores.length;
 
     // Cross-tracker chart input: only days where both mood and sleep were logged.
@@ -63,17 +65,25 @@ class InsightsScreen extends StatelessWidget {
                 children: [
                   // Every tile is a live SQL count. On a fresh install they read
                   // zero, which is the truth, not a placeholder.
-                  Expanded(child: StatTile(value: '${state.trackedDays}', label: 'Days tracked')),
+                  Expanded(
+                    child: StatTile(value: '${state.trackedDays}', label: 'Days tracked'),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: StatTile(value: _count(state.entryCount), label: 'Entries total')),
+                  Expanded(
+                    child: StatTile(value: _count(state.entryCount), label: 'Entries total'),
+                  ),
                   const SizedBox(width: 10),
-                  Expanded(child: StatTile(value: '${state.visibleTrackers.length}', label: 'Trackers live')),
+                  Expanded(
+                    child: StatTile(value: '${state.visibleTrackers.length}', label: 'Trackers live'),
+                  ),
                 ],
               ),
               SectionLabel(
                 'Consistency',
-                trailing: Text('${(avgScore * 100).round()}% avg',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                trailing: Text(
+                  '${(avgScore * 100).round()}% avg',
+                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+                ),
               ),
               _RangeSegmented(state: state),
               const SizedBox(height: 12),
@@ -95,7 +105,11 @@ class InsightsScreen extends StatelessWidget {
                             '$days days ago',
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: TrackTheme.label3(dark),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -105,7 +119,11 @@ class InsightsScreen extends StatelessWidget {
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.end,
-                            style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark)),
+                            style: TextStyle(
+                              fontSize: 10.5,
+                              fontWeight: FontWeight.w600,
+                              color: TrackTheme.label3(dark),
+                            ),
                           ),
                         ),
                       ],
@@ -115,43 +133,42 @@ class InsightsScreen extends StatelessWidget {
               ),
               const SectionLabel('Last 7 days'),
               if (state.loggedDaysInWindow(7) == 0)
-                GlassList(children: [
-                  _EmptyRow(
-                    text: 'No averages yet. Log a few days and they will appear here.',
-                  ),
-                ])
+                GlassList(children: [_EmptyRow(text: 'No averages yet. Log a few days and they will appear here.')])
               else
-                GlassList(children: [
-                  // One row per tracker that actually has data in the window.
-                  for (final t in state.visibleTrackers)
-                    if (state.series(t.id, 7).any((v) => v > 0))
-                      _AvgRow(
-                        label: t.name,
-                        name: '${t.name} (7-day)',
-                        color: t.accent,
-                        value: _avgText(t, state.avg(t.id, 7)),
-                      ),
-                ]),
-              SectionLabel(
-                'Patterns we found',
-                trailing: state.isPro ? null : const ProChip(compact: true),
-              ),
+                GlassList(
+                  children: [
+                    // One row per tracker that actually has data in the window.
+                    for (final t in state.visibleTrackers)
+                      if (state.series(t.id, 7).any((v) => v > 0))
+                        _AvgRow(
+                          label: t.name,
+                          name: '${t.name} (7-day)',
+                          color: t.accent,
+                          value: _avgText(t, state.avg(t.id, 7)),
+                        ),
+                  ],
+                ),
+              SectionLabel('Patterns we found', trailing: state.isPro ? null : const ProChip(compact: true)),
               // Computed from the user's own rows by InsightsEngine. With too
               // little history this renders a progress line and stops — the app
               // does not fabricate a finding to fill the section.
               if (state.insights.isEmpty || state.insights.first.sampleDays == 0)
-                _InsufficientData(
-                  trackedDays: state.trackedDays,
-                  needed: InsightsEngine.minLoggedDaysForPatterns,
-                )
+                _InsufficientData(trackedDays: state.trackedDays, needed: InsightsEngine.minLoggedDaysForPatterns)
               else ...[
                 for (final i in state.insights.where((x) => !x.advanced).take(state.isPro ? 4 : 2))
-                  InsightCard(emoji: i.emoji, title: i.title, body: i.body, accent: TrackTheme.indigo, accent2: TrackTheme.purple),
+                  InsightCard(
+                    emoji: i.emoji,
+                    title: i.title,
+                    body: i.body,
+                    accent: TrackTheme.indigo,
+                    accent2: TrackTheme.purple,
+                  ),
                 if (!state.isPro)
                   ProGate(
                     locked: true,
                     title: 'Cross-tracker patterns',
-                    body: 'Pro compares sleep, mood, spending and steps against each other, '
+                    body:
+                        'Pro compares sleep, mood, spending and steps against each other, '
                         'and only where your own days support it.',
                     onUnlock: () {
                       state.analytics?.log('pro_gate_tapped', {'gate': 'insights_patterns'});
@@ -160,29 +177,45 @@ class InsightsScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         for (final i in state.insights.where((x) => x.advanced).take(3))
-                          InsightCard(emoji: i.emoji, title: i.title, body: i.body, accent: TrackTheme.indigo, accent2: TrackTheme.purple),
+                          InsightCard(
+                            emoji: i.emoji,
+                            title: i.title,
+                            body: i.body,
+                            accent: TrackTheme.indigo,
+                            accent2: TrackTheme.purple,
+                          ),
                       ],
                     ),
                   )
                 else
                   for (final i in state.insights.where((x) => x.advanced).take(5))
-                    InsightCard(emoji: i.emoji, title: i.title, body: i.body, accent: TrackTheme.indigo, accent2: TrackTheme.purple),
+                    InsightCard(
+                      emoji: i.emoji,
+                      title: i.title,
+                      body: i.body,
+                      accent: TrackTheme.indigo,
+                      accent2: TrackTheme.purple,
+                    ),
               ],
               const SectionLabel('Mood vs sleep'),
               if (moodSleep.length < 4)
-                GlassList(children: [
-                  _EmptyRow(
-                    text: 'Log sleep and mood on at least 4 days to see them together. '
-                        'So far there ${moodSleep.length == 1 ? 'is 1 day' : 'are ${moodSleep.length} days'}.',
-                  ),
-                ])
+                GlassList(
+                  children: [
+                    _EmptyRow(
+                      text:
+                          'Log sleep and mood on at least 4 days to see them together. '
+                          'So far there ${moodSleep.length == 1 ? 'is 1 day' : 'are ${moodSleep.length} days'}.',
+                    ),
+                  ],
+                )
               else if (state.isPro)
                 _MoodSleepChart(points: moodSleep, dark: dark)
               else
                 ProGate(
                   locked: true,
                   title: 'Sleep and mood, day by day',
-                  body: 'How your sleep and mood moved together across the ${moodSleep.length} days you logged both. '
+                  body:
+                      'How your sleep and mood moved together across the ${moodSleep.length} days you logged both. '
                       'Pro unlocks every cross-tracker chart.',
                   onUnlock: () {
                     state.analytics?.log('pro_gate_tapped', {'gate': 'correlation'});
@@ -224,13 +257,26 @@ class InsightsScreen extends StatelessWidget {
                                 color: b.unlocked ? TrackTheme.orange : TrackTheme.label3(dark),
                               ),
                               const SizedBox(height: 7),
-                              Text(b.title,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: -.1, color: TrackTheme.label(dark))),
+                              Text(
+                                b.title,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: -.1,
+                                  color: TrackTheme.label(dark),
+                                ),
+                              ),
                               const SizedBox(height: 2),
-                              Text(b.subtitle,
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(fontSize: 10.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+                              Text(
+                                b.subtitle,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w500,
+                                  color: TrackTheme.label3(dark),
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -302,15 +348,23 @@ class _InsufficientData extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  trackedDays == 0
-                      ? 'No patterns yet — no data'
-                      : '$remaining more logged days needed',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, letterSpacing: -.2, color: TrackTheme.label(dark)),
+                  trackedDays == 0 ? 'No patterns yet — no data' : '$remaining more logged days needed',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -.2,
+                    color: TrackTheme.label(dark),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Patterns appear after about $needed days of your own history.',
-                  style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                    color: TrackTheme.label2(dark),
+                  ),
                 ),
               ],
             ),
@@ -365,7 +419,13 @@ class _RangeSegmented extends StatelessWidget {
                     color: state.range == o[0] ? TrackTheme.surface(dark) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     boxShadow: state.range == o[0]
-                        ? [BoxShadow(color: Colors.black.withOpacity(.12), blurRadius: 8, offset: const Offset(0, 3))]
+                        ? [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: .12),
+                              blurRadius: 8,
+                              offset: const Offset(0, 3),
+                            ),
+                          ]
                         : null,
                   ),
                   // Keep each third of the control independently bounded. A
@@ -394,10 +454,7 @@ class _RangeSegmented extends StatelessWidget {
                         ),
                       ),
                       if (lockedRanges.containsKey(o[0]) && !state.isPro)
-                        Positioned(
-                          left: 5,
-                          child: Icon(Icons.lock, size: 10, color: TrackTheme.label3(dark)),
-                        ),
+                        Positioned(left: 5, child: Icon(Icons.lock, size: 10, color: TrackTheme.label3(dark))),
                     ],
                   ),
                 ),
@@ -426,15 +483,28 @@ class _StreakCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${state.bestStreak}',
-              style: const TextStyle(fontSize: 44, fontWeight: FontWeight.w700, letterSpacing: -1.6, height: 1, color: TrackTheme.orange)),
+          Text(
+            '${state.bestStreak}',
+            style: const TextStyle(
+              fontSize: 44,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -1.6,
+              height: 1,
+              color: TrackTheme.orange,
+            ),
+          ),
           const SizedBox(height: 6),
           Text(
             state.bestStreak == 0
                 ? 'No streak running. Log anything today and this starts at 1.'
                 : 'day streak on your most consistent tracker. '
-                    '${state.loggedFlags(7).last ? 'Today is logged.' : 'Log today to extend it.'}',
-            style: TextStyle(fontSize: 14, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(Theme.of(context).brightness == Brightness.dark)),
+                      '${state.loggedFlags(7).last ? 'Today is logged.' : 'Log today to extend it.'}',
+            style: TextStyle(
+              fontSize: 14,
+              height: 1.4,
+              fontWeight: FontWeight.w500,
+              color: TrackTheme.label2(Theme.of(context).brightness == Brightness.dark),
+            ),
           ),
           const SizedBox(height: 15),
           Row(
@@ -448,7 +518,9 @@ class _StreakCard extends StatelessWidget {
                       height: 11,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: logged ? TrackTheme.orange : TrackTheme.fill(Theme.of(context).brightness == Brightness.dark),
+                        color: logged
+                            ? TrackTheme.orange
+                            : TrackTheme.fill(Theme.of(context).brightness == Brightness.dark),
                       ),
                     ),
                   ),
@@ -473,21 +545,23 @@ class _EmptyRow extends StatelessWidget {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 14),
-      child: Text(text,
-          style: TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+      child: Text(
+        text,
+        style: TextStyle(fontSize: 13, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+      ),
     );
   }
 }
 
 String _avgText(Tracker t, double v) => switch (t.kind) {
-      MetricKind.volume => '${(v / 1000).toStringAsFixed(1)} L',
-      MetricKind.money => '₹${v.round()}',
-      MetricKind.hours => '${v.toStringAsFixed(1)} h',
-      MetricKind.weight => '${v.toStringAsFixed(1)} kg',
-      MetricKind.mood => '${v.toStringAsFixed(1)} / 5',
-      MetricKind.minutes => '${v.round()} min',
-      _ => '${v.round()}',
-    };
+  MetricKind.volume => '${(v / 1000).toStringAsFixed(1)} L',
+  MetricKind.money => '₹${v.round()}',
+  MetricKind.hours => '${v.toStringAsFixed(1)} h',
+  MetricKind.weight => '${v.toStringAsFixed(1)} kg',
+  MetricKind.mood => '${v.toStringAsFixed(1)} / 5',
+  MetricKind.minutes => '${v.round()} min',
+  _ => '${v.round()}',
+};
 
 class _AvgRow extends StatelessWidget {
   const _AvgRow({required this.label, required this.name, required this.color, required this.value});
@@ -505,7 +579,10 @@ class _AvgRow extends StatelessWidget {
       leading: Icon(_insightAverageIcon(label), size: 17, color: color),
       accent: color,
       showChevron: false,
-      trailing: Text(value, style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+      trailing: Text(
+        value,
+        style: TextStyle(fontSize: 15.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark)),
+      ),
     );
   }
 }
@@ -541,7 +618,10 @@ class _MoodSleepChart extends StatelessWidget {
         boxShadow: flat ? null : TrackTheme.cardShadow(dark),
         border: flat
             ? null
-            : Border.all(color: dark ? Colors.white.withOpacity(.05) : Colors.black.withOpacity(.03), width: .5),
+            : Border.all(
+                color: dark ? Colors.white.withValues(alpha: .05) : Colors.black.withValues(alpha: .03),
+                width: .5,
+              ),
       ),
       child: Column(
         children: [

@@ -4,7 +4,6 @@ import '../services/haptics.dart';
 
 import '../main.dart' show Pressable, TrackTheme;
 import '../models/models.dart';
-import '../state/app_state.dart';
 import '../util/format.dart';
 import 'glass.dart';
 import 'mini_chart.dart';
@@ -60,21 +59,34 @@ class TrackerCard extends StatelessWidget {
                 TrackRecordIcon(label: tracker.name, color: tracker.accent, size: 28, iconSize: 16),
                 const SizedBox(width: 7),
                 Expanded(
-                  child: Text(tracker.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -.1, color: TrackTheme.label2(dark))),
+                  child: Text(
+                    tracker.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -.1,
+                      color: TrackTheme.label2(dark),
+                    ),
+                  ),
                 ),
                 if (showStreak)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: tracker.accent.withOpacity(.14), borderRadius: BorderRadius.circular(6)),
+                    decoration: BoxDecoration(
+                      color: tracker.accent.withValues(alpha: .14),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.local_fire_department_outlined, size: 12, color: tracker.accent),
                         const SizedBox(width: 2),
-                        Text('${streak}d', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: tracker.accent)),
+                        Text(
+                          '${streak}d',
+                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: tracker.accent),
+                        ),
                       ],
                     ),
                   ),
@@ -96,7 +108,11 @@ class TrackerCard extends StatelessWidget {
                         fmtCompact(tracker, v),
                         maxLines: 1,
                         style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w700, letterSpacing: -.4, color: TrackTheme.label(dark)),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -.4,
+                          color: TrackTheme.label(dark),
+                        ),
                       ),
                       Text(
                         fmtGoalShort(tracker),
@@ -116,8 +132,15 @@ class TrackerCard extends StatelessWidget {
                       // tier's 7-day window must never shorten a streak.
                       MiniChart(values: chartValues ?? values, color: tracker.accent),
                       const SizedBox(height: 6),
-                      Text('THIS WEEK',
-                          style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: .5, color: TrackTheme.label3(dark).withOpacity(.7))),
+                      Text(
+                        'THIS WEEK',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: .5,
+                          color: TrackTheme.label3(dark).withValues(alpha: .7),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -127,20 +150,34 @@ class TrackerCard extends StatelessWidget {
             Row(
               children: [
                 Icon(
-                  d.direction > 0 ? Icons.arrow_upward_rounded : d.direction < 0 ? Icons.arrow_downward_rounded : Icons.remove_rounded,
+                  d.direction > 0
+                      ? Icons.arrow_upward_rounded
+                      : d.direction < 0
+                      ? Icons.arrow_downward_rounded
+                      : Icons.remove_rounded,
                   size: 10,
-                  color: d.goodness > 0 ? TrackTheme.green : d.goodness < 0 ? TrackTheme.orange : TrackTheme.label3(dark),
+                  color: d.goodness > 0
+                      ? TrackTheme.green
+                      : d.goodness < 0
+                      ? TrackTheme.orange
+                      : TrackTheme.label3(dark),
                 ),
                 const SizedBox(width: 4),
                 Expanded(
-                  child: Text(d.text,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 11.5,
-                        fontWeight: FontWeight.w600,
-                        color: d.goodness > 0 ? TrackTheme.green : d.goodness < 0 ? TrackTheme.orange : TrackTheme.label3(dark),
-                      )),
+                  child: Text(
+                    d.text,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: d.goodness > 0
+                          ? TrackTheme.green
+                          : d.goodness < 0
+                          ? TrackTheme.orange
+                          : TrackTheme.label3(dark),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -192,12 +229,11 @@ class _LogButtonState extends State<_LogButton> {
         child: Container(
           height: 32,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            color: widget.color,
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(10), color: widget.color),
+          child: Text(
+            widget.label,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -.08, color: Colors.black),
           ),
-          child: Text(widget.label,
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: -.08, color: Colors.black)),
         ),
       ),
     );
@@ -277,8 +313,14 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('− $stepLabel', style: TextStyle(color: TrackTheme.label(dark), fontWeight: FontWeight.w700, fontSize: 13)),
-                    Text('+ $stepLabel', style: TextStyle(color: TrackTheme.label(dark), fontWeight: FontWeight.w700, fontSize: 13)),
+                    Text(
+                      '− $stepLabel',
+                      style: TextStyle(color: TrackTheme.label(dark), fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
+                    Text(
+                      '+ $stepLabel',
+                      style: TextStyle(color: TrackTheme.label(dark), fontWeight: FontWeight.w700, fontSize: 13),
+                    ),
                   ],
                 ),
               ),
@@ -318,8 +360,14 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                                   children: [
                                     TrackRecordIcon(label: t.name, color: t.accent, size: 28, iconSize: 16),
                                     const SizedBox(width: 7),
-                                    Text(t.name,
-                                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
+                                    Text(
+                                      t.name,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600,
+                                        color: TrackTheme.label2(dark),
+                                      ),
+                                    ),
                                   ],
                                 ),
                                 const SizedBox(height: 6),
@@ -335,8 +383,14 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                                   ),
                                 ),
                                 const SizedBox(height: 3),
-                                Text('$units of 10 steps · ${(pct * 100).round()}% of ${fmtGoalLong(t)}',
-                                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+                                Text(
+                                  '$units of 10 steps · ${(pct * 100).round()}% of ${fmtGoalLong(t)}',
+                                  style: TextStyle(
+                                    fontSize: 13.5,
+                                    fontWeight: FontWeight.w500,
+                                    color: TrackTheme.label2(dark),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -349,11 +403,23 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                             center: Column(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('${(pct * 100).round()}%',
-                                    style: TextStyle(
-                                        fontSize: 26, fontWeight: FontWeight.w700, letterSpacing: -1, color: TrackTheme.label(dark))),
-                                Text(fmtGoalLong(t),
-                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark))),
+                                Text(
+                                  '${(pct * 100).round()}%',
+                                  style: TextStyle(
+                                    fontSize: 26,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: -1,
+                                    color: TrackTheme.label(dark),
+                                  ),
+                                ),
+                                Text(
+                                  fmtGoalLong(t),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w600,
+                                    color: TrackTheme.label3(dark),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
@@ -385,16 +451,28 @@ class _HeroTrackerCardState extends State<HeroTrackerCard> {
                         children: [
                           Icon(Icons.swipe_rounded, size: 15, color: TrackTheme.label3(dark)),
                           const SizedBox(width: 5),
-                          Text('Swipe to log one step',
-                              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: TrackTheme.label3(dark).withOpacity(.8))),
+                          Text(
+                            'Swipe to log one step',
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              color: TrackTheme.label3(dark).withValues(alpha: .8),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
                       Row(
                         children: [
-                          Expanded(child: _LogButton(label: '+ $stepLabel', color: t.accent, onTap: () => widget.onStep(step))),
+                          Expanded(
+                            child: _LogButton(label: '+ $stepLabel', color: t.accent, onTap: () => widget.onStep(step)),
+                          ),
                           const SizedBox(width: 7),
-                          _LogButton(label: '+ 2×', color: Color.lerp(t.accent, Colors.black, .05)!, onTap: () => widget.onStep(step * 2)),
+                          _LogButton(
+                            label: '+ 2×',
+                            color: Color.lerp(t.accent, Colors.black, .05)!,
+                            onTap: () => widget.onStep(step * 2),
+                          ),
                           const SizedBox(width: 7),
                           _ChevronButton(color: t.accent, onTap: widget.onTap),
                         ],

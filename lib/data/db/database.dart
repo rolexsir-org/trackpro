@@ -92,8 +92,8 @@ class DailyEntries extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {trackerId, day, source},
-      ];
+    {trackerId, day, source},
+  ];
 }
 
 /// A commitment: something the user said they would do, with the smallest version
@@ -161,8 +161,8 @@ class CommitmentEntries extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {commitmentId, day},
-      ];
+    {commitmentId, day},
+  ];
 }
 
 /// A deliberate break: a commitment is not judged — not even as missed — on the
@@ -214,8 +214,8 @@ class Purchases extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {purchaseToken, productId},
-      ];
+    {purchaseToken, productId},
+  ];
 }
 
 /// Monetisation funnel events (paywall views, plan picks, trial starts…).
@@ -267,8 +267,7 @@ class FocusSessions extends Table {
 
   /// The routine this was started from, when there was one. `SET NULL`, not
   /// cascade: deleting a routine must never delete time the user actually spent.
-  TextColumn get commitmentId =>
-      text().nullable().references(CommitmentRows, #id, onDelete: KeyAction.setNull)();
+  TextColumn get commitmentId => text().nullable().references(CommitmentRows, #id, onDelete: KeyAction.setNull)();
 
   IntColumn get startedAtWallMs => integer()();
   IntColumn get startedAtRealtimeMs => integer()();
@@ -373,9 +372,18 @@ class FocusSchedules extends Table {
 
 @DriftDatabase(
   tables: [
-    TrackerRows, DailyEntries, Events, AppSettings, Purchases, TrackEvents,
-    CommitmentRows, CommitmentEntries, CommitmentPauses,
-    FocusSessions, FocusProfiles, FocusSchedules,
+    TrackerRows,
+    DailyEntries,
+    Events,
+    AppSettings,
+    Purchases,
+    TrackEvents,
+    CommitmentRows,
+    CommitmentEntries,
+    CommitmentPauses,
+    FocusSessions,
+    FocusProfiles,
+    FocusSchedules,
   ],
   daos: [TrackDao, CommitmentDao, FocusDao],
 )
@@ -390,48 +398,48 @@ class TrackDatabase extends _$TrackDatabase {
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
-        onCreate: (m) async {
-          await m.createAll();
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-        onUpgrade: (m, from, to) async {
-          // v1 → v2: monetisation. Additive only, so existing history survives —
-          // which matters more here than anywhere else in the app, because the
-          // user's accumulated data is the product.
-          if (from < 2) {
-            await m.createTable(purchases);
-            await m.createTable(trackEvents);
-          }
-          // v2 → v3: Momentum. Three new tables, again purely additive: every
-          // tracker row, entry, event, purchase and setting from v2 is untouched
-          // and unread by these statements. There is deliberately **no data
-          // rewrite here** — converting an install's legacy habit checklist into
-          // commitments is an explicit, idempotent, testable import
-          // (`CommitmentMigration.importLegacy`), not a side effect of opening the
-          // database. A migration that silently rewrites user data is a migration
-          // nobody can roll back.
-          if (from < 3) {
-            await m.createTable(commitmentRows);
-            await m.createTable(commitmentEntries);
-            await m.createTable(commitmentPauses);
-          }
-          // v3 → v4: Focus Lock. Three new tables, additive like every migration
-          // before them. The one thing worth stating explicitly: a session that was
-          // live when the app was updated is **not** rewritten here. Recovery is
-          // `FocusRepository.recover()`, which runs at start-up, is idempotent, and
-          // decides the outcome from the stored clocks. A migration that decided a
-          // session's outcome would be choosing history inside `onUpgrade`, which is
-          // exactly where it cannot be tested.
-          if (from < 4) {
-            await m.createTable(focusSessions);
-            await m.createTable(focusProfiles);
-            await m.createTable(focusSchedules);
-          }
-        },
-        beforeOpen: (details) async {
-          await customStatement('PRAGMA foreign_keys = ON');
-        },
-      );
+    onCreate: (m) async {
+      await m.createAll();
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+    onUpgrade: (m, from, to) async {
+      // v1 → v2: monetisation. Additive only, so existing history survives —
+      // which matters more here than anywhere else in the app, because the
+      // user's accumulated data is the product.
+      if (from < 2) {
+        await m.createTable(purchases);
+        await m.createTable(trackEvents);
+      }
+      // v2 → v3: Momentum. Three new tables, again purely additive: every
+      // tracker row, entry, event, purchase and setting from v2 is untouched
+      // and unread by these statements. There is deliberately **no data
+      // rewrite here** — converting an install's legacy habit checklist into
+      // commitments is an explicit, idempotent, testable import
+      // (`CommitmentMigration.importLegacy`), not a side effect of opening the
+      // database. A migration that silently rewrites user data is a migration
+      // nobody can roll back.
+      if (from < 3) {
+        await m.createTable(commitmentRows);
+        await m.createTable(commitmentEntries);
+        await m.createTable(commitmentPauses);
+      }
+      // v3 → v4: Focus Lock. Three new tables, additive like every migration
+      // before them. The one thing worth stating explicitly: a session that was
+      // live when the app was updated is **not** rewritten here. Recovery is
+      // `FocusRepository.recover()`, which runs at start-up, is idempotent, and
+      // decides the outcome from the stored clocks. A migration that decided a
+      // session's outcome would be choosing history inside `onUpgrade`, which is
+      // exactly where it cannot be tested.
+      if (from < 4) {
+        await m.createTable(focusSessions);
+        await m.createTable(focusProfiles);
+        await m.createTable(focusSchedules);
+      }
+    },
+    beforeOpen: (details) async {
+      await customStatement('PRAGMA foreign_keys = ON');
+    },
+  );
 }
 
 /// ---------------------------------------------------------------------------
@@ -469,9 +477,7 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   /// Which sources have written this (tracker, day) — the merge guard for
   /// health sync, so a manual entry is never overwritten by an import.
   Future<List<String>> sourcesForDay(String trackerId, int day) async {
-    final rows = await (select(dailyEntries)
-          ..where((d) => d.trackerId.equals(trackerId) & d.day.equals(day)))
-        .get();
+    final rows = await (select(dailyEntries)..where((d) => d.trackerId.equals(trackerId) & d.day.equals(day))).get();
     return rows.map((r) => r.source).toList();
   }
 
@@ -504,10 +510,9 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   /// Removes one (tracker, day, source) rollup — used when real data replaces a
   /// synthetic row, and by the deletion flows. Returns the number of rows removed
   /// so a caller can tell "nothing to replace" from "replaced".
-  Future<int> deleteDailyFor(String trackerId, int day, {required String source}) =>
-      (delete(dailyEntries)
-            ..where((d) => d.trackerId.equals(trackerId) & d.day.equals(day) & d.source.equals(source)))
-          .go();
+  Future<int> deleteDailyFor(String trackerId, int day, {required String source}) => (delete(
+    dailyEntries,
+  )..where((d) => d.trackerId.equals(trackerId) & d.day.equals(day) & d.source.equals(source))).go();
 
   /// Removes **every** source's rollup for one (tracker, day).
   ///
@@ -529,7 +534,14 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   }) {
     final now = at ?? DateTime.now();
     return into(events).insert(
-      EventsCompanion.insert(trackerId: trackerId, ts: now, day: dayKey(now), value: value, source: Value(source), meta: Value(meta)),
+      EventsCompanion.insert(
+        trackerId: trackerId,
+        ts: now,
+        day: dayKey(now),
+        value: value,
+        source: Value(source),
+        meta: Value(meta),
+      ),
     );
   }
 
@@ -544,7 +556,13 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   }) async {
     await transaction(() async {
       await insertEvent(trackerId: trackerId, value: delta, source: source, meta: meta, at: at);
-      await upsertDaily(trackerId: trackerId, day: dayKey(at ?? DateTime.now()), value: newDailyTotal, source: source, at: at);
+      await upsertDaily(
+        trackerId: trackerId,
+        day: dayKey(at ?? DateTime.now()),
+        value: newDailyTotal,
+        source: source,
+        at: at,
+      );
     });
   }
 
@@ -561,20 +579,19 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   }) async {
     await transaction(() async {
       await (delete(dailyEntries)..where((d) => d.trackerId.equals(trackerId))).go();
-      await batch((b) => b.insertAll(
-            dailyEntries,
-            [
-              for (final e in dayToValue.entries)
-                DailyEntriesCompanion.insert(
-                  trackerId: trackerId,
-                  day: e.key,
-                  value: e.value,
-                  updatedAt: DateTime.now(),
-                  source: Value(source),
-                  meta: Value(meta),
-                ),
-            ],
-          ));
+      await batch(
+        (b) => b.insertAll(dailyEntries, [
+          for (final e in dayToValue.entries)
+            DailyEntriesCompanion.insert(
+              trackerId: trackerId,
+              day: e.key,
+              value: e.value,
+              updatedAt: DateTime.now(),
+              source: Value(source),
+              meta: Value(meta),
+            ),
+        ]),
+      );
     });
   }
 
@@ -633,26 +650,23 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
       ..groupBy([events.meta])
       ..orderBy([OrderingTerm.desc(total)]);
     final rows = await q.get();
-    return [
-      for (final r in rows)
-        CategorySum(_categoryOf(r.read(events.meta)) ?? 'Other', r.read(total) ?? 0),
-    ];
+    return [for (final r in rows) CategorySum(_categoryOf(r.read(events.meta)) ?? 'Other', r.read(total) ?? 0)];
   }
 
   /// SQL aggregate: how many distinct days have any data (the "26 of 28" tile).
   /// The first day the user actually recorded something, or null on a fresh
   /// install. Used for "tracking since …" — never assumed to be today.
   Future<int?> firstLoggedDay() async {
-    final row = await (selectOnly(dailyEntries)
-          ..addColumns([dailyEntries.day.min()])
-          ..where(dailyEntries.value.isBiggerThanValue(0)))
-        .getSingleOrNull();
+    final row =
+        await (selectOnly(dailyEntries)
+              ..addColumns([dailyEntries.day.min()])
+              ..where(dailyEntries.value.isBiggerThanValue(0)))
+            .getSingleOrNull();
     return row?.read(dailyEntries.day.min());
   }
 
   Future<int> trackedDayCount() async {
-    final rows = await (selectOnly(dailyEntries, distinct: true)..addColumns([dailyEntries.day]))
-        .get();
+    final rows = await (selectOnly(dailyEntries, distinct: true)..addColumns([dailyEntries.day])).get();
     return rows.map((r) => r.read(dailyEntries.day)).whereType<int>().length;
   }
 
@@ -711,8 +725,9 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   }
 
   Future<void> markPurchaseVerified(String purchaseToken, {required bool verified}) async {
-    await (update(purchases)..where((p) => p.purchaseToken.equals(purchaseToken)))
-        .write(PurchasesCompanion(serverVerified: Value(verified)));
+    await (update(
+      purchases,
+    )..where((p) => p.purchaseToken.equals(purchaseToken))).write(PurchasesCompanion(serverVerified: Value(verified)));
   }
 
   Future<List<PurchaseRow>> recentPurchases({int limit = 25}) =>
@@ -729,11 +744,12 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   Future<List<EventCount>> eventCounts({int days = 30}) async {
     final from = DateTime.now().subtract(Duration(days: days));
     final count = trackEvents.id.count();
-    final rows = await (selectOnly(trackEvents)
-          ..addColumns([trackEvents.name, count])
-          ..where(trackEvents.at.isBiggerOrEqualValue(from))
-          ..groupBy([trackEvents.name]))
-        .get();
+    final rows =
+        await (selectOnly(trackEvents)
+              ..addColumns([trackEvents.name, count])
+              ..where(trackEvents.at.isBiggerOrEqualValue(from))
+              ..groupBy([trackEvents.name]))
+            .get();
     return [for (final r in rows) EventCount(r.read(trackEvents.name) ?? '?', r.read(count) ?? 0)];
   }
 
@@ -801,7 +817,10 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   /// trackers you configured.
   Future<Map<String, int>> deleteAllUserData() async {
     final before = <String, int>{
-      'daily_entries': (await customSelect('SELECT COUNT(*) AS n FROM daily_entries', readsFrom: {}).getSingle()).read<int>('n'),
+      'daily_entries': (await customSelect(
+        'SELECT COUNT(*) AS n FROM daily_entries',
+        readsFrom: {},
+      ).getSingle()).read<int>('n'),
       'events': (await customSelect('SELECT COUNT(*) AS n FROM events', readsFrom: {}).getSingle()).read<int>('n'),
     };
     await transaction(() async {
@@ -843,8 +862,7 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
   Future<List<DailyEntry>> exportDaily() =>
       (select(dailyEntries)..orderBy([(d) => OrderingTerm(expression: d.day)])).get();
 
-  Future<List<EventRow>> exportEvents() =>
-      (select(events)..orderBy([(e) => OrderingTerm(expression: e.ts)])).get();
+  Future<List<EventRow>> exportEvents() => (select(events)..orderBy([(e) => OrderingTerm(expression: e.ts)])).get();
 }
 
 /// ---------------------------------------------------------------------------
@@ -855,19 +873,15 @@ class TrackDao extends DatabaseAccessor<TrackDatabase> with _$TrackDaoMixin {
 class CommitmentDao extends DatabaseAccessor<TrackDatabase> with _$CommitmentDaoMixin {
   CommitmentDao(super.db);
 
-  Future<List<CommitmentRow>> allRows() =>
-      (select(commitmentRows)
-            ..orderBy([
-              (t) => OrderingTerm(expression: t.archived),
-              (t) => OrderingTerm(expression: t.sort),
-            ]))
-          .get();
+  Future<List<CommitmentRow>> allRows() => (select(
+    commitmentRows,
+  )..orderBy([(t) => OrderingTerm(expression: t.archived), (t) => OrderingTerm(expression: t.sort)])).get();
 
   Future<void> upsert(CommitmentRowsCompanion row) => into(commitmentRows).insertOnConflictUpdate(row);
 
-  Future<void> setArchived(String id, {required bool archived, int? day}) =>
-      (update(commitmentRows)..where((t) => t.id.equals(id)))
-          .write(CommitmentRowsCompanion(archived: Value(archived), archivedDay: Value(day)));
+  Future<void> setArchived(String id, {required bool archived, int? day}) => (update(
+    commitmentRows,
+  )..where((t) => t.id.equals(id))).write(CommitmentRowsCompanion(archived: Value(archived), archivedDay: Value(day)));
 
   /// Hard delete. Cascades to that commitment's days and pauses through the
   /// foreign keys, which are enforced (`PRAGMA foreign_keys = ON`).
@@ -899,28 +913,28 @@ class CommitmentDao extends DatabaseAccessor<TrackDatabase> with _$CommitmentDao
     String? note,
     String source = 'manual',
     DateTime? at,
-  }) =>
-      into(commitmentEntries).insertOnConflictUpdate(
-        CommitmentEntriesCompanion.insert(
-          commitmentId: commitmentId,
-          day: day,
-          outcome: outcome,
-          value: Value(value),
-          note: Value(note),
-          recordedAt: at ?? DateTime.now(),
-          source: Value(source),
-        ),
-      );
+  }) => into(commitmentEntries).insertOnConflictUpdate(
+    CommitmentEntriesCompanion.insert(
+      commitmentId: commitmentId,
+      day: day,
+      outcome: outcome,
+      value: Value(value),
+      note: Value(note),
+      recordedAt: at ?? DateTime.now(),
+      source: Value(source),
+    ),
+  );
 
   Future<int> clearDay(String commitmentId, int day) =>
       (delete(commitmentEntries)..where((d) => d.commitmentId.equals(commitmentId) & d.day.equals(day))).go();
 
   Future<int> dayCountFor(String commitmentId) async {
     final c = commitmentEntries.id.count();
-    final row = await (selectOnly(commitmentEntries)
-          ..addColumns([c])
-          ..where(commitmentEntries.commitmentId.equals(commitmentId)))
-        .getSingle();
+    final row =
+        await (selectOnly(commitmentEntries)
+              ..addColumns([c])
+              ..where(commitmentEntries.commitmentId.equals(commitmentId)))
+            .getSingle();
     return row.read(c) ?? 0;
   }
 
@@ -950,9 +964,9 @@ class CommitmentDao extends DatabaseAccessor<TrackDatabase> with _$CommitmentDao
   /// Closes every open pause for a commitment at [day]. Returns rows touched, so a
   /// caller can tell "resumed" from "was not paused".
   Future<int> endPause(String commitmentId, {required int day}) =>
-      (update(commitmentPauses)
-            ..where((p) => p.commitmentId.equals(commitmentId) & p.toDay.isNull()))
-          .write(CommitmentPausesCompanion(toDay: Value(day)));
+      (update(commitmentPauses)..where((p) => p.commitmentId.equals(commitmentId) & p.toDay.isNull())).write(
+        CommitmentPausesCompanion(toDay: Value(day)),
+      );
 
   Future<int> deletePausesFor(String commitmentId) =>
       (delete(commitmentPauses)..where((p) => p.commitmentId.equals(commitmentId))).go();
@@ -986,14 +1000,14 @@ class SourceCount {
   /// Human label, so the diagnostics screen does not say "manual: 412" to a
   /// person who has never seen the schema.
   String get label => switch (source) {
-        'manual' => 'Typed by you',
-        'health' => 'From Health Connect',
-        'usage' => 'From Android Usage Access',
-        'widget' => 'From the home-screen widget',
-        'import' => 'Restored from a backup',
-        'demo' => 'Sample data (not yours)',
-        _ => source,
-      };
+    'manual' => 'Typed by you',
+    'health' => 'From Health Connect',
+    'usage' => 'From Android Usage Access',
+    'widget' => 'From the home-screen widget',
+    'import' => 'Restored from a backup',
+    'demo' => 'Sample data (not yours)',
+    _ => source,
+  };
 }
 
 class EventCount {
@@ -1042,22 +1056,26 @@ class FocusDao extends DatabaseAccessor<TrackDatabase> with _$FocusDaoMixin {
             ..limit(1))
           .getSingleOrNull();
 
-  Future<FocusSessionRow?> byId(String id) =>
-      (select(focusSessions)..where((t) => t.id.equals(id))).getSingleOrNull();
+  Future<FocusSessionRow?> byId(String id) => (select(focusSessions)..where((t) => t.id.equals(id))).getSingleOrNull();
 
   Future<void> upsert(FocusSessionsCompanion row) => into(focusSessions).insertOnConflictUpdate(row);
 
   /// Ends every live session. Used by recovery for the impossible-but-handled case
   /// of two open rows, and by "delete all data". Returns the rows touched.
-  Future<int> closeAllOpen({required String state, required String outcome, required String endReason, required DateTime at, int? atWallMs}) =>
-      (update(focusSessions)..where((t) => t.state.equals('running') | t.state.equals('paused'))).write(
-        FocusSessionsCompanion(
-          state: Value(state),
-          outcome: Value(outcome),
-          endReason: Value(endReason),
-          endedAtWallMs: Value(atWallMs ?? at.millisecondsSinceEpoch),
-        ),
-      );
+  Future<int> closeAllOpen({
+    required String state,
+    required String outcome,
+    required String endReason,
+    required DateTime at,
+    int? atWallMs,
+  }) => (update(focusSessions)..where((t) => t.state.equals('running') | t.state.equals('paused'))).write(
+    FocusSessionsCompanion(
+      state: Value(state),
+      outcome: Value(outcome),
+      endReason: Value(endReason),
+      endedAtWallMs: Value(atWallMs ?? at.millisecondsSinceEpoch),
+    ),
+  );
 
   Future<int> endSession({
     required String id,
@@ -1072,26 +1090,26 @@ class FocusDao extends DatabaseAccessor<TrackDatabase> with _$FocusDaoMixin {
     required bool timingVerified,
     required int endedAtWallMs,
     String? reflection,
-  }) =>
-      (update(focusSessions)..where((t) => t.id.equals(id))).write(
-        FocusSessionsCompanion(
-          state: const Value('ended'),
-          outcome: Value(outcome),
-          endReason: Value(endReason),
-          enforcement: Value(enforcement),
-          focusMs: Value(focusMs),
-          pausedMs: Value(pausedMs),
-          blockedAttempts: Value(blockedAttempts),
-          overlayShows: Value(overlayShows),
-          detectionEvents: Value(detectionEvents),
-          timingVerified: Value(timingVerified),
-          endedAtWallMs: Value(endedAtWallMs),
-          reflection: Value(reflection),
-        ),
-      );
+  }) => (update(focusSessions)..where((t) => t.id.equals(id))).write(
+    FocusSessionsCompanion(
+      state: const Value('ended'),
+      outcome: Value(outcome),
+      endReason: Value(endReason),
+      enforcement: Value(enforcement),
+      focusMs: Value(focusMs),
+      pausedMs: Value(pausedMs),
+      blockedAttempts: Value(blockedAttempts),
+      overlayShows: Value(overlayShows),
+      detectionEvents: Value(detectionEvents),
+      timingVerified: Value(timingVerified),
+      endedAtWallMs: Value(endedAtWallMs),
+      reflection: Value(reflection),
+    ),
+  );
 
-  Future<int> setReflection(String id, String? reflection) =>
-      (update(focusSessions)..where((t) => t.id.equals(id))).write(FocusSessionsCompanion(reflection: Value(reflection)));
+  Future<int> setReflection(String id, String? reflection) => (update(
+    focusSessions,
+  )..where((t) => t.id.equals(id))).write(FocusSessionsCompanion(reflection: Value(reflection)));
 
   Future<int> deleteSession(String id) => (delete(focusSessions)..where((t) => t.id.equals(id))).go();
 
@@ -1142,7 +1160,6 @@ class FocusDao extends DatabaseAccessor<TrackDatabase> with _$FocusDaoMixin {
 
   Future<int> countForDiagnostics() => totalCount();
 }
-
 
 String? _categoryOf(String? meta) {
   if (meta == null || meta.isEmpty) return null;

@@ -11,7 +11,6 @@ import '../widgets/glass.dart';
 import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/ios_tab_bar.dart';
-import '../widgets/large_title_header.dart';
 import '../widgets/progress_ring.dart';
 import 'focus_setup_sheets.dart';
 import 'insights_screen.dart';
@@ -87,10 +86,7 @@ class _HomeShellState extends State<HomeShell> {
             // label. Anchor the FAB above its measured height instead of a
             // fixed 104px so the two controls cannot overlap.
             bottom: IosTabBar.totalHeight(context) + 20,
-            child: QuickAddFab(
-              visible: tab == 0,
-              onTap: () => showQuickAdd(context),
-            ),
+            child: QuickAddFab(visible: tab == 0, onTap: () => showQuickAdd(context)),
           ),
           Positioned(
             left: 0,
@@ -106,10 +102,7 @@ class _HomeShellState extends State<HomeShell> {
             top: MediaQuery.paddingOf(context).top + 8,
             left: 12,
             right: 12,
-            child: _WriteFailureBanner(
-              failure: state.writeFailure,
-              onDismiss: state.acknowledgeWriteFailure,
-            ),
+            child: _WriteFailureBanner(failure: state.writeFailure, onDismiss: state.acknowledgeWriteFailure),
           ),
           // First-launch story: three screens, then straight into a populated app.
           const _OnboardingOverlay(),
@@ -141,7 +134,7 @@ class _WriteFailureBanner extends StatelessWidget {
       duration: const Duration(milliseconds: 240),
       transitionBuilder: (child, anim) => SizeTransition(
         sizeFactor: anim,
-        axisAlignment: -1,
+        alignment: const AlignmentDirectional(-1.0, -1.0),
         child: FadeTransition(opacity: anim, child: child),
       ),
       child: failure == null
@@ -152,7 +145,7 @@ class _WriteFailureBanner extends StatelessWidget {
               decoration: BoxDecoration(
                 color: dark ? const Color(0xFF2C1B12) : const Color(0xFFFFF4E8),
                 borderRadius: BorderRadius.circular(TrackTheme.radiusCard),
-                border: Border.all(color: TrackTheme.orange.withOpacity(.45)),
+                border: Border.all(color: TrackTheme.orange.withValues(alpha: .45)),
                 boxShadow: TrackTheme.cardShadow(dark),
               ),
               child: Row(
@@ -167,19 +160,21 @@ class _WriteFailureBanner extends StatelessWidget {
                         Text(
                           '${failure!.action} was not saved',
                           style: TextStyle(
-                              fontSize: 14.5,
-                              fontWeight: FontWeight.w600,
-                              letterSpacing: -.2,
-                              color: TrackTheme.label(dark)),
+                            fontSize: 14.5,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -.2,
+                            color: TrackTheme.label(dark),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           failure!.detail,
                           style: TextStyle(
-                              fontSize: 12.5,
-                              height: 1.35,
-                              fontWeight: FontWeight.w500,
-                              color: TrackTheme.label2(dark)),
+                            fontSize: 12.5,
+                            height: 1.35,
+                            fontWeight: FontWeight.w500,
+                            color: TrackTheme.label2(dark),
+                          ),
                         ),
                       ],
                     ),
@@ -193,9 +188,10 @@ class _WriteFailureBanner extends StatelessWidget {
                       child: Text(
                         'Dismiss',
                         style: TextStyle(
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
-                            color: dark ? TrackTheme.orange : const Color(0xFF9A4A00)),
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: dark ? TrackTheme.orange : const Color(0xFF9A4A00),
+                        ),
                       ),
                     ),
                   ),
@@ -229,9 +225,18 @@ class _OnboardingOverlayState extends State<_OnboardingOverlay> {
     final dark = Theme.of(context).brightness == Brightness.dark;
 
     const copy = <List<String>>[
-      ['Start with one thing.', 'Pick a routine and set the smallest version that still counts — a 30-minute run can have a 5-minute minimum.'],
-      ['Tap what happened.', 'Full, minimum, rest or skip. That one tap is all it takes, and it is saved on this phone.'],
-      ['See what you kept.', 'Momentum shows the days you followed through, plus your focus time. Nothing is invented when there is no data.'],
+      [
+        'Start with one thing.',
+        'Pick a routine and set the smallest version that still counts — a 30-minute run can have a 5-minute minimum.',
+      ],
+      [
+        'Tap what happened.',
+        'Full, minimum, rest or skip. That one tap is all it takes, and it is saved on this phone.',
+      ],
+      [
+        'See what you kept.',
+        'Momentum shows the days you followed through, plus your focus time. Nothing is invented when there is no data.',
+      ],
     ];
 
     return AnimatedSlide(
@@ -251,13 +256,28 @@ class _OnboardingOverlayState extends State<_OnboardingOverlay> {
               padding: const EdgeInsets.symmetric(horizontal: 26),
               child: Column(
                 children: [
-                  Text(copy[step][0],
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 29, height: 1.12, fontWeight: FontWeight.w700, letterSpacing: -.8, color: TrackTheme.label(dark))),
+                  Text(
+                    copy[step][0],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 29,
+                      height: 1.12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -.8,
+                      color: TrackTheme.label(dark),
+                    ),
+                  ),
                   const SizedBox(height: 12),
-                  Text(copy[step][1],
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, height: 1.5, fontWeight: FontWeight.w500, color: TrackTheme.label2(dark))),
+                  Text(
+                    copy[step][1],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 15,
+                      height: 1.5,
+                      fontWeight: FontWeight.w500,
+                      color: TrackTheme.label2(dark),
+                    ),
+                  ),
                   const SizedBox(height: 22),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -342,13 +362,27 @@ class _OnboardingArt extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // The real catalogue size, not a marketing number.
-                  Text('${DefaultTrackers.enabledByDefault.length}',
-                      style: TextStyle(fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: -1.4, color: TrackTheme.label(dark))),
-                  Text('TRACKERS READY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: .4, color: TrackTheme.label3(dark))),
+                  Text(
+                    '${DefaultTrackers.enabledByDefault.length}',
+                    style: TextStyle(
+                      fontSize: 38,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -1.4,
+                      color: TrackTheme.label(dark),
+                    ),
+                  ),
+                  Text(
+                    'TRACKERS READY',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: .4,
+                      color: TrackTheme.label3(dark),
+                    ),
+                  ),
                 ],
               ),
-              for (var i = 0; i < DefaultTrackers.all().length; i++)
-                _orb(i, DefaultTrackers.all()[i].name),
+              for (var i = 0; i < DefaultTrackers.all().length; i++) _orb(i, DefaultTrackers.all()[i].name),
             ],
           ),
         );
@@ -359,7 +393,11 @@ class _OnboardingArt extends StatelessWidget {
         return Container(
           width: 280,
           padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(color: TrackTheme.surface(dark), borderRadius: BorderRadius.circular(18), boxShadow: TrackTheme.cardShadow(dark)),
+          decoration: BoxDecoration(
+            color: TrackTheme.surface(dark),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: TrackTheme.cardShadow(dark),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -367,16 +405,14 @@ class _OnboardingArt extends StatelessWidget {
                 children: [
                   const Icon(Icons.track_changes_outlined, size: 20, color: TrackTheme.orange),
                   const SizedBox(width: 9),
-                  Text('You choose both', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
+                  Text(
+                    'You choose both',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
+                  ),
                 ],
               ),
               const SizedBox(height: 14),
-              _SpecimenRow(
-                dark: dark,
-                label: 'Full',
-                value: 'The thing itself',
-                note: 'counts as a completed day',
-              ),
+              _SpecimenRow(dark: dark, label: 'Full', value: 'The thing itself', note: 'counts as a completed day'),
               const SizedBox(height: 8),
               _SpecimenRow(
                 dark: dark,
@@ -385,8 +421,15 @@ class _OnboardingArt extends StatelessWidget {
                 note: 'keeps the routine alive — not a full day',
               ),
               const SizedBox(height: 14),
-              Text('A hard day still counts for something. It just does not count as the whole thing.',
-                  style: TextStyle(fontSize: 12.5, height: 1.4, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+              Text(
+                'A hard day still counts for something. It just does not count as the whole thing.',
+                style: TextStyle(
+                  fontSize: 12.5,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  color: TrackTheme.label3(dark),
+                ),
+              ),
             ],
           ),
         );
@@ -394,28 +437,34 @@ class _OnboardingArt extends StatelessWidget {
         return Container(
           width: 300,
           padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(color: TrackTheme.surface(dark), borderRadius: BorderRadius.circular(18), boxShadow: TrackTheme.cardShadow(dark)),
+          decoration: BoxDecoration(
+            color: TrackTheme.surface(dark),
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: TrackTheme.cardShadow(dark),
+          ),
           child: Column(
             children: [
               const InsightCard(
                 emoji: 'insight',
                 title: 'Your own record, nothing else.',
-                body: 'Everything you see is built from what you log here. There is no sample history and no '
+                body:
+                    'Everything you see is built from what you log here. There is no sample history and no '
                     'one else\'s data.',
                 accent: TrackTheme.indigo,
               ),
               const SizedBox(height: 4),
               Row(
                 children: [
-                  Expanded(child: StatTile(value: '${state.entryCount}', label: 'Your entries')),
-                  const SizedBox(width: 10),
-                  Expanded(child: StatTile(value: '${state.bestStreak}', label: 'Day streak')),
+                  Expanded(
+                    child: StatTile(value: '${state.entryCount}', label: 'Your entries'),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: StatTile(
-                      value: '${state.commitments.length}',
-                      label: 'Routines',
-                    ),
+                    child: StatTile(value: '${state.bestStreak}', label: 'Day streak'),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: StatTile(value: '${state.commitments.length}', label: 'Routines'),
                   ),
                 ],
               ),
@@ -433,7 +482,6 @@ class _OnboardingArt extends StatelessWidget {
     );
   }
 }
-
 
 /// Routes notification taps: "quickadd" opens the all-tracker log sheet,
 /// "insights" jumps to the Insights tab. Also pays off the cold-start payload
@@ -511,12 +559,21 @@ class _SpecimenRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: TrackTheme.label(dark))),
-              Text(note, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark))),
+              Text(
+                label,
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: TrackTheme.label(dark)),
+              ),
+              Text(
+                note,
+                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+              ),
             ],
           ),
         ),
-        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark))),
+        Text(
+          value,
+          style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: TrackTheme.label2(dark)),
+        ),
       ],
     );
   }

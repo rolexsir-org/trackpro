@@ -27,13 +27,15 @@ Future<void> main() async {
   // Draw edge-to-edge while leaving content responsible for SafeArea/insets.
   // Light system icons retain contrast against the dark default canvas.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    systemNavigationBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.light,
-    systemNavigationBarIconBrightness: Brightness.light,
-    statusBarBrightness: Brightness.dark,
-  ));
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      systemNavigationBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarIconBrightness: Brightness.light,
+      statusBarBrightness: Brightness.dark,
+    ),
+  );
 
   // --- storage: SQLite via Drift, one connection for the app's lifetime ------
   final database = TrackDatabase();
@@ -46,10 +48,7 @@ Future<void> main() async {
   // Enforcer` returns null/false for every call the device cannot answer, and the
   // repository treats "no answer" as "no enforcement" — never as success. Nothing in
   // this feature can report an app as blocked on the strength of an absent channel.
-  final focusRepo = FocusRepository(
-    db: database,
-    enforcer: MethodChannelFocusEnforcer(),
-  );
+  final focusRepo = FocusRepository(db: database, enforcer: MethodChannelFocusEnforcer());
 
   // --- services that make steps/sleep/screen time zero-effort and keep the habit loop
   final notifications = NotificationService();
@@ -74,10 +73,7 @@ Future<void> main() async {
     // "nothing to ask" and Pro is not granted. A dev build may inject
     // `LocalOnlyVerifier()` explicitly; it throws in release builds.
     verifier: AppEnvironment.hasVerifyBackend
-        ? HttpPurchaseVerifier(
-            endpoint: Uri.parse(AppEnvironment.verifyUrl),
-            timeout: AppEnvironment.verifyTimeout,
-          )
+        ? HttpPurchaseVerifier(endpoint: Uri.parse(AppEnvironment.verifyUrl), timeout: AppEnvironment.verifyTimeout)
         : null,
     packageName: _packageName,
     environmentLabel: kReleaseMode ? 'production' : 'debug',
@@ -295,16 +291,10 @@ class TrackTheme {
   static List<BoxShadow> cardShadow(bool dark) => dark
       ? const <BoxShadow>[]
       : <BoxShadow>[
-          BoxShadow(
-            color: const Color(0xFF101010).withOpacity(.04),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
+          BoxShadow(color: const Color(0xFF101010).withValues(alpha: .04), blurRadius: 12, offset: const Offset(0, 3)),
         ];
 
-  static const sheetShadow = <BoxShadow>[
-    BoxShadow(color: Color(0x44000000), blurRadius: 22, offset: Offset(0, -4)),
-  ];
+  static const sheetShadow = <BoxShadow>[BoxShadow(color: Color(0x44000000), blurRadius: 22, offset: Offset(0, -4))];
 
   // Geometry follows the 20px-gutter / 16px-card-padding product rhythm.
   static const radiusCard = Editorial.rCard;
@@ -321,20 +311,17 @@ class TrackTheme {
   static ThemeData _base(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     TextStyle t(double size, FontWeight w, {double ls = 0, Color? color, double? height}) => TextStyle(
-          fontFamily: _family,
-          fontFamilyFallback: _fallbacks,
-          fontSize: size,
-          fontWeight: w,
-          letterSpacing: ls,
-          height: height,
-          color: color ?? label(dark),
-          decoration: TextDecoration.none,
-        );
-
-    final scheme = ColorScheme.fromSeed(
-      seedColor: blue,
-      brightness: brightness,
+      fontFamily: _family,
+      fontFamilyFallback: _fallbacks,
+      fontSize: size,
+      fontWeight: w,
+      letterSpacing: ls,
+      height: height,
+      color: color ?? label(dark),
+      decoration: TextDecoration.none,
     );
+
+    final scheme = ColorScheme.fromSeed(seedColor: blue, brightness: brightness);
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
@@ -361,9 +348,7 @@ class TrackTheme {
       bottomSheetTheme: BottomSheetThemeData(
         backgroundColor: surface(dark),
         surfaceTintColor: Colors.transparent,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(radiusSheet)),
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(radiusSheet))),
       ),
     );
   }
@@ -409,13 +394,7 @@ class TrackTheme {
 /// Spring-y press feedback: scale down on press, overshoot on release, with the
 /// shared haptic vocabulary attached so nothing in the app feels inert.
 class Pressable extends StatefulWidget {
-  const Pressable({
-    super.key,
-    required this.child,
-    this.onTap,
-    this.onLongPress,
-    this.scale = .962,
-  });
+  const Pressable({super.key, required this.child, this.onTap, this.onLongPress, this.scale = .962});
 
   final Widget child;
   final VoidCallback? onTap;

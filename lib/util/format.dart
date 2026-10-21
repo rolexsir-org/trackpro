@@ -131,8 +131,7 @@ class Delta {
 /// "no screen time", "did none of the habits", "not on my period". Every other
 /// tracker's zero comes from gap-filling a missing day, so it is not a value: it
 /// must never be averaged in, and it must never be read as a completed ring.
-bool zeroIsAValue(Tracker t) =>
-    t.id == 'expenses' || t.id == 'screen' || t.id == 'habits' || t.id == 'period';
+bool zeroIsAValue(Tracker t) => t.id == 'expenses' || t.id == 'screen' || t.id == 'habits' || t.id == 'period';
 
 /// Today vs the 7-day average, with tracker-aware "is this good?" logic.
 ///
@@ -147,7 +146,12 @@ Delta deltaOf(Tracker t, List<double> hist) {
   if (hist.isEmpty) return const Delta('No entries yet', 0, 0);
   final today = hist.last;
   final prev = hist.sublist(0, hist.length - 1);
-  final logged = zeroIsAValue(t) ? prev : [for (final v in prev) if (v > 0) v];
+  final logged = zeroIsAValue(t)
+      ? prev
+      : [
+          for (final v in prev)
+            if (v > 0) v,
+        ];
   final window = logged.length >= 7 ? logged.sublist(logged.length - 7) : logged;
   if (window.isEmpty) return const Delta('First entry — nothing to compare yet', 0, 0);
   final avg = window.reduce((a, b) => a + b) / window.length;
@@ -155,7 +159,13 @@ Delta deltaOf(Tracker t, List<double> hist) {
   if (t.id == 'period') return Delta('day ${today.round()} · next in ${28 - today.round()} days', 0, 0);
 
   final money = t.kind == MetricKind.money, mins = t.kind == MetricKind.minutes;
-  final unit = mins ? 'm' : t.kind == MetricKind.volume ? 'ml' : t.kind == MetricKind.hours ? 'h' : '';
+  final unit = mins
+      ? 'm'
+      : t.kind == MetricKind.volume
+      ? 'ml'
+      : t.kind == MetricKind.hours
+      ? 'h'
+      : '';
   // `_magnitude`, not `int.parse`: the previous version ran `int.parse` over a
   // one-decimal string ("500.0"), which throws, so every water, steps, sleep,
   // calories or weight card that had a comparison crashed before it could draw.
@@ -237,11 +247,25 @@ String _group(int v) {
 
 String weekdayShort(DateTime d) => const ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.weekday % 7];
 
-String shortDate(DateTime d) => '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
+String shortDate(DateTime d) =>
+    '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
 
 String longDate(DateTime d) {
   const wd = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const mo = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const mo = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
   return '${wd[d.weekday - 1]}, ${d.day} ${mo[d.month - 1]}';
 }
 
@@ -255,9 +279,9 @@ String greetingFor(DateTime now) {
 
 /// Soft, low-saturation variants used for tinted chips/rings.
 Color tint(Color c, double amount) =>
-    Color.lerp(c, Colors.white, amount.clamp(0.0, 1.0).toDouble())!.withOpacity(.9);
+    Color.lerp(c, Colors.white, amount.clamp(0.0, 1.0).toDouble())!.withValues(alpha: .9);
 
-Color alpha(Color c, double a) => c.withOpacity(a.clamp(0.0, 1.0).toDouble());
+Color alpha(Color c, double a) => c.withValues(alpha: a.clamp(0.0, 1.0).toDouble());
 
 double lerp(double a, double b, double t) => a + (b - a) * t;
 

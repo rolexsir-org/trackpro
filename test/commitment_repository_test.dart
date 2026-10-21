@@ -2,7 +2,6 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
-import 'package:flutter/material.dart' show Color;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:track/data/commitment_repository.dart';
 import 'package:track/data/db/database.dart';
@@ -38,18 +37,17 @@ void main() {
     String id = 'run',
     Set<int> weekdays = const {1, 2, 3, 4, 5, 6, 7},
     int? createdDay,
-  }) =>
-      repo.create(
-        id: id,
-        name: 'Run',
-        emoji: '🏃',
-        color: 0xFF5B7CFA,
-        outcome: 'Get through a 5k',
-        minimumAction: 'Shoes on, 5 minutes',
-        fullAction: 'Run 5 km',
-        weekdays: weekdays,
-        createdDay: createdDay,
-      );
+  }) => repo.create(
+    id: id,
+    name: 'Run',
+    emoji: '🏃',
+    color: 0xFF5B7CFA,
+    outcome: 'Get through a 5k',
+    minimumAction: 'Shoes on, 5 minutes',
+    fullAction: 'Run 5 km',
+    weekdays: weekdays,
+    createdDay: createdDay,
+  );
 
   group('a fresh install has no commitments and no invented days', () {
     test('hydrate on an empty database yields nothing at all', () async {
@@ -98,8 +96,7 @@ void main() {
         fullAction: '20 pages',
         weekdays: const {},
       );
-      expect(c.schedule, {1, 2, 3, 4, 5, 6, 7},
-          reason: 'a routine with no days would silently score nothing forever');
+      expect(c.schedule, {1, 2, 3, 4, 5, 6, 7}, reason: 'a routine with no days would silently score nothing forever');
     });
   });
 
@@ -395,11 +392,7 @@ void main() {
         weekdays: const {1, 3, 5},
       );
       await repo.record(commitmentId: c.id, outcome: DayOutcome.full, value: 5, note: 'easy pace');
-      await repo.record(
-        commitmentId: c.id,
-        outcome: DayOutcome.missed,
-        day: dayKey(DateTime(2026, 3, 9)),
-      );
+      await repo.record(commitmentId: c.id, outcome: DayOutcome.missed, day: dayKey(DateTime(2026, 3, 9)));
       await repo.startPause(c.id, reason: 'travel');
       await repo.hydrate();
 
@@ -423,9 +416,7 @@ void main() {
       final days = run['days']! as List<Object?>;
       expect(days.length, 2, reason: 'only the days actually recorded are exported');
       // Oldest first, matching historyFor: a reader can rely on the order.
-      final byDate = {
-        for (final d in days) (d! as Map<String, Object?>)['date'] as String: d,
-      };
+      final byDate = {for (final d in days) (d! as Map<String, Object?>)['date'] as String: d};
       expect(byDate.keys.toList(), [isoDayKey(dayKey(DateTime(2026, 3, 9))), isoDayKey(today)]);
       final latest = byDate[isoDayKey(today)]!;
       expect(latest['outcome'], 'full');
@@ -536,5 +527,4 @@ void main() {
       expect(reopened.pauses, isEmpty);
     });
   });
-
 }
