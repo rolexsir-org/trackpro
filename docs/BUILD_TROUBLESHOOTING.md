@@ -94,18 +94,22 @@ combination cannot be half-edited into a build that fails at configuration.
 
 One more observation from your screenshot: the plugin list includes
 **`device_info_plus`** and **`jni`**, and the editor tab is
-`DeviceInfoPlusPlugin.kt`. Neither appears anywhere in this repository's
-`pubspec.yaml`, and `jni` is not a plugin name in this tree. If your working copy
-declares them, it differs from the committed `pubspec.yaml`:
+`DeviceInfoPlusPlugin.kt`. *(Correction, 2026-10-22: an earlier note here read
+this as evidence the working copy differed from the committed tree. It does
+not. `health` 13.3.2 declares `device_info_plus: ^13.2.0` in its own pubspec,
+and `jni` rides along under `device_info_plus` 13.x — so both legitimately
+appear in the resolved graph of the committed `pubspec.yaml`, and in
+`pubspec.lock`. The `git diff pubspec.yaml` check below is still the right
+first move whenever a build cannot be reproduced from the committed tree; it
+just is not indicated by these two names.)*
 
 ```bash
 git status --short
 git diff pubspec.yaml pubspec.lock
 ```
 
-That matters because a failure that is not reproducible from the committed tree
-cannot be diagnosed from it. If `device_info_plus` was added locally, the
-failing Dart error may well be in a local file.
+A failure that is not reproducible from the committed tree cannot be diagnosed
+from it. But as §7 records, this one was in the committed tree all along.
 
 ---
 
@@ -183,3 +187,81 @@ Send any one of:
 With a `file:line:col: Error:` line the fix is usually a two-line change. With
 only the Gradle summary, the only honest answer is "unknown" — which is what the
 previous attempt at this build produced.
+
+---
+
+## 7. Resolution — 2026-10-22
+
+The failure in the screenshot is root-caused and fixed. It was a Dart **type**
+error — §5's "no static evidence" conclusion was wrong, and this section
+records why, so the same blind spot is not re-earned.
+
+**The defect.** In `lib/services/billing_service.dart`, the purchase-error
+branch read:
+
+```dart
+final code = purchase.error?.code;
+lastError = _messageFor(code) ?? purchase.error?.message ?? 'Purchase failed';
+// …
+String? _messageFor(BillingResponse? code) { switch (code) { /* … */ } }
+```
+
+`PurchaseDetails.error` is the federated plugin's `IAPError`, whose `code`
+field is a **`String`** (`'purchase_error'`). Passing it to a
+`BillingResponse?` parameter is *"The argument type 'String?' can't be
+assigned to the parameter type 'BillingResponse?'"* — a Dart frontend error,
+so `flutter assemble` exits 1 and Gradle can only report the wrapper line in
+the screenshot. It is also not new: `IAPError` has had this shape for the
+whole in_app_purchase 3.x line, so **this file had never compiled**; the
+toolchain upgrade did not introduce it.
+
+**Why every audit missed it.** §5's checks resolve names, call arity and enum
+membership. `BillingResponse` resolves (it is imported via
+`billing_client_wrappers.dart`), `_messageFor` exists, and the call has the
+right arity — the only thing wrong is a *type*, which is precisely what a
+text scanner cannot see. This is the standing lesson in the
+`tools/release_gate.py` header: "It is not a type checker and does not pretend
+to be."
+
+**How it was found without a compiler.** The pinned packages were read at
+their release tags and every call this app makes into them was compared
+against the real signatures: `health` 13.3.2 (`configure`, `hasPermissions`,
+`requestAuthorization`, `isHealthConnectAvailable`,
+`getHealthDataFromTypes(types:/startTime:/endTime:)`, `removeDuplicates`),
+`flutter_local_notifications` 22.3.2 (the named-parameter
+`initialize`/`cancel`/`zonedSchedule`, `AndroidNotificationDetails` fields),
+`flutter_timezone` 5.1.1 (`TimezoneInfo.identifier`), the Drift generated code
+against its schema, and the spine of `in_app_purchase` 3.3.1 /
+`in_app_purchase_android` 0.5.5. All matched **except the one above**. The
+hand-edited `pubspec.lock` was also re-verified against pub.dev — both
+hand-synced entries' SHA-256 match the published archives and their
+constraints resolve — so dependency resolution is not the failure either.
+
+**The fix.** `_messageFor` now takes the `IAPError` and matches the string
+that `in_app_purchase_android` actually delivers in `error.message` —
+`BillingResponse.toString()`, e.g. `'BillingResponse.itemAlreadyOwned'` —
+for the friendly-copy mapping; unmapped errors show the generic line rather
+than a raw enum name. `userCanceled` is not mapped: the plugin reports it as
+`PurchaseStatus.canceled`, so it never reaches that branch.
+`tools/release_gate.py` gained **P-53** ("Play purchase errors keep the
+federated IAPError shape") and `tools/gate_probe.py` a probe that puts the
+`BillingResponse?` parameter back and requires P-53 to fire. The gate is now
+**53 checks, 0 problems**, and the probe fires and restores clean.
+
+**The warnings in the screenshot are unchanged by all of this.** Re-checked
+against pub.dev on 2026-10-22: `health` 13.3.2 is still the newest release,
+so both blockers in §3 stand exactly as written. Deleting
+`android.builtInKotlin=false` / `android.newDsl=false` today would not clear
+the warnings — it would fail configuration at `:health`, trading three
+warnings for a second, harder build failure. The "New Minor Gradle Version
+Available" line is informational: 9.3.1 is Flutter 3.47's verified maximum
+and only ever moves with the matrix (`docs/UPGRADE_2026-10-20.md` §2).
+
+**Remaining honesty.** The fix removes the one *confirmed* compile error. It
+was verified by reading the pinned sources, not by running a compiler —
+there is still no Dart toolchain in the review environment (§5 of the upgrade
+record). If the next build still fails, it is a *different* error: run
+`bash tools/diagnose_build.sh` and send the `file:line:col` line. The
+complete proof remains CI (`pub get → analyze → test → build`) on
+Flutter 3.47.7 — `docs/UPGRADE_2026-10-20.md` §6, item 1 — which is also now
+the first place this file will be compiled by an actual compiler.
