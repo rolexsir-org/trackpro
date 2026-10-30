@@ -6,7 +6,9 @@ sessions, a Glance home-screen widget, Health Connect sync (read-only: steps,
 sleep, weight) and a Play Billing paywall.
 
 - **Package:** `com.track.app` · **Dart package:** `track` · **Version:** see `pubspec.yaml` (`x.y.z+code`)
-- **Platforms:** Android (primary, in `android/`), Linux desktop (dev convenience, in `linux/`)
+- **Platforms:** Android (primary, in `android/`). A Linux desktop target was scaffolded
+  (see `.metadata`), but its `linux/` directory is not tracked here — recreate it with
+  `flutter create --platforms=linux .` if you want the desktop dev build.
 - **Stack:** Flutter + provider · Drift (SQLite) · flutter_local_notifications · health · in_app_purchase
 
 ## Project layout
@@ -23,7 +25,7 @@ sleep, weight) and a Play Billing paywall.
 
 ## Prerequisites
 
-- Flutter **stable** ≥ 3.44 / Dart ≥ 3.12 (see `pubspec.lock` → `sdks:`), on your `PATH`
+- Flutter **stable** ≥ 3.47 / Dart ≥ 3.13 (see `pubspec.lock` → `sdks:`), on your `PATH`
 - Android SDK (API 36) + JDK 17 (`flutter doctor -v` must be clean for Android)
 - VS Code with the Dart & Flutter extensions (Android Studio is *not* required as an editor)
 
@@ -48,8 +50,10 @@ flutter analyze
 flutter test
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same gates plus
-`flutter build apk --release` and `flutter build appbundle --release`.
+CI (`ci/workflows/ci.yml` — **staged, not active**: the automation token has no
+`workflows` permission, so it still has to be moved to `.github/workflows/`; see
+`ci/README.md`) runs the same gates plus `flutter build apk --release` and
+`flutter build appbundle --release` once activated.
 
 ## Run & debug
 

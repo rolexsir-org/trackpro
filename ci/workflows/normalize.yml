@@ -55,8 +55,8 @@ jobs:
             echo "Nothing to normalize."
           else
             # [skip ci]: a formatting-only commit pushed by a bot should not spend 60
-          # minutes of runner re-gating itself. Everything that matters about it is that
-          # the *next* human push sees a tree that is already normal.
-          git commit -m "chore: dart format + regenerate drift code (toolchain-run via CI) [skip ci]"
+            # minutes of runner re-gating itself. Everything that matters about it is that
+            # the *next* human push sees a tree that is already normal.
+            git commit -m "chore: dart format + regenerate drift code (toolchain-run via CI) [skip ci]"
             git push origin HEAD:${{ github.ref_name }}
           fi

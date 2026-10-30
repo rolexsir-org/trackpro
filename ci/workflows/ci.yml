@@ -44,10 +44,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # `channel: stable` rather than a pinned patch version: `pubspec.lock` requires
-      # Flutter >= 3.44 / Dart >= 3.12, and pinning a specific point release makes the
-      # job red the day that build is removed from the action's index — a failure that
-      # looks like the code is broken. The "Toolchain versions" step below is what makes
+      # Pinned, not just `channel: stable`: `pubspec.lock` carries the floor
+      # (`dart ">=3.13.0 <4.0.0"`, `flutter ">=3.47.0"`), and the pin is the release the
+      # repository was upgraded and verified against, so a moved `stable` cannot silently
+      # change the verification target. The "Toolchain versions" step below is what makes
       # a too-old runner diagnosable instead.
       - uses: subosito/flutter-action@v2
         with:
@@ -65,10 +65,11 @@ jobs:
           dart --version
           java -version
           # No version comparison here on purpose. `pubspec.lock` carries the floor
-          # (`sdks: flutter: ">=3.44.0"`), `flutter pub get` enforces it, and the next
-          # step is that call — so a too-old runner fails on the step that already owns
-          # the question instead of on a re-implementation of it. docs/RELEASE.md §7 has
-          # the matching troubleshooting row ("pub get fails: requires Flutter >= 3.44").
+          # (`sdks: dart ">=3.13.0 <4.0.0"`, `flutter ">=3.47.0"`), `flutter pub get`
+          # enforces it, and the next step is that call — so a too-old runner fails on the
+          # step that already owns the question instead of on a re-implementation of it.
+          # docs/RELEASE.md §7 has the matching troubleshooting row ("pub get fails:
+          # requires Flutter ≥ 3.47").
 
       - name: flutter doctor -v
         run: flutter doctor -v

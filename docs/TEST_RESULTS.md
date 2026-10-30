@@ -7,6 +7,10 @@ Evidence produced by execution, not by intent. The raw capture is
 cd /home/user && bash tools/collect_evidence.sh    # last run: 2026-10-16, 85 lines
 ```
 
+**Neither that script nor `TEST_EVIDENCE.txt` is in this repository** — both were
+authored in a sibling checkout this tree does not contain (§8.2). Every "last run"
+figure below belongs to that run, not to this tree.
+
 Anything not in that capture or in §1 below was **not run**. Nothing in this
 repository has been compiled; the host has no Flutter, Gradle or Android toolchain
 (probe in the capture, first section).

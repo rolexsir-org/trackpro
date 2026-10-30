@@ -471,7 +471,8 @@ def c_copy_promise():
     body = prose('lib/config/pro_config.dart')
     if re.search(r'14-day no-questions', body):
         out.append('lib/config/pro_config.dart: the app promises a refund window it does not '
-                   'grant; `docs/REFUND_PLAYBOOK.md` is the authority on what it can say')
+                   'grant; `MONETIZATION.md` §5 (acknowledgement and the Play refund '
+                   'window) is the authority on what it can say')
     if re.search(r'You will not be charged during the trial', body) \
             and 'launchBillingProfile' not in code('lib/screens/paywall_screen.dart'):
         out.append('lib/config/pro_config.dart: `trialTimeline` promises no charge during the '

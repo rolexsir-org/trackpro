@@ -1,7 +1,5 @@
 # R8 keep rules for Track.
 #
-# Copy to android/app/proguard-rules.pro.
-#
 # Rationale: every entry below is a class the Android *system* instantiates from
 # the manifest (receivers, services) or instantiates reflectively (Glance's widget
 # factory). R8 has no static reference to them, so with `isMinifyEnabled = true`

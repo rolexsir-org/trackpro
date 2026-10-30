@@ -25,11 +25,11 @@ flutter analyze
 flutter test
 ```
 
-All four must pass. Then the toolchain-free gates, which catch the defect class a
+All five must pass. Then the toolchain-free gates, which catch the defect class a
 compiler cannot see and which run on any machine with `python3`:
 
 ```bash
-python3 tools/release_gate.py     # 51 structural checks
+python3 tools/release_gate.py     # 53 structural checks
 python3 tools/gate_probe.py       # breaks each of them on purpose; requires the gate to fire
 python3 tools/{import,member,symbol_clash,test_api,static}_audit.py
 ```
