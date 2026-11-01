@@ -4,6 +4,22 @@ Verify each item against the **current** Play Console requirements at release
 time; policies move. Items marked ⚠ are known open items for this app.
 Technical readiness ≠ account eligibility, policy approval or publication.
 
+> **Repository status (2026-11-01): NOT READY.** No Flutter artifact has ever
+> been built, CI is not active, no upload keystore exists, the billing service
+> is not deployed, and no store assets exist. The full, evidence-backed gap
+> register is [`PUBLISHING_GAPS.md`](PUBLISHING_GAPS.md). This checklist is the
+> Play Console side only.
+
+## Repository & CI (prerequisites)
+- [ ] **CI activated** — `.github/workflows/ci.yml` is on the remote and has run green (format, codegen freshness, analyze, test, Python gates, Node billing suite, release APK/AAB). It is currently staged but **not active** (the push was rejected for lack of the `workflows` permission). See `ci/README.md`.
+- [ ] **Flutter gates have actually run** — `flutter analyze`, `flutter test`, `flutter build apk --release`, `flutter build appbundle --release`. None has ever run in this repository.
+- [ ] **Upload keystore exists** and `android/key.properties` is configured (git-ignored). Verify the AAB certificate is not "Android Debug".
+- [ ] **`release-defines.json` exists** with HTTPS `TRACK_VERIFY_URL`, `TRACK_TERMS_URL`, `TRACK_PRIVACY_URL`, `TRACK_SUPPORT_EMAIL`.
+- [ ] **Billing service deployed** with TLS, service account, API keys, RTDN secret, persistent store and Pub/Sub subscription.
+- [ ] **Privacy policy and terms hosted** at public HTTPS URLs (the app falls back to a bundled sheet, but Play requires a URL).
+- [ ] **License file** — the repository has no `LICENSE`; add one before publishing the source.
+- [ ] **Wear claim resolved** — either build the `:wear` module or remove "Wear tile" from `ProConfig`/paywall/store copy. The only Wear code is in `android_overlay/wear/` and is not in the build.
+
 ## Identity & artifact
 - [ ] Application ID `com.track.app` — permanent, matches `_packageName` in `lib/main.dart`.
 - [ ] `versionCode` strictly greater than every previous upload (`pubspec.yaml` `+n`).
@@ -27,13 +43,13 @@ Technical readiness ≠ account eligibility, policy approval or publication.
 
 ## Monetisation
 - [ ] Subscription products created in Play Console matching the IDs in `lib/config/pro_config.dart` / `MONETIZATION.md`, each with at least one base plan + offer.
-- [ ] Billing Library ≥ 7 (ships via `in_app_purchase_android`) — check the Play Console deprecation page at submission.
+- [ ] Billing Library ≥ 8 (ships via `in_app_purchase_android` 0.5.5) — check the Play Console deprecation page at submission.
 - [ ] Purchase-verification backend deployed and reachable at `TRACK_VERIFY_URL` (without it Pro can never be granted — fail-closed by design).
 - [ ] In-app path to cancel/manage subscription works (paywall → Play subscriptions deep link).
 - [ ] License testers added; a test purchase + refund + restore exercised on a device.
 
 ## Store listing
-- [ ] App icon 512×512, feature graphic 1024×500, ≥ 2 phone screenshots (8 recommended), short + full description.
+- [ ] **No store assets exist in the repo** — zero PNG/JPG/WebP files. Create: app icon 512×512, feature graphic 1024×500, ≥ 2 phone screenshots (8 recommended), short + full description, category, support email, "What's new".
 - [ ] Category: Health & Fitness (or Productivity — pick once, keep).
 - [ ] Support email (same as `TRACK_SUPPORT_EMAIL`).
 

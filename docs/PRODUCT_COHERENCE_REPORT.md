@@ -1,5 +1,12 @@
 # Track Pro — product coherence & repository pass
 
+> **Historical snapshot — not the current status.** This document records
+> the state at the time it was written. Some of its claims are now stale
+> (for example, `database.g.dart` exists, the schema is v4, and there are 17
+> test files). For the current, evidence-backed publishing gap register see
+> [`PUBLISHING_GAPS.md`](PUBLISHING_GAPS.md).
+
+
 **Date:** 2026-10-16 · **Scope:** one product, one journey, one README, genuine data,
 preserved UI, safely cleaned repository — implemented and then verified as far as this host
 allows.

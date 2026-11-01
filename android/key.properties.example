@@ -1,0 +1,9 @@
+# Copy to android/key.properties (git-ignored) and fill in real values.
+# See docs/RELEASE.md §2. Never commit the real file.
+#
+# The keystore must live outside the repository. With Play App Signing this is
+# the upload key, not the app signing key.
+storeFile=/home/YOUR_USER/keystores/trackpro-upload.jks
+storePassword=CHANGEME
+keyAlias=upload
+keyPassword=CHANGEME
