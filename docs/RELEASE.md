@@ -160,15 +160,18 @@ Play requires a strictly increasing `versionCode` for every upload.
 
 ## 8. CI
 
-The workflows are staged in `.github/workflows/` in the local branch, but the
-push was **rejected** by the automation token's missing `workflows` permission
-(`refusing to allow a GitHub App to create or update workflow ...`). The remote
-has no `.github/workflows/` yet. To activate, push the branch with a
-`workflows`-permission credential or add the two files through the GitHub web
-UI — see `ci/README.md`. Once active, `ci.yml` runs the same gates (format,
-codegen freshness, analyze, test, the Python gates above) plus release APK/AAB
-builds on every push, and uploads the artifacts. **No Flutter gate has ever run
-in this repository**, so the first activation is the real test of the code. CI has **no signing secrets** — its release artifacts are
-debug-signed on purpose; the Play upload is built locally per this document.
+The workflows are staged in `ci/workflows/`. Moving them to
+`.github/workflows/` and pushing was **rejected** by the automation token's
+missing `workflows` permission (`refusing to allow a GitHub App to create or
+update workflow ...`). The remote has no `.github/workflows/` yet. To activate,
+move the two files to `.github/workflows/` with a `workflows`-permission
+credential or add them through the GitHub web UI — see `ci/README.md`. Once
+active, `ci.yml` runs the same gates (format, codegen freshness, analyze, test,
+the Python gates above) plus release APK/AAB builds on every push, and uploads
+the artifacts. **No Flutter gate has ever run in this repository**, so the
+first activation is the real test of the code.
+
+CI has **no signing secrets** — its release artifacts are debug-signed on
+purpose; the Play upload is built locally per this document.
 `.github/workflows/normalize.yml` (manual dispatch) runs `dart format` +
 drift codegen with the real toolchain and commits the result.

@@ -57,12 +57,12 @@ flutter analyze
 flutter test
 ```
 
-CI is staged in `.github/workflows/` but **not active**: the automation token
-used for this branch lacks the `workflows` permission, so the push was rejected
-(see `ci/README.md`). Activate it with a `workflows`-permission token or the
-GitHub web UI, or run `bash tools/run_gates.sh --build` locally. Once active,
-CI runs the same gates plus `flutter build apk --release` and
-`flutter build appbundle --release`.
+CI is staged in `ci/workflows/` but **not active**: the automation token used
+for this branch lacks the `workflows` permission, so moving the files to
+`.github/workflows/` was rejected (see `ci/README.md`). Activate it with a
+`workflows`-permission token or the GitHub web UI, or run
+`bash tools/run_gates.sh --build` locally. Once active, CI runs the same gates
+plus `flutter build apk --release` and `flutter build appbundle --release`.
 
 ## Run & debug
 

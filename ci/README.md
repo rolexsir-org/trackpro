@@ -1,9 +1,9 @@
 # CI activation status
 
-The workflow files now live in `.github/workflows/` (moved from `ci/workflows/`
-in local commit `d329e86` on branch `arena/b98feb0e-trackpro`). **They are not
-active on the remote**: the automation token used for this branch lacks the
-GitHub `workflows` permission, so the push was rejected with:
+The workflow files are staged in `ci/workflows/` (the original location). They
+are **not active**: the automation token used for this branch is a GitHub App
+without the `workflows` permission, so a push containing `.github/workflows/*`
+is rejected with:
 
 ```
 ! [remote rejected] arena/b98feb0e-trackpro -> arena/b98feb0e-trackpro
@@ -12,20 +12,31 @@ GitHub `workflows` permission, so the push was rejected with:
 ```
 
 The remote `rolexsir-org/trackpro` has no `.github/workflows/` directory at all
-(verified 2026-11-01 via the Contents API).
+(verified 2026-11-01 via the Contents API). This is a permission/process
+blocker, not a code blocker.
 
 ## To activate
 
 Do ONE of:
 
-1. **Push with a credential that has `workflows` permission.** The branch
-   already contains the two files; a normal `git push` from an account/token
-   with the scope will activate them. The first push containing
+1. **Move the files and push with a credential that has `workflows`
+   permission.** From the repository root:
+
+   ```bash
+   mkdir -p .github/workflows
+   git mv ci/workflows/ci.yml .github/workflows/ci.yml
+   git mv ci/workflows/normalize.yml .github/workflows/normalize.yml
+   git commit -m "ci: activate workflows"
+   git push origin <branch>
+   ```
+
+   The push must use a user token or GitHub App installation with the
+   `workflows` scope. The first push containing
    `.github/workflows/ci.yml` triggers the full gate run.
 2. **GitHub web UI**: on the branch, "Add file" → create
    `.github/workflows/ci.yml` and `.github/workflows/normalize.yml` with the
-   contents of the files in this directory. (The files are already in the
-   local tree; copy them, do not re-author them.)
+   contents of the files in `ci/workflows/`. (The files are already written;
+   copy them, do not re-author them.)
 3. **Run the gates locally** on a machine with Flutter 3.47.7, JDK 17 and
    Android SDK 36:
 

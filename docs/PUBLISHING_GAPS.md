@@ -47,7 +47,7 @@ or that the app runs. Those are the gaps below.
 | # | Gap | Evidence | Severity |
 |---|---|---|---|
 | 0.1 | **The Dart code has never been compiled.** No `flutter analyze`, no `flutter test`, no `flutter build` has ever run in this repository. The only executed checks are Python text audits and the Node billing suite. | `docs/TEST_RESULTS.md` §1; `docs/UPGRADE_2026-10-20.md` §5; no build artifact in the tree | **P0** |
-| 0.2 | **CI is not active.** The workflows are staged in `ci/workflows/` (now moved to `.github/workflows/` in the local commit `d329e86`), but the push was rejected: `refusing to allow a GitHub App to create or update workflow .github/workflows/ci.yml without workflows permission`. The remote has no `.github/workflows/` at all. | `gh api repos/rolexsir-org/trackpro/contents/.github` → 404; `git push` output | **P0** |
+| 0.2 | **CI is not active.** The workflows are staged in `ci/workflows/`; moving them to `.github/workflows/` was rejected: `refusing to allow a GitHub App to create or update workflow .github/workflows/ci.yml without workflows permission`. The remote has no `.github/workflows/` at all. | `gh api repos/rolexsir-org/trackpro/contents/.github` → 404; `git push` output | **P0** |
 | 0.3 | **`lib/data/db/database.g.dart` freshness is unverified.** The file is committed, but `build_runner` has never run against the current schema. The CI codegen gate is designed to catch this; it has never run. | `docs/AUDIT_2026-10-17.md` §1; `docs/INTEGRATION_AUDIT.md` §K | **P0** |
 | 0.4 | **No `flutter analyze` result.** The project has strict lints (`strict-casts`, `strict-raw-types`, `require_trailing_commas`, `unawaited_futures`) and 51+ lib files that have never been through the analyzer. | `analysis_options.yaml`; no analyzer output in the repo | **P0** |
 | 0.5 | **No `flutter test` result.** 17 test files exist (4,600+ lines) and none has ever executed. Two real defects were already found by reading, which is what a first test run would have caught. | `ls test/*.dart \| wc -l` → 17; `docs/PRODUCTION_READINESS.md` §11 | **P0** |
@@ -145,7 +145,7 @@ directory, no `fastlane/` metadata, and no screenshot source.
 | 7.1 | **No `LICENSE`.** The public repo has no license, so all rights are reserved by default. The Inter font license is present (`assets/fonts/Inter-LICENSE.txt`), but the app code has none. | `ls LICENSE*` → none; `gh repo view` `licenseInfo: null` | **P1** |
 | 7.2 | **No `CHANGELOG.md`.** Play's "What's new" has no source. | `ls CHANGELOG*` → none | **P2** |
 | 7.3 | **No `.github/ISSUE_TEMPLATE`, `SECURITY.md`, `CONTRIBUTING.md`, or `CODE_OF_CONDUCT.md`.** | `ls .github` → 404 | **P2** |
-| 7.4 | **No release automation.** No tag-triggered workflow, no Fastlane, no Play upload. The release is a manual local build per `RELEASE.md`. | `.github/workflows/` (staged, not active) | **P2** |
+| 7.4 | **No release automation.** No tag-triggered workflow, no Fastlane, no Play upload. The release is a manual local build per `RELEASE.md`. | `ci/workflows/` (staged, not active) | **P2** |
 | 7.5 | **`android_overlay/` is still in the repo.** It is marked SUPERSEDED, but it duplicates Kotlin/manifest files and is a drift risk. It also contains the only Wear code. | `android_overlay/README.md` | **P2** |
 | 7.6 | **`tools/collect_evidence.sh` is missing** but referenced by `docs/TEST_RESULTS.md`, `docs/PRODUCTION_READINESS.md`, `docs/INTEGRATION_REPORT.md`, `docs/PRODUCT_COHERENCE_REPORT.md`. | `ls tools/collect_evidence.sh` → none | **P2** |
 | 7.7 | **`TEST_EVIDENCE.txt` is missing** but referenced by five docs. | `ls TEST_EVIDENCE.txt` → none | **P2** |
@@ -164,7 +164,7 @@ the release. Each is a factual contradiction with the current tree.
 |---|---|---|---|
 | `README.md` | "Platforms: Android (primary), Linux desktop (dev convenience, in `linux/`)" | There is **no `linux/` directory**. The app uses Android-only plugins (`health`, `in_app_purchase_android`, `flutter_local_notifications`); a Linux desktop target would not build without work. | **FIXED** — README now says Android only |
 | `README.md` | "Flutter stable ≥ 3.44 / Dart ≥ 3.12" | `pubspec.yaml` requires **Flutter ≥ 3.47.0 / Dart ≥ 3.13.0**; `pubspec.lock` matches. | **FIXED** |
-| `README.md` | "CI (`.github/workflows/ci.yml`) runs the same gates" | The workflows are staged in `.github/workflows/` but the remote push was **rejected** by the token's missing `workflows` permission. | **FIXED** — README now says staged / not active |
+| `README.md` | "CI (`.github/workflows/ci.yml`) runs the same gates" | The workflows are staged in `ci/workflows/`; moving them to `.github/workflows/` was **rejected** by the token's missing `workflows` permission. | **FIXED** — README now says staged / not active |
 | `docs/RELEASE.md` | "51 structural checks" | `release_gate.py` now reports **53 checks**. | **FIXED** |
 | `docs/RELEASE.md` | "The workflows live in `ci/workflows/` until somebody ... moves them" | They have been moved in the local commit, but the remote push is blocked. The activation step is still real. | **FIXED** — RELEASE now says staged / not active |
 | `docs/PLAY_CHECKLIST.md` | "Billing Library ≥ 7" | `in_app_purchase_android` 0.5.5 ships **Billing Library 8**; Play requires 8 for new releases. | **FIXED** |
@@ -183,9 +183,10 @@ the release. Each is a factual contradiction with the current tree.
 
 ### P0 — must happen before any upload
 
-1. **Activate CI with a `workflows`-permission token.** The files are ready in
-   `.github/workflows/` in local commit `d329e86`. Either:
-   - push that commit with a token/credential that has the `workflows` scope, or
+1. **Activate CI with a `workflows`-permission token.** The files are staged in
+   `ci/workflows/`. Either:
+   - move them to `.github/workflows/` and push with a token/credential that has
+     the `workflows` scope, or
    - add the two files through the GitHub web UI (the procedure is in
      `ci/README.md`), or
    - run `bash tools/run_gates.sh --build` on a machine with Flutter 3.47.7,

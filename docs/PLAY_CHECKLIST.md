@@ -11,7 +11,7 @@ Technical readiness ≠ account eligibility, policy approval or publication.
 > Play Console side only.
 
 ## Repository & CI (prerequisites)
-- [ ] **CI activated** — `.github/workflows/ci.yml` is on the remote and has run green (format, codegen freshness, analyze, test, Python gates, Node billing suite, release APK/AAB). It is currently staged but **not active** (the push was rejected for lack of the `workflows` permission). See `ci/README.md`.
+- [ ] **CI activated** — `.github/workflows/ci.yml` is on the remote and has run green (format, codegen freshness, analyze, test, Python gates, Node billing suite, release APK/AAB). It is staged in `ci/workflows/` but **not active** (moving it to `.github/workflows/` was rejected for lack of the `workflows` permission). See `ci/README.md`.
 - [ ] **Flutter gates have actually run** — `flutter analyze`, `flutter test`, `flutter build apk --release`, `flutter build appbundle --release`. None has ever run in this repository.
 - [ ] **Upload keystore exists** and `android/key.properties` is configured (git-ignored). Verify the AAB certificate is not "Android Debug".
 - [ ] **`release-defines.json` exists** with HTTPS `TRACK_VERIFY_URL`, `TRACK_TERMS_URL`, `TRACK_PRIVACY_URL`, `TRACK_SUPPORT_EMAIL`.
