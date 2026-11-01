@@ -41,7 +41,7 @@ Track Pro is one calm place for the things you track every day: water, mood, sle
 • Commitments, not just habits. Define an outcome and a minimum, then record full / minimum / missed / rest. Momentum shows the run you are on, the patterns behind it, and a restart plan when you need one.
 • Focus Lock. Start a timed session, choose the apps to cover, and keep a visible timer with an end action. Free sessions cover three apps; Pro covers the whole list.
 • A home-screen widget with today's rings and your streak.
-• Private by design. No account, no ads, no analytics SDK, no cloud sync. Your data stays in your phone's app-private storage. Export it as JSON or CSV at any time, and delete everything in one tap.
+• Private by design. No account, no ads, no analytics SDK, no cloud sync. Your data stays in your phone's app-private storage. Export it as JSON or CSV at any time, and delete everything from Settings.
 • Pro: every tracker, full history, Health Connect sync, unlimited focus apps, profiles, schedules and patterns. 7 days free on the annual plan.
 
 No ads. No tracking. Your data is yours.

@@ -196,7 +196,7 @@ returns "unreachable" when `TRACK_VERIFY_URL` is not set, which means an
 unconfigured build simply cannot grant Pro.
 
 The server implementation lives in `billing_server/` (Node 20, zero runtime
-dependencies, 60 tests): `POST /billing/verify`, `POST /rtdn` for Pub/Sub
+dependencies, 78 tests): `POST /billing/verify`, `POST /rtdn` for Pub/Sub
 notifications, a file-backed store, and the deployment, monitoring and incident
 runbooks. Read `billing_server/OPERATIONS.md` before touching the client contract.
 

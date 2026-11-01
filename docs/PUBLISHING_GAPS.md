@@ -160,22 +160,22 @@ directory, no `fastlane/` metadata, and no screenshot source.
 These are not blockers by themselves, but they will mislead the person doing
 the release. Each is a factual contradiction with the current tree.
 
-| Doc | Stale claim | Current truth |
-|---|---|---|
-| `README.md` | "Platforms: Android (primary), Linux desktop (dev convenience, in `linux/`)" | There is **no `linux/` directory**. The app uses Android-only plugins (`health`, `in_app_purchase_android`, `flutter_local_notifications`); a Linux desktop target would not build without work. |
-| `README.md` | "Flutter stable ≥ 3.44 / Dart ≥ 3.12" | `pubspec.yaml` requires **Flutter ≥ 3.47.0 / Dart ≥ 3.13.0**; `pubspec.lock` matches. |
-| `README.md` | "CI (`.github/workflows/ci.yml`) runs the same gates" | The workflows are staged in `ci/workflows/` and the push to `.github/workflows/` was **rejected** by the token's missing `workflows` permission. |
-| `docs/RELEASE.md` | "51 structural checks" | `release_gate.py` now reports **53 checks**. |
-| `docs/RELEASE.md` | "The workflows live in `ci/workflows/` until somebody ... moves them" | They have been moved in the local commit, but the remote push is blocked. The activation step is still real. |
-| `docs/PLAY_CHECKLIST.md` | "Billing Library ≥ 7" | `in_app_purchase_android` 0.5.5 ships **Billing Library 8**; Play requires 8 for new releases. |
-| `MONETIZATION.md` §3 | "in_app_purchase_android 0.5.x ships Play Billing 7.x" | 0.5.5 ships **Billing 8** (see `docs/UPGRADE_2026-10-20.md` §2). |
-| `MONETIZATION.md` §11 | "Verification backend — server is yours" / "RTDN handler — not yet done" | Both are **implemented** in `billing_server/` (78/78 tests pass, runnable via `src/index.js`). What is missing is **deployment**, not code. |
-| `docs/PRODUCTION_READINESS.md` | "database.g.dart does not exist"; schema v3; 13 test files | `database.g.dart` exists; schema is **v4**; there are **17** test files. The document is a 2026-10-16 snapshot. |
-| `docs/TEST_RESULTS.md` | "Nothing in this repository has been compiled" | Still true for Flutter, but the doc's "13 suites" is stale (17 files). |
-| `docs/INTEGRATION_AUDIT.md` §K | "database.g.dart still does not exist" | It exists; freshness is unverified, not absent. |
-| `docs/INTEGRATION_REPORT.md` | References `/home/user/TEST_EVIDENCE.txt` | That path is outside the repo and not present. |
-| `docs/PRODUCT_COHERENCE_REPORT.md` | References `TEST_EVIDENCE.txt` | Missing. |
-| `docs/FOCUS_LOCK.md` | References `../TEST_EVIDENCE.txt` | Missing. |
+| Doc | Stale claim | Current truth | Status |
+|---|---|---|---|
+| `README.md` | "Platforms: Android (primary), Linux desktop (dev convenience, in `linux/`)" | There is **no `linux/` directory**. The app uses Android-only plugins (`health`, `in_app_purchase_android`, `flutter_local_notifications`); a Linux desktop target would not build without work. | **FIXED** — README now says Android only |
+| `README.md` | "Flutter stable ≥ 3.44 / Dart ≥ 3.12" | `pubspec.yaml` requires **Flutter ≥ 3.47.0 / Dart ≥ 3.13.0**; `pubspec.lock` matches. | **FIXED** |
+| `README.md` | "CI (`.github/workflows/ci.yml`) runs the same gates" | The workflows are staged in `.github/workflows/` but the remote push was **rejected** by the token's missing `workflows` permission. | **FIXED** — README now says staged / not active |
+| `docs/RELEASE.md` | "51 structural checks" | `release_gate.py` now reports **53 checks**. | **FIXED** |
+| `docs/RELEASE.md` | "The workflows live in `ci/workflows/` until somebody ... moves them" | They have been moved in the local commit, but the remote push is blocked. The activation step is still real. | **FIXED** — RELEASE now says staged / not active |
+| `docs/PLAY_CHECKLIST.md` | "Billing Library ≥ 7" | `in_app_purchase_android` 0.5.5 ships **Billing Library 8**; Play requires 8 for new releases. | **FIXED** |
+| `MONETIZATION.md` §3 | "in_app_purchase_android 0.5.x ships Play Billing 7.x" | 0.5.5 ships **Billing 8** (see `docs/UPGRADE_2026-10-20.md` §2). | **FIXED** |
+| `MONETIZATION.md` §11 | "Verification backend — server is yours" / "RTDN handler — not yet done" | Both are **implemented** in `billing_server/` (78/78 tests pass, runnable via `src/index.js`). What is missing is **deployment**, not code. | **FIXED** |
+| `docs/PRODUCTION_READINESS.md` | "database.g.dart does not exist"; schema v3; 13 test files | `database.g.dart` exists; schema is **v4**; there are **17** test files. The document is a 2026-10-16 snapshot. | **HISTORICAL** — snapshot header added |
+| `docs/TEST_RESULTS.md` | "Nothing in this repository has been compiled" | Still true for Flutter, but the doc's "13 suites" is stale (17 files). | **HISTORICAL** — snapshot header added |
+| `docs/INTEGRATION_AUDIT.md` §K | "database.g.dart still does not exist" | It exists; freshness is unverified, not absent. | **HISTORICAL** — snapshot header added |
+| `docs/INTEGRATION_REPORT.md` | References `/home/user/TEST_EVIDENCE.txt` | That path is outside the repo and not present. | **HISTORICAL** — snapshot header added |
+| `docs/PRODUCT_COHERENCE_REPORT.md` | References `TEST_EVIDENCE.txt` | Missing. | **HISTORICAL** — snapshot header added |
+| `docs/FOCUS_LOCK.md` | References `../TEST_EVIDENCE.txt` | Missing. | **HISTORICAL** — snapshot header added |
 
 ---
 
