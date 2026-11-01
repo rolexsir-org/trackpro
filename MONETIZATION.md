@@ -9,6 +9,12 @@ build fastest.
 
 If you read only one section, read §1 and §4.
 
+> **Status (2026-11-01):** the verification service is implemented and
+> runnable (`billing_server/src/index.js`, 78/78 tests) but **not deployed**.
+> No Play Console products, service account, API keys, RTDN secret or legal
+> pages exist yet. The complete gap register is
+> [`docs/PUBLISHING_GAPS.md`](docs/PUBLISHING_GAPS.md).
+
 ---
 
 ## 1. Play Console catalogue
@@ -93,10 +99,9 @@ renewal, and `Entitlement.isLifetime == true` forever after.
 
 ## 3. Google Play Billing Library version
 
-`in_app_purchase_android` 0.5.x ships Play Billing **7.x** transitively, which
-meets the current Play requirement (Billing Library 7+ for new releases, with the
-deadline for 6.x already past as of 2025-08-31). Don't pin a lower version "for
-safety" — a downgrade fails the release review.
+`in_app_purchase_android` 0.5.5 ships Play Billing **8.x** transitively, which
+meets the current Play requirement (Billing Library 8+ for new releases). Don't
+pin a lower version "for safety" — a downgrade fails the release review.
 
 No Gradle dependency line is needed; see `android_overlay/app/build.gradle.additions`
 §3 for the note and the optional explicit pin.
@@ -191,7 +196,7 @@ returns "unreachable" when `TRACK_VERIFY_URL` is not set, which means an
 unconfigured build simply cannot grant Pro.
 
 The server implementation lives in `billing_server/` (Node 20, zero runtime
-dependencies, 60 tests): `POST /billing/verify`, `POST /rtdn` for Pub/Sub
+dependencies, 78 tests): `POST /billing/verify`, `POST /rtdn` for Pub/Sub
 notifications, a file-backed store, and the deployment, monitoring and incident
 runbooks. Read `billing_server/OPERATIONS.md` before touching the client contract.
 
@@ -346,9 +351,15 @@ Play's subscription policy requires these, and they are all already in the build
 
 ## 11. Open items (not yet done, on purpose)
 
-- **Verification backend** — contract in §4, client written, server is yours.
-- **RTDN handler** — Pub/Sub push → revoke entitlements on
-  `SUBSCRIPTION_REVOKED` / `SUBSCRIPTION_EXPIRED`.
+- **Verification backend — code done, deployment not.** The service is in
+  `billing_server/` (`src/index.js` entry point, real Play Developer API client
+  in `src/play_client.js`, 78/78 tests). It still needs a host, TLS, a service
+  account, `TRACK_BILLING_API_KEYS`, `TRACK_RTDN_SECRET`, a persistent
+  `TRACK_STORE_PATH`, and a Pub/Sub push subscription. See
+  `billing_server/README.md` and `billing_server/OPERATIONS.md`.
+- **RTDN handler — code done, wiring not.** `billing_server/src/rtdn.js`
+  processes `SUBSCRIPTION_REVOKED` / `SUBSCRIPTION_EXPIRED` (and the rest);
+  the Pub/Sub topic and push subscription are not created yet.
 - **Server-side price experiment** — Play supports per-cohort offers; the funnel
   `plan_selected` event already tags by plan, so you can read the result.
 - **Promo codes** — `manageUrl` and the paywall do not yet surface redeem links

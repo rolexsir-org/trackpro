@@ -1,5 +1,12 @@
 # Track Pro integration — final report
 
+> **Historical snapshot — not the current status.** This document records
+> the state at the time it was written. Some of its claims are now stale
+> (for example, `database.g.dart` exists, the schema is v4, and there are 17
+> test files). For the current, evidence-backed publishing gap register see
+> [`PUBLISHING_GAPS.md`](PUBLISHING_GAPS.md).
+
+
 **Date:** 2026-10-16 · **Scope:** Track Pro integration repair, run against the standing
 master prompt (production hardening, complete repair, release validation) and the twelve
 criteria below.

@@ -1,5 +1,12 @@
 # Test results — Track
 
+> **Historical snapshot — not the current status.** This document records
+> the state at the time it was written. Some of its claims are now stale
+> (for example, `database.g.dart` exists, the schema is v4, and there are 17
+> test files). For the current, evidence-backed publishing gap register see
+> [`PUBLISHING_GAPS.md`](PUBLISHING_GAPS.md).
+
+
 Evidence produced by execution, not by intent. The raw capture is
 `../TEST_EVIDENCE.txt`, produced by
 

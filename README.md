@@ -1,12 +1,20 @@
 # Track Pro
 
+> **Publishing status: NOT READY.** No Flutter artifact has ever been built,
+> CI has never run, no upload keystore exists, the billing backend is not
+> deployed, and the Play Console listing has no assets. The complete,
+> evidence-backed gap register is
+> [`docs/PUBLISHING_GAPS.md`](docs/PUBLISHING_GAPS.md); the console-side
+> checklist is [`docs/PLAY_CHECKLIST.md`](docs/PLAY_CHECKLIST.md).
+
 One app for everything you track daily — commitments (habits), water, mood,
 expenses, sleep, calories, steps, cycle, screen time, weight — plus Focus Lock
 sessions, a Glance home-screen widget, Health Connect sync (read-only: steps,
 sleep, weight) and a Play Billing paywall.
 
 - **Package:** `com.track.app` · **Dart package:** `track` · **Version:** see `pubspec.yaml` (`x.y.z+code`)
-- **Platforms:** Android (primary, in `android/`), Linux desktop (dev convenience, in `linux/`)
+- **Platforms:** Android (primary, in `android/`). There is no `linux/` target;
+  the app uses Android-only plugins (Health Connect, Play Billing, local notifications).
 - **Stack:** Flutter + provider · Drift (SQLite) · flutter_local_notifications · health · in_app_purchase
 
 ## Project layout
@@ -18,12 +26,13 @@ sleep, weight) and a Play Billing paywall.
 | `android/` | The real Android host (Gradle, manifest, Kotlin seams, widget, Focus Lock service). |
 | `android_overlay/` | **Historical.** The pre-merge overlay; superseded by `android/`. See its README. |
 | `test/` | Unit/widget tests (`flutter test`). |
+| `billing_server/` | Node 20 Play Billing verification + RTDN service (zero runtime deps). |
 | `tools/` | Python text-audit gates that run without a Flutter SDK. |
 | `docs/` | Audits, release guide (`RELEASE.md`), Play checklist (`PLAY_CHECKLIST.md`). |
 
 ## Prerequisites
 
-- Flutter **stable** ≥ 3.44 / Dart ≥ 3.12 (see `pubspec.lock` → `sdks:`), on your `PATH`
+- Flutter **stable** ≥ 3.47 / Dart ≥ 3.13 (see `pubspec.yaml` and `pubspec.lock` → `sdks:`), on your `PATH`
 - Android SDK (API 36) + JDK 17 (`flutter doctor -v` must be clean for Android)
 - VS Code with the Dart & Flutter extensions (Android Studio is *not* required as an editor)
 
@@ -48,8 +57,12 @@ flutter analyze
 flutter test
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same gates plus
-`flutter build apk --release` and `flutter build appbundle --release`.
+CI is staged in `ci/workflows/` but **not active**: the automation token used
+for this branch lacks the `workflows` permission, so moving the files to
+`.github/workflows/` was rejected (see `ci/README.md`). Activate it with a
+`workflows`-permission token or the GitHub web UI, or run
+`bash tools/run_gates.sh --build` locally. Once active, CI runs the same gates
+plus `flutter build apk --release` and `flutter build appbundle --release`.
 
 ## Run & debug
 

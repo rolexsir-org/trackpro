@@ -1,0 +1,6 @@
+{
+  "TRACK_VERIFY_URL": "https://billing.example.com/billing/verify",
+  "TRACK_TERMS_URL": "https://example.com/track/terms",
+  "TRACK_PRIVACY_URL": "https://example.com/track/privacy",
+  "TRACK_SUPPORT_EMAIL": "support@example.com"
+}

@@ -29,7 +29,7 @@ All four must pass. Then the toolchain-free gates, which catch the defect class 
 compiler cannot see and which run on any machine with `python3`:
 
 ```bash
-python3 tools/release_gate.py     # 51 structural checks
+python3 tools/release_gate.py     # 53 structural checks
 python3 tools/gate_probe.py       # breaks each of them on purpose; requires the gate to fire
 python3 tools/{import,member,symbol_clash,test_api,static}_audit.py
 ```
@@ -56,7 +56,11 @@ Rules:
 - Never commit the keystore, its passwords, or `key.properties`. All three
   patterns are git-ignored (`android/.gitignore`).
 
-Then create `android/key.properties` (git-ignored):
+Then create `android/key.properties` (git-ignored) from the template:
+
+```bash
+cp android/key.properties.example android/key.properties
+```
 
 ```properties
 storeFile=/home/YOUR_USER/keystores/trackpro-upload.jks
@@ -72,8 +76,12 @@ smoke tests, never uploadable to Play.
 ## 3. Production configuration (`--dart-define`)
 
 Release behaviour is configured at build time, in one place
-(`lib/config/app_environment.dart`). Create `release-defines.json`
+(`lib/config/app_environment.dart`). Create `release-defines.json` from the template
 (git-ignore it if you add secrets-adjacent values):
+
+```bash
+cp release-defines.example.json release-defines.json
+```
 
 ```json
 {
@@ -152,11 +160,18 @@ Play requires a strictly increasing `versionCode` for every upload.
 
 ## 8. CI
 
-The workflows live in `ci/workflows/` until somebody with `workflows` permission
-moves them to `.github/workflows/` — see `ci/README.md`, which is the activation
-procedure. Once activated, `ci.yml` runs the same gates (format, codegen
-freshness, analyze, test, the Python gates above) plus release APK/AAB builds on
-every push, and uploads the artifacts. CI has **no signing secrets** — its release artifacts are
-debug-signed on purpose; the Play upload is built locally per this document.
+The workflows are staged in `ci/workflows/`. Moving them to
+`.github/workflows/` and pushing was **rejected** by the automation token's
+missing `workflows` permission (`refusing to allow a GitHub App to create or
+update workflow ...`). The remote has no `.github/workflows/` yet. To activate,
+move the two files to `.github/workflows/` with a `workflows`-permission
+credential or add them through the GitHub web UI — see `ci/README.md`. Once
+active, `ci.yml` runs the same gates (format, codegen freshness, analyze, test,
+the Python gates above) plus release APK/AAB builds on every push, and uploads
+the artifacts. **No Flutter gate has ever run in this repository**, so the
+first activation is the real test of the code.
+
+CI has **no signing secrets** — its release artifacts are debug-signed on
+purpose; the Play upload is built locally per this document.
 `.github/workflows/normalize.yml` (manual dispatch) runs `dart format` +
 drift codegen with the real toolchain and commits the result.

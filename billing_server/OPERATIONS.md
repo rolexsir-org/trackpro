@@ -9,17 +9,50 @@ of Track Pro's fail-closed Play Billing contract (`MONETIZATION.md` §4):
   Notifications (renewals, cancellations, revocations, refunds, expirations)
 - `GET /healthz` — liveness probe (returns `200 {"ok":true}` with no internal state)
 
-## 1. Running tests locally & in CI
+## 1. Running the service
+
+The process entry point is `src/index.js`. `src/server.js` is the HTTP factory
+used by the tests; it does not listen on its own.
+
+```bash
+cd billing_server
+cp .env.example .env       # fill in real values; never commit .env
+node --env-file=.env src/index.js
+curl -s http://127.0.0.1:8080/healthz
+```
+
+The service refuses to start if `TRACK_BILLING_API_KEYS`, `TRACK_RTDN_SECRET`,
+`TRACK_STORE_PATH` or `GOOGLE_APPLICATION_CREDENTIALS` is missing. A billing
+service that starts without authentication would accept forged purchase tokens.
+
+Docker:
+
+```bash
+docker build -t trackpro-billing ./billing_server
+docker run --rm -p 8080:8080 \
+  -e TRACK_BILLING_API_KEYS="$TRACK_BILLING_API_KEYS" \
+  -e TRACK_RTDN_SECRET="$TRACK_RTDN_SECRET" \
+  -v "$PWD/play-service-account.json:/run/secrets/play-service-account.json:ro" \
+  -e GOOGLE_APPLICATION_CREDENTIALS=/run/secrets/play-service-account.json \
+  -v trackpro-billing-data:/data \
+  trackpro-billing
+```
+
+The image runs as the unprivileged `node` user, stores purchases in
+`/data/purchases.json`, and has a `/healthz` healthcheck.
+
+## 2. Running tests locally & in CI
 
 ```bash
 cd billing_server
 npm test
 ```
 
-Zero external runtime dependencies; all 60 unit and socket-integration tests run
-offline under `node --test`.
+Zero external runtime dependencies; all 78 unit and socket-integration tests run
+offline under `node --test`. The Google Play API is replaced by an injected fake
+in every test; the real service-account path is not exercised offline.
 
-## 2. Required environment variables in production
+## 3. Required environment variables in production
 
 | Variable | Purpose |
 |---|---|
@@ -29,7 +62,13 @@ offline under `node --test`.
 | `GOOGLE_APPLICATION_CREDENTIALS` | Path to the Play Developer API service-account JSON key (never committed to git) |
 | `TRACK_STORE_PATH` | Path to the persistent JSON store file (or swap `BillingStore` to Postgres using `BillingStore.POSTGRES_DDL`) |
 
-## 3. Verifier contract (`POST /billing/verify`)
+The Play service account needs the **View financial data** permission in Play
+Console → Users & permissions, and the Google Play Android Developer API must be
+enabled in the Cloud project. The client signs an RS256 JWT with the service
+account's private key and calls `purchases.subscriptionsv2.get` /
+`purchases.products.get`.
+
+## 4. Verifier contract (`POST /billing/verify`)
 
 Request:
 ```json
