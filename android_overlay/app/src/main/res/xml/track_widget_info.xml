@@ -2,8 +2,6 @@
 <!--
   Home-screen widget metadata for the Glance widget in TrackWidget.kt.
 
-  Copy to: android/app/src/main/res/xml/track_widget_info.xml
-
   updatePeriodMillis is deliberately large: the widget is refreshed explicitly by
   the app after every write (track/widget channel → TrackWidget.refresh), so the
   system-driven refresh only exists as a safety net for a device that has been

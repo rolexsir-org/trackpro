@@ -19,7 +19,7 @@
 /// | last 7 days of history                | full history, forever                       |
 /// | today's rings, streaks, badges        | patterns, correlations, heatmaps, 90d range |
 /// | daily check-in reminder               | streak saver, weekly report, smart nudges   |
-/// | home-screen widget (1 ring)           | widget with 3 rings + Wear tile             |
+/// | home-screen widget (1 ring)           | widget with 3 rings                       |
 /// | manual logging, **export is free**    | Health Connect auto-sync (steps/sleep/kg)   |
 /// | Focus Lock: all 3 modes, up to 3 apps | unlimited blocked apps, profiles, schedules |
 /// | Focus history: last 7 sessions        | full history + focus patterns               |
@@ -147,7 +147,7 @@ class ProConfig {
     ),
     ProBenefit('❤️', 'Steps, sleep & weight auto-sync', 'Health Connect fills them in — zero-effort tracking.'),
     ProBenefit('🔥', 'Streak saver & weekly report', 'A nudge only when a streak is genuinely about to break.'),
-    ProBenefit('📱', 'Widget with all three rings', 'Plus the Wear OS tile, on your watch.'),
+    ProBenefit('📱', 'Widget with all three rings', 'All three rings on your home screen.'),
     ProBenefit(
       '🎯',
       'Focus Lock, without limits',
@@ -166,7 +166,6 @@ class ProConfig {
   static const List<String> trustLines = <String>[
     'Cancel anytime in Google Play — no email, no hoops',
     'Export every entry, free, forever. Your data is yours.',
-    'One subscription covers your phone and your watch',
   ];
 
   static ProPlan get highlighted => plans.firstWhere((p) => p.highlighted, orElse: () => plans.first);
@@ -202,7 +201,7 @@ class ProConfig {
   /// silently truncating a chart.
   static bool isHistoryLocked({required bool isPro, required int daysAgo}) => !isPro && daysAgo >= freeHistoryDays;
 
-  /// Rings drawn by the home-screen widget and the Wear tile.
+  /// Rings drawn by the home-screen widget.
   static int widgetRings({required bool isPro}) => isPro ? 3 : 1;
 
   /// Which paywall placement, if any, a given lock should open. Kept next to the
@@ -234,7 +233,6 @@ class ProConfig {
     'notifications.streakSaver',
     'notifications.weekly',
     'widget.threeRings',
-    'wear.tile',
     // Focus Lock. Note what is *not* here: the modes themselves, the timer, the
     // session summary, the app picker, and deleting your own sessions. Those are
     // free in every mode, because a habit app that charges to block the thing you
@@ -705,7 +703,7 @@ extension PaywallTriggerLabel on PaywallTrigger {
       case PaywallTrigger.streakSave:
         return 'A streak saver that nudges you before a streak breaks, and a weekly report that shows the run you are on.';
       case PaywallTrigger.widget:
-        return 'Pro shows all three rings on your home screen, plus the Wear OS tile.';
+        return 'Pro shows all three rings on your home screen.';
       case PaywallTrigger.softPrompt:
         return 'That streak is now an asset. Pro keeps every day of it — the long trend is why it is worth protecting.';
       case PaywallTrigger.onboarding:
