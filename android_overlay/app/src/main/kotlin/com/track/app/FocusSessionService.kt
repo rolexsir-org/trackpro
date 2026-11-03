@@ -15,7 +15,9 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.ServiceCompat
 
 /**
@@ -53,9 +55,9 @@ import androidx.core.app.ServiceCompat
  * Dart side reports `unavailable` rather than `armed` when the grant is missing.
  *
  * KILL PATHS THAT ARE HANDLED, AND HOW:
- *  * Permission revoked mid-session: `queryEvents` starts returning nothing, and
- *    `usageReportingSeen` goes false. The Dart side reports `lost`, the session is
- *    recorded as degraded, and it is never shown as a clean completion.
+ *  * Permission revoked mid-session: the next channel state read reports the missing
+ *    Usage Access/overlay grant. Dart records the live session as `lost`, so it is
+ *    never shown as a clean completion.
  *  * Force-stop: the service dies, `serviceAlive()` goes false within
  *    [FocusStore.SERVICE_STALE_MS], and the session is reported as lost. Android
  *    gives a force-stopped app no callback at all — so the state is detected by the
@@ -77,6 +79,7 @@ class FocusSessionService : Service() {
     private var lastSeenPackage: String? = null
     private var overlayShownFor: String? = null
     private var stopped = false
+    private var lastNotifiedMinute = -1
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -128,7 +131,9 @@ class FocusSessionService : Service() {
             // A foreground start that fails (restricted by the OS, or the notification
             // permission refused on API 33+ where the FGS notification is still
             // required) must not take the app down. The Dart side reads the heartbeat
-            // and will report the session as not enforced.
+            // and will report the session as not enforced. Keep the throwable in logcat;
+            // an unavailable service is a user-visible state, not an error to erase.
+            Log.w(TAG, "could not enter the focus foreground service", t)
             FocusStore.markServiceUp(this, false)
             stopSelf()
         }
@@ -220,6 +225,12 @@ class FocusSessionService : Service() {
             return
         }
 
+        // The ongoing notice is the lock-screen clock. It used to be built once, at
+        // start, and then read "25 min left" for the whole session; refresh it when
+        // the whole-minute figure changes, which is cheap and keeps the one number a
+        // user can see without opening the app honest.
+        refreshNotification()
+
         val usage = getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return
         val now = SystemClock.elapsedRealtime()
         val windowStart = now - POLL_WINDOW_MS
@@ -275,20 +286,40 @@ class FocusSessionService : Service() {
         }
         overlayShownFor = current
         lastOverlayAt = SystemClock.elapsedRealtime()
-        FocusStore.bumpOverlayShow(this)
         try {
             startActivity(
                 FocusBlockOverlay.intent(this, current).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
             )
+            // This is deliberately after startActivity. A detected package is evidence
+            // that the monitor works, but a refused background activity launch is not
+            // evidence that Track Pro covered anything. Dart requires this count before
+            // it may describe the session as verified.
+            FocusStore.bumpOverlayShow(this)
         } catch (t: Throwable) {
             // Background activity starts can still be refused (OEM policies, an
             // in-call state, an app in picture-in-picture). The detection is already
-            // counted; the panel just did not appear. Dart reports `armed`, not
+            // counted; the panel just did not launch. Dart remains `armed`, not
             // `verified`, which is precisely the distinction this feature lives on.
+            Log.w(TAG, "Android refused the focus coverage-panel launch", t)
         }
     }
 
     private var lastOverlayAt = 0L
+
+    private fun refreshNotification() {
+        val remaining = (FocusStore.endsRealtime(this) - SystemClock.elapsedRealtime()).coerceAtLeast(0L)
+        val minutes = ((remaining + 59_999L) / 60_000L).toInt()
+        if (minutes == lastNotifiedMinute) return
+        lastNotifiedMinute = minutes
+        try {
+            NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, buildNotification())
+        } catch (t: Throwable) {
+            // A notification that cannot be refreshed (permission refused, channel
+            // blocked) must not stop the detector; the timer and the history are
+            // unaffected. It is still retained in logcat for diagnosis.
+            Log.w(TAG, "could not refresh the focus notification", t)
+        }
+    }
 
     private fun stopSession() {
         stopped = true
@@ -305,6 +336,7 @@ class FocusSessionService : Service() {
     }
 
     companion object {
+        private const val TAG = "TrackFocusService"
         const val ACTION_START = "com.track.app.FOCUS_START"
         const val ACTION_STOP = "com.track.app.FOCUS_STOP"
         private const val CHANNEL_ID = "track.focus.running"
