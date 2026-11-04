@@ -870,56 +870,136 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------------------------------------------------------- lifecycle
+  /// True once the database opened, the projection hydrated and the persisted
+  /// settings were read.
+  ///
+  /// This is the value that makes "the app is ready" checkable. The interface used to be
+  /// rendered only because `runApp()` happened to be the last statement of `main()`,
+  /// after every await; there was nothing that said the data was actually here, so
+  /// nothing could verify it. `AppStartup` refuses to report the app ready without this,
+  /// and `HomeShell` is not built until it is set.
+  bool _loaded = false;
+
+  bool get isLoaded => _loaded;
+
+  /// The `load()` currently in flight, so a second caller joins it instead of starting a
+  /// second bootstrap. Two concurrent `ensureDefaultTrackers()` calls are a write race for
+  /// no benefit, and the retry screen and the first frame can genuinely overlap.
+  Future<void>? _loading;
+
+  /// Non-fatal start-up problems, oldest first: a reminder that could not be armed, a
+  /// permission read that never answered, an integration that is not installed.
+  ///
+  /// Recorded, never swallowed. None of these may prevent the app from opening, and none
+  /// of them may disappear either — Settings → Diagnostics shows this list, which is the
+  /// difference between "that feature is off" and "we do not know why that feature is off".
+  final List<String> startupIssues = <String>[];
+
+  /// How long one optional start-up integration may take before the app stops waiting on
+  /// it. Native channels and permission reads are the operations that can wedge, and a
+  /// bound is what turns a wedge into a recorded issue instead of a launch that never
+  /// finishes.
+  static const Duration optionalStageTimeout = Duration(seconds: 8);
+
+  /// Records a non-fatal start-up problem against [startupIssues] and repaints.
+  void recordStartupIssue(String stage, String detail) {
+    final line = '$stage: $detail';
+    if (startupIssues.contains(line)) return;
+    startupIssues.add(line);
+    if (startupIssues.length > 12) startupIssues.removeAt(0);
+    if (_disposed) return;
+    notifyListeners();
+  }
+
   /// Opens the database, writes the tracker catalogue if it is missing, and
   /// hydrates the read cache. It creates **definitions only**: no history, no
   /// streaks, no sample rows. A fresh install genuinely reads zero everywhere
   /// until the user logs something.
-  Future<void> load() async {
-    final report = await repo.bootstrap();
-    integrityOk = report.integrityOk;
-    await _reloadFromDb();
-    await _loadSettings();
+  ///
+  /// Idempotent: a completed load is a no-op, and a concurrent call returns the run
+  /// already in flight. A *failed* load leaves neither the flag nor the cached future
+  /// behind, so the retry button on the start-up screen can genuinely try again — which
+  /// is the only reason a retry is worth offering.
+  Future<void> load() {
+    if (_loaded) return Future<void>.value();
+    final inFlight = _loading;
+    if (inFlight != null) return inFlight;
+    final future = _load();
+    _loading = future;
+    return future;
+  }
 
-    // The stored health standing is a *cache of the last answer*, never evidence about
-    // this launch: a permission can be revoked while the app is closed, and an OEM
-    // update can remove Health Connect. Re-asked in the background so the first frame
-    // is not blocked on a health read — and so a revoked permission stops being
-    // described as connected.
-    if (health != null) unawaited(refreshHealthPermission());
+  Future<void> _load() async {
+    try {
+      // ---- essential: without these there is no app to render -------------------
+      final report = await repo.bootstrap();
+      integrityOk = report.integrityOk;
+      await _reloadFromDb();
+      await _loadSettings();
 
-    // Momentum first, then the one-time conversion of an install's pre-Momentum
-    // habit checklist. Both are idempotent; the conversion is marked in settings so
-    // it can never run twice and never duplicates a commitment.
-    await commitmentRepo.hydrate();
-    legacyImportReport = await commitmentRepo.importLegacyHabits();
-    _refreshMomentum();
+      // Momentum first, then the one-time conversion of an install's pre-Momentum
+      // habit checklist. Both are idempotent; the conversion is marked in settings so
+      // it can never run twice and never duplicates a commitment.
+      await commitmentRepo.hydrate();
+      legacyImportReport = await commitmentRepo.importLegacyHabits();
+      _refreshMomentum();
 
-    // Focus Lock: hydrate, then let recovery decide what happened to a session that
-    // was live when the app last stopped. `recoverFocus` is idempotent, so this is
-    // safe on every launch, and it is what stops an interrupted session from
-    // reappearing as if it had been counting down the whole time.
-    final focus = focusRepo;
-    if (focus != null) {
-      await focus.hydrate();
-      await recoverFocus();
-      await syncFocusSchedules();
+      // ---- optional: a "no" here costs a feature, never the launch ---------------
+      // Every stage below crosses into Android: the Focus Lock channel, the
+      // notification plugin, Health Connect, the usage-stats app-op. They used to be
+      // awaited directly, so one platform error — or one channel that never answered —
+      // aborted `load()`, and `main()` therefore never reached `runApp()`: the blank
+      // screen. A revoked permission, an OEM without Health Connect or a wedged plugin
+      // must not be able to do that, so each is bounded and recorded instead.
+      //
+      // `recoverFocus()` inside [Focus Lock] already re-reads the two Focus Lock
+      // grants; these are the three that used to keep their last remembered value until
+      // something else happened to ask — notification permission, Health Connect and
+      // Usage Access — plus the scheduled focus sessions, which are re-armed here so a
+      // reboot or an update does not silently lose them.
+      await _optionalStage('Focus Lock', _restoreFocusLock);
+      await _optionalStage('Reminders', refreshReminders);
+      unawaited(_optionalStage('Health Connect', refreshHealthPermission));
+      unawaited(_optionalStage('Usage access', refreshScreenTimePermission));
+
+      _loaded = true;
+      notifyListeners();
+      unawaited(_optionalStage('Insights', _refreshAggregates));
+
+      // Billing is wired by `reconcileEntitlement()` from `main()`, after
+      // `billing.init(cached:)`. It is the slowest dependency and nothing on the
+      // first frame depends on it: the cached entitlement has already painted the
+      // correct tier (and, being fail-closed, cannot grant Pro on its own).
+      bindBilling();
+    } finally {
+      _loading = null;
     }
+  }
 
-    // Everything the app can be told "no" about, read once before the first frame.
-    // `recoverFocus()` above already re-read the two Focus Lock grants; these are the
-    // three that used to stay as their last remembered value until something else
-    // happened to ask: notification permission, Health Connect and Usage Access.
-    await refreshReminders();
-    unawaited(refreshScreenTimePermission());
+  /// Runs one start-up stage the app can live without: bounded, and recorded rather than
+  /// propagated. See [optionalStageTimeout].
+  Future<void> _optionalStage(String stage, Future<void> Function() step) async {
+    try {
+      await step().timeout(optionalStageTimeout);
+    } on TimeoutException {
+      recordStartupIssue(stage, 'did not answer within ${optionalStageTimeout.inSeconds}s');
+    } catch (error) {
+      recordStartupIssue(stage, shortErrorText(error));
+    }
+  }
 
-    notifyListeners();
-    unawaited(_refreshAggregates());
-
-    // Billing is wired by `reconcileEntitlement()` from `main()`, after
-    // `billing.init(cached:)`. It is the slowest dependency and nothing on the
-    // first frame depends on it: the cached entitlement has already painted the
-    // correct tier (and, being fail-closed, cannot grant Pro on its own).
-    bindBilling();
+  /// Focus Lock: hydrate, then let recovery decide what happened to a session that was
+  /// live when the app last stopped. `recoverFocus` is idempotent, so this is safe on
+  /// every launch, and it is what stops an interrupted session from reappearing as if it
+  /// had been counting down the whole time. The scheduled sessions are re-armed from the
+  /// same place, so a reboot, an update or a reinstall of the app's settings cannot lose
+  /// a reminder the user asked for.
+  Future<void> _restoreFocusLock() async {
+    final focus = focusRepo;
+    if (focus == null) return;
+    await focus.hydrate();
+    await recoverFocus();
+    await syncFocusSchedules();
   }
 
   void _onBillingChanged() {
@@ -983,7 +1063,13 @@ class AppState extends ChangeNotifier {
 
   /// Called on resume: an entitlement that expired while the app was backgrounded
   /// must not survive, and the server may have seen a refund or a cancellation.
+  ///
+  /// A foreground event is not evidence that the app finished starting. Android resumes
+  /// the activity while the first `load()` is still in flight, and the previous code
+  /// would then re-read permissions and re-arm reminders against a projection that was
+  /// still being built. Nothing here is worth doing twice, so it waits for the load.
   Future<void> onResumed() async {
+    if (!_loaded) return;
     unawaited(refreshReminders());
     // Focus Lock first: a permission can be granted or revoked in system settings,
     // and the enforcement service may have been stopped by the OS. Recovering here

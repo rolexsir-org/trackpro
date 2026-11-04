@@ -106,9 +106,13 @@ PROBES = [
     # has to make the *named* defect real, in a file the check actually reads.
     # Where a rule spans two files, the probe edits both.
     # ---------------------------------------------------------------------------
+    # The anchor is the `runApp` line because that is where a seeder would have to sit to
+    # be reachable from start-up. It names the start-up sequence explicitly since the
+    # blank-screen fix made `TrackApp` take it — the defect the probe makes real is
+    # unchanged: anything awaited before `runApp` runs on every launch.
     ('P-01', 'a demo seeder reachable from the start-up path', [
-        ('lib/main.dart', '  runApp(TrackApp(state: state));',
-         '  await seedDemoIfEmpty();\n  runApp(TrackApp(state: state));'),
+        ('lib/main.dart', '  runApp(TrackApp(state: state, startup: startup));',
+         '  await seedDemoIfEmpty();\n  runApp(TrackApp(state: state, startup: startup));'),
     ]),
     ('P-02', 'a test fixture imported by app code', [
         ('lib/data/entry_repository.dart', "import 'dart:convert';",
@@ -228,9 +232,12 @@ PROBES = [
     ('P-25', 'dispose removed from a class that subscribes', [
         ('re', 'lib/state/app_state.dart', r'\n  void dispose\(\) \{', '\n  void disposeNotNeeded() {'),
     ]),
+    # The two awaits now live inside the `essential` closure the start-up gate runs, so
+    # the anchor carries that closure's indentation. Swapping them is still exactly the
+    # defect P-26 describes, and the gate still reads the resulting order.
     ('P-26', 'reminders synced before the notifier is alive', [
-        ('lib/main.dart', '  await notifications.init();\n  await state.load();',
-         '  await state.load();\n  await notifications.init();'),
+        ('lib/main.dart', '      await notifications.init();\n      await state.load();',
+         '      await state.load();\n      await notifications.init();'),
     ]),
     ('P-27', 'a day window computed from 24-hour blocks', [
         ('re', 'lib/data/db/database.dart', r'\[for \(var i = days - 1; i >= 0; i--\) dayKeyFromToday\(i\)\]',

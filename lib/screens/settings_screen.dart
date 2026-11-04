@@ -539,6 +539,26 @@ class SettingsScreen extends StatelessWidget {
                   ],
                 ),
               ],
+              // Start-up problems the app survived: a reminder that could not be armed, a
+              // permission read that never answered, an integration that is not installed.
+              // The app opened — that is the point of the start-up gate — but the failure is
+              // not hidden, and this is where the person (or whoever supports them) can see
+              // which layer said no instead of guessing why a feature is quiet.
+              if (state.startupIssues.isNotEmpty) ...[
+                const SectionLabel('Diagnostics'),
+                GlassList(
+                  children: [
+                    for (final issue in state.startupIssues.reversed.take(4))
+                      GlassRow(
+                        title: 'Start-up problem',
+                        subtitle: issue,
+                        leading: const Icon(Icons.info_outline_rounded, size: 18, color: TrackTheme.orange),
+                        accent: TrackTheme.orange,
+                        showChevron: false,
+                      ),
+                  ],
+                ),
+              ],
               const SectionLabel('Premium'),
               _ProSection(state: state),
               const SectionLabel('Help & support'),

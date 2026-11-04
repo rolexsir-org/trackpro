@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:ui' show PlatformDispatcher;
+
 import 'package:flutter/foundation.dart' show kReleaseMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,7 +12,7 @@ import 'data/db/database.dart';
 import 'data/commitment_repository.dart';
 import 'data/entry_repository.dart';
 import 'data/focus_repository.dart';
-import 'screens/home_shell.dart';
+import 'screens/startup_gate.dart';
 import 'services/billing_service.dart';
 import 'services/haptics.dart';
 import 'services/focus_platform.dart';
@@ -19,7 +21,9 @@ import 'services/notification_service.dart';
 import 'services/pro_analytics.dart';
 import 'services/screen_time_service.dart';
 import 'services/widget_bridge.dart';
+import 'state/app_startup.dart';
 import 'state/app_state.dart';
+import 'util/format.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -96,24 +100,95 @@ Future<void> main() async {
     packageName: _packageName,
   );
 
-  // A fresh install writes tracker DEFINITIONS and nothing else: the entry
-  // tables stay empty until the user (or Health Connect) records something.
+  // A fresh install writes tracker DEFINITIONS and nothing else: the entry tables stay
+  // empty until the user (or Health Connect) records something. There is no seeder seam
+  // here any more, and that is the point — the previous build could inject
+  // `DemoSeed.install` behind a `--dart-define`, and one mis-set flag would have shipped
+  // 28 days of invented history to real users. `EntryRepository.bootstrap()` takes no
+  // seeder at all, so the production start-up path has nothing to inject and nothing to
+  // forget; synthetic rows exist only as fixtures under `test/`.
   //
-  // There is no seeder seam here any more, and that is the point. The previous
-  // build could inject `DemoSeed.install` behind a `--dart-define`; a single
-  // mis-set flag would have shipped 28 days of invented history to real users.
-  // `EntryRepository.bootstrap()` now takes no seeder at all, so the production
-  // start-up path has nothing to inject and nothing to forget. Synthetic rows
-  // exist only as fixtures under `test/`.
-  // Order matters, and this used to be the other way round. Loading the state is
-  // what re-arms reminders — `recoverFocus()`, `syncFocusSchedules()` and the
-  // tier/preference sync all call into `NotificationService`, and every one of its
-  // methods returns early until `init()` has run. With `init()` last, a cold start
-  // armed the three general reminders from the post-frame callback below but left
-  // the user's *scheduled focus sessions* unarmed until they happened to edit one:
-  // silently no reminder after every reboot, update, or reinstall.
-  await notifications.init();
-  await state.load();
+  // The start-up sequence. It is *composed* here and *rendered* by `StartupGate`,
+  // which is the other half of the fix: these awaits used to sit between the process
+  // starting and `runApp`, so nothing was on screen until the last one finished, and an
+  // exception (or a platform call that never answered) left the launcher's splash colour
+  // there for ever — no widget tree to show an error in, no retry, and no record outside
+  // logcat. Now the frame comes first and the screens that read data are mounted only
+  // once the data is loaded. See `lib/state/app_startup.dart`.
+  final startup = AppStartup(
+    state: state,
+    // Order matters, and this used to be the other way round. Loading the state is
+    // what re-arms reminders — `recoverFocus()`, `syncFocusSchedules()` and the
+    // tier/preference sync all call into `NotificationService`, and every one of its
+    // methods returns early until `init()` has run. With `init()` last, a cold start
+    // armed the three general reminders but left the user's *scheduled focus sessions*
+    // unarmed until they happened to edit one: silently no reminder after every
+    // reboot, update, or reinstall.
+    //
+    // `notifications.init()` records its own failures and never throws; what can fail
+    // here is the database. When it does, the start-up screen says so and offers a
+    // retry instead of presenting an app over a database that did not open.
+    essential: () async {
+      await notifications.init();
+      await state.load();
+    },
+    // Work that must not be on the first frame's critical path. It runs after the
+    // interface is up, so a store that is not installed, a revoked permission or a
+    // widget host that refuses the snapshot costs the feature and never the launch.
+    background: () async {
+      // Billing last, and never blocking the first frame: the cached entitlement
+      // has already painted the correct tier.
+      try {
+        await billing.init(cached: state.entitlement);
+        await state.reconcileEntitlement();
+      } catch (error) {
+        state.recordStartupIssue('Billing', shortErrorText(error));
+      }
+
+      // One scheduler for all three reminders, honouring tier *and* the switches
+      // in Settings — scheduling straight from here would ignore a user who turned
+      // the daily check-in off.
+      try {
+        await state.syncReminders();
+        await widgetBridge.writeSnapshot(state);
+      } catch (error) {
+        state.recordStartupIssue('Reminders', shortErrorText(error));
+      }
+
+      // Health Connect sync: silent, read-only, and it never overwrites anything
+      // the user typed. Steps/Sleep/Weight wake up populated instead of blank.
+      try {
+        await state.refreshHealthPermission();
+        // Only merges what the user has already granted; the permission sheet is
+        // opened from Settings > Health Connect, deliberately. Pro-only: free users
+        // see the gate rather than a silent no-op.
+        if (state.canUseHealthSync && state.healthConnected) {
+          await state.syncHealth();
+          await notifications.syncStreakSaver(state);
+        }
+      } catch (error) {
+        // No Health Connect is not an error worth a banner; a Health Connect that
+        // answered with a failure is, and either way it is recorded rather than lost.
+        state.recordStartupIssue('Health Connect sync', shortErrorText(error));
+      }
+
+      // Usage Access screen-time sync: same silent, read-only pull for users who
+      // granted Usage Access from the Screen time detail screen or Focus Lock.
+      try {
+        await state.refreshScreenTimePermission();
+        if (state.screenTimeConnected) {
+          await state.syncScreenTime();
+        }
+      } catch (error) {
+        // No Usage Access or unsupported platform — manual logging stays unchanged.
+        state.recordStartupIssue('Screen time sync', shortErrorText(error));
+      }
+    },
+  );
+
+  // From here on every uncaught error is recorded where a person can read it. In a
+  // release build `debugPrint` reaches logcat and nobody's phone has a logcat.
+  installErrorRecording(state);
 
   // A release build that is misconfigured (no verification backend, non-HTTPS
   // policy URLs) is a build-time problem, and the app's job here is only to not be
@@ -135,47 +210,33 @@ Future<void> main() async {
   final lifecycle = _TrackLifecycle(state);
   WidgetsBinding.instance.addObserver(lifecycle);
 
-  runApp(TrackApp(state: state));
+  runApp(TrackApp(state: state, startup: startup));
+}
 
-  // Post-first-frame work, deliberately off the critical path.
-  WidgetsBinding.instance.addPostFrameCallback((_) async {
-    // Billing last, and never blocking the first frame: the cached entitlement
-    // has already painted the correct tier.
-    await billing.init(cached: state.entitlement);
-    await state.reconcileEntitlement();
-
-    // One scheduler for all three reminders, honouring tier *and* the switches
-    // in Settings — scheduling straight from here would ignore a user who turned
-    // the daily check-in off.
-    await state.syncReminders();
-    await widgetBridge.writeSnapshot(state);
-
-    // Health Connect sync: silent, read-only, and it never overwrites anything
-    // the user typed. Steps/Sleep/Weight wake up populated instead of blank.
-    try {
-      await state.refreshHealthPermission();
-      // Only merges what the user has already granted; the permission sheet is
-      // opened from Settings > Health Connect, deliberately. Pro-only: free users
-      // see the gate rather than a silent no-op.
-      if (state.canUseHealthSync && state.healthConnected) {
-        await state.syncHealth();
-        await notifications.syncStreakSaver(state);
-      }
-    } catch (_) {
-      // No Health Connect, no problem.
-    }
-
-    // Usage Access screen-time sync: same silent, read-only pull for users who
-    // granted Usage Access from the Screen time detail screen or Focus Lock.
-    try {
-      await state.refreshScreenTimePermission();
-      if (state.screenTimeConnected) {
-        await state.syncScreenTime();
-      }
-    } catch (_) {
-      // No Usage Access or unsupported platform — manual logging stays unchanged.
-    }
-  });
+/// Records uncaught errors in the same diagnostics list the start-up screen and
+/// Settings → Diagnostics read, instead of letting them end at `debugPrint`.
+///
+/// Two channels matter here and they are separate: [FlutterError.onError] for errors
+/// raised inside the framework (a build, layout or paint that threw), and
+/// [PlatformDispatcher.onError] for everything else that escapes a future — including
+/// the `unawaited()` calls this app relies on for its non-blocking work. The previous
+/// code had neither, so in release an unhandled asynchronous error was dropped without
+/// a trace: the user saw a screen that simply did not update.
+///
+/// The default handlers are still called, so behaviour is unchanged apart from the
+/// recording.
+void installErrorRecording(AppState state) {
+  final previous = FlutterError.onError;
+  FlutterError.onError = (details) {
+    state.recordStartupIssue('Interface', shortErrorText(details.exception));
+    previous?.call(details);
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    state.recordStartupIssue('Background', shortErrorText(error));
+    // Handled: the failure is recorded and shown, and one screen failing to refresh
+    // must not take the process down with it.
+    return true;
+  };
 }
 
 /// Application id, used for Play Billing queries and the manage-subscription
@@ -200,9 +261,14 @@ class _TrackLifecycle with WidgetsBindingObserver {
 }
 
 class TrackApp extends StatelessWidget {
-  const TrackApp({super.key, required this.state});
+  const TrackApp({super.key, required this.state, required this.startup});
 
   final AppState state;
+
+  /// The sequence that decides whether the interface may be built at all. `home:` is
+  /// [StartupGate], not `HomeShell`: every screen in the app reads stored data, and the
+  /// gate is what makes "the data loaded" a condition rather than an assumption.
+  final AppStartup startup;
 
   @override
   Widget build(BuildContext context) {
@@ -234,7 +300,7 @@ class TrackApp extends StatelessWidget {
               // Keep scrolling quiet and platform-appropriate without overriding
               // Android's native physics or route transitions.
               scrollBehavior: const TrackScrollBehavior(),
-              home: const HomeShell(),
+              home: StartupGate(startup: startup),
             ),
           ),
         );
