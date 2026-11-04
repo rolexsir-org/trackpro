@@ -307,3 +307,17 @@ String fmtRelativeTime(DateTime then, {DateTime? now}) {
   if (dayKey(then) == days) return 'yesterday';
   return shortDate(then);
 }
+
+/// One bounded line from an arbitrary error — the form a diagnostics row shows.
+///
+/// A phone screen cannot take a stack trace, and it should not take a multi-line
+/// `FormatException` either; but a failure reduced to nothing ("Something went wrong") is
+/// worse than useless when the whole point of the row is to say which layer broke. The
+/// first sentence of the real error is the honest middle: it names the operation, it keeps
+/// the platform's own wording, and it is short enough to read.
+String shortErrorText(Object error) {
+  final flat = error.toString().replaceAll(RegExp(r'\s+'), ' ').trim();
+  final text = flat.isEmpty ? error.runtimeType.toString() : flat;
+  const limit = 220;
+  return text.length <= limit ? text : '${text.substring(0, limit)}…';
+}

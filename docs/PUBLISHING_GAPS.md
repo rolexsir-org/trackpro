@@ -279,3 +279,21 @@ A release is publishable only when **all** of these are true:
 - [ ] A staged rollout plan and rollback plan are in place.
 
 Until then, the honest status is **NOT READY** — not "conditionally ready".
+
+---
+
+## 6. 2026-11-04 — start-up/blank-screen repair (status unchanged)
+
+A code change was made in this checkout against the blank-screen report; it is recorded in
+[`STARTUP_2026-11-04.md`](STARTUP_2026-11-04.md). Summary of its effect on this register:
+
+- **Root cause fixed in source**: `main()` no longer initializes anything before the first
+  frame. `AppStartup` + `StartupGate` render a deliberate start-up state, refuse to mount
+  `HomeShell` until `AppState.isLoaded`, and offer a retry with the failing layer named.
+- **Nothing in §1 changes.** The Python gates pass again (§1 table: release gate 53 checks,
+  static/import/member/symbol/test-API audits, gate probes); the Flutter toolchain is still
+  absent, so `flutter pub get`, `dart format`, `flutter analyze`, `flutter test`, both APK
+  builds and the device smoke test remain **NEVER RUN**, and `test/startup_test.dart` is
+  written but unexecuted.
+- **New code is compile-unverified**, exactly like the rest of `lib/`: a first
+  `flutter analyze` should be expected to report issues in it.
