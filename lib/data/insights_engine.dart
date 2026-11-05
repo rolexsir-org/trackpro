@@ -72,7 +72,7 @@ class InsightsEngine {
     };
 
     final totalLoggedDays = _distinctLoggedDays(loggedByTracker);
-    final window = history.values.isEmpty ? 0 : history.values.first.length;
+    final window = _windowLength(history);
 
     out.add(_progressInsight(totalLoggedDays, window));
 
@@ -107,8 +107,22 @@ class InsightsEngine {
   }
 
   // ------------------------------------------------------------------ helpers
+  /// The longest loaded series. Using the first one let an empty or short series
+  /// shrink the window for every other tracker, and made `_distinctLoggedDays`
+  /// miss logged days that lived in a longer series.
+  static int _windowLength(Map<String, List<double>> history) {
+    var length = 0;
+    for (final series in history.values) {
+      if (series.length > length) length = series.length;
+    }
+    return length;
+  }
+
   static int _distinctLoggedDays(Map<String, List<bool>> byTracker) {
-    final length = byTracker.values.isEmpty ? 0 : byTracker.values.first.length;
+    var length = 0;
+    for (final flags in byTracker.values) {
+      if (flags.length > length) length = flags.length;
+    }
     var n = 0;
     for (var i = 0; i < length; i++) {
       for (final flags in byTracker.values) {
@@ -179,6 +193,15 @@ class InsightsEngine {
   }
 
   static Insight _consistency(Map<String, List<bool>> logged, List<Tracker> trackers, int window) {
+    if (trackers.isEmpty) {
+      return const Insight(
+        emoji: '🎯',
+        title: 'No trackers to compare yet',
+        body: 'Turn a tracker back on and its logged days will appear here.',
+        sampleDays: 0,
+        kind: InsightKind.rhythm,
+      );
+    }
     var best = trackers.first;
     var bestCount = -1;
     for (final t in trackers) {
@@ -255,7 +278,8 @@ class InsightsEngine {
           emoji: positive ? '↗️' : '↘️',
           title: '${_label(pair[0])} and ${_label(pair[1])} move together ${positive ? 'upward' : 'downward'}',
           body:
-              'Across the $n days where you logged both, days with more ${_label(pair[0]).toLowerCase()} tended to have '
+              'Across the $n days where you logged both, days with more ${_label(pair[0]).toLowerCase()} '
+              'tended to have '
               '${positive ? 'higher' : 'lower'} ${_label(pair[1]).toLowerCase()} (r = ${r.toStringAsFixed(2)}). '
               'That is an association in your own data, not proof of cause.',
           sampleDays: n,
@@ -273,7 +297,7 @@ class InsightsEngine {
     Map<String, List<bool>> logged,
   ) {
     final out = <Insight>[];
-    final length = history.values.isEmpty ? 0 : history.values.first.length;
+    final length = _windowLength(history);
     if (length < 21) return out; // three weeks before weekdays mean anything
 
     for (final t in trackers) {

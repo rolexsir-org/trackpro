@@ -237,12 +237,22 @@ void installErrorRecording(AppState state) {
     // must not take the process down with it.
     return true;
   };
+
+  // In release the default ErrorWidget is a grey rectangle: a build exception in
+  // one tab looked exactly like the blank screen this pass exists to remove.
+  // Replace it with a readable, recoverable surface. The error is already in
+  // Diagnostics; this is the in-place explanation and the way back.
+  ErrorWidget.builder = (details) => _InterfaceErrorPanel(state: state, details: details);
 }
 
 /// Application id, used for Play Billing queries and the manage-subscription
 /// deep link. Kept in one place so the overlay's `build.gradle` and the Dart side
 /// cannot drift apart.
 const String _packageName = 'com.track.app';
+
+/// Root navigator key, used by the interface error fallback to pop back to the
+/// shell when a pushed route is the thing that failed to build.
+final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
 
 /// Foreground transitions are the only reliable moment to re-check a
 /// subscription: Android can suspend the process mid-trial and Play will not
@@ -293,6 +303,7 @@ class TrackApp extends StatelessWidget {
             value: state,
             child: MaterialApp(
               title: 'Track Pro',
+              navigatorKey: _navigatorKey,
               debugShowCheckedModeBanner: false,
               themeMode: state.isDark ? ThemeMode.dark : ThemeMode.light,
               theme: TrackTheme.light(),
@@ -451,6 +462,99 @@ class TrackTheme {
             boxShadow: shadow == null ? cardShadow(dark) : <BoxShadow>[shadow],
           ),
           child: child,
+        ),
+      ),
+    );
+  }
+}
+
+/// The in-place replacement for Flutter's grey release-mode ErrorWidget.
+///
+/// A build/layout/paint exception used to leave a blank rectangle where a screen
+/// should be, with the only record in logcat. This names the failure, keeps the
+/// user's data out of it, and offers two ways back: rebuild the shell's children,
+/// or pop to the shell and land on Today. The error itself is already recorded in
+/// Settings → Diagnostics by [installErrorRecording].
+class _InterfaceErrorPanel extends StatelessWidget {
+  const _InterfaceErrorPanel({required this.state, required this.details});
+
+  final AppState state;
+  final FlutterErrorDetails details;
+
+  void _recover({required bool toToday}) {
+    if (toToday) state.setTab(0);
+    _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+    state.retryInterface();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dark = state.isDark;
+    final message = shortErrorText(details.exception);
+    return Material(
+      color: TrackTheme.bg(dark),
+      child: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 28, color: TrackTheme.orange),
+                const SizedBox(height: 12),
+                Text(
+                  'This screen could not be drawn',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: TrackTheme.label(dark)),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Your data has not been changed. The failure was recorded in Profile → Diagnostics.',
+                  style: TextStyle(fontSize: 14, height: 1.45, color: TrackTheme.label2(dark)),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: TrackTheme.surface(dark),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: TrackTheme.separator(dark)),
+                  ),
+                  child: Text(
+                    message,
+                    style: TextStyle(fontSize: 12.5, height: 1.4, color: TrackTheme.label3(dark)),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => _recover(toToday: false),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: TrackTheme.orange,
+                      foregroundColor: Colors.black,
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: const Text('Try again'),
+                  ),
+                ),
+                const SizedBox(height: 9),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: () => _recover(toToday: true),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TrackTheme.label(dark),
+                      side: BorderSide(color: TrackTheme.separator(dark)),
+                      minimumSize: const Size.fromHeight(48),
+                    ),
+                    child: const Text('Back to Today'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

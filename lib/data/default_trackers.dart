@@ -184,6 +184,47 @@ class DefaultTrackers {
     }
     return null;
   }
+
+  /// Materialises an "add more" catalogue entry as a real tracker definition.
+  ///
+  /// The addable list used to be only a settings flag: tapping Add said "tracker
+  /// added" but no row was ever written, so it never appeared on Today. This gives
+  /// each catalogue entry the same shape the shipped trackers have, with honest
+  /// default goals and units. History still starts empty.
+  static Tracker? addableAsTracker(String id) {
+    AdditionalTracker? entry;
+    for (final e in addable) {
+      if (e.id == id) {
+        entry = e;
+        break;
+      }
+    }
+    if (entry == null) return null;
+
+    final spec = switch (id) {
+      'caffeine' => (MetricKind.volume, 200.0, 50.0, 'mg', 'Caffeine', 'Keep an eye on the daily total.'),
+      'reading' => (MetricKind.habits, 20.0, 5.0, 'pages', 'Reading', 'Pages or minutes — whichever you log.'),
+      'journal' => (MetricKind.habits, 1.0, 1.0, 'entry', 'Journaling', 'One entry a day is enough.'),
+      'meditation' => (MetricKind.minutes, 10.0, 5.0, 'min', 'Meditation', 'Minutes on the cushion.'),
+      'skincare' => (MetricKind.habits, 2.0, 1.0, 'done', 'Skincare', 'AM and PM, logged as steps.'),
+      'vitamins' => (MetricKind.habits, 1.0, 1.0, 'done', 'Vitamins', 'Did you take today’s stack?'),
+      _ => (MetricKind.habits, 1.0, 1.0, 'done', entry.name, entry.blurb),
+    };
+
+    return Tracker(
+      id: id,
+      name: spec.$5,
+      emoji: entry.emoji,
+      accent: Color(entry.accent),
+      accent2: Color(entry.accent),
+      kind: spec.$1,
+      goal: spec.$2,
+      step: spec.$3,
+      unit: spec.$4,
+      blurb: entry.blurb,
+      insight: spec.$6,
+    );
+  }
 }
 
 /// A tracker that can be added to the dashboard from the "add more" list.

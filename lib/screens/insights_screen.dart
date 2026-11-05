@@ -473,12 +473,21 @@ class _StreakCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final flags = state.loggedFlags(7);
+    // `loggedFlags` can legitimately be empty (nothing loaded, or a projection
+    // whose series are all empty). Reading `.last` unconditionally threw a
+    // StateError here and painted the Insights tab as a blank/error surface in
+    // release even though the rest of the app was fine.
+    final todayLogged = flags.isNotEmpty && flags.last;
+    final dots = state.loggedFlags(state.days);
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: TrackTheme.surface(Theme.of(context).brightness == Brightness.dark),
+        color: TrackTheme.surface(dark),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: TrackTheme.separator(Theme.of(context).brightness == Brightness.dark), width: .5),
+        border: Border.all(color: TrackTheme.separator(dark), width: .5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,35 +507,39 @@ class _StreakCard extends StatelessWidget {
             state.bestStreak == 0
                 ? 'No streak running. Log anything today and this starts at 1.'
                 : 'day streak on your most consistent tracker. '
-                      '${state.loggedFlags(7).last ? 'Today is logged.' : 'Log today to extend it.'}',
+                      '${todayLogged ? 'Today is logged.' : 'Log today to extend it.'}',
             style: TextStyle(
               fontSize: 14,
               height: 1.4,
               fontWeight: FontWeight.w500,
-              color: TrackTheme.label2(Theme.of(context).brightness == Brightness.dark),
+              color: TrackTheme.label2(dark),
             ),
           ),
           const SizedBox(height: 15),
-          Row(
-            children: [
-              // One dot per day, filled only where something was actually logged.
-              for (final logged in state.loggedFlags(state.days))
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(right: 3),
-                    child: Container(
-                      height: 11,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: logged
-                            ? TrackTheme.orange
-                            : TrackTheme.fill(Theme.of(context).brightness == Brightness.dark),
+          if (dots.isEmpty)
+            Text(
+              'No days loaded yet.',
+              style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500, color: TrackTheme.label3(dark)),
+            )
+          else
+            Row(
+              children: [
+                // One dot per day, filled only where something was actually logged.
+                for (final logged in dots)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 3),
+                      child: Container(
+                        height: 11,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: logged ? TrackTheme.orange : TrackTheme.fill(dark),
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );

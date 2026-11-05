@@ -12,6 +12,7 @@ import '../services/notification_service.dart';
 import '../state/app_state.dart';
 import '../widgets/ios_tab_bar.dart';
 import '../widgets/progress_ring.dart';
+import 'commitment_sheets.dart';
 import 'focus_setup_sheets.dart';
 import 'insights_screen.dart';
 import 'log_sheets.dart';
@@ -57,7 +58,12 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-    final tab = state.tabIndex;
+    // Defence in depth: AppState rejects out-of-range indices, but the shell must
+    // never hand IndexedStack an index it cannot render even if a stale value
+    // survives a hot reload or a future caller forgets the guard.
+    final tab = state.tabIndex < 0
+        ? 0
+        : (state.tabIndex >= AppState.tabCount ? AppState.tabCount - 1 : state.tabIndex);
 
     // Five sections, in the order the product thinks in: do → commit → verify →
     // understand → configure. Measurements are reached from Routines or Profile
@@ -76,9 +82,14 @@ class _HomeShellState extends State<HomeShell> {
         children: [
           // Keep every destination mounted. This preserves each tab's scroll
           // position and transient UI (such as Routines filters) while still
-          // letting AppState own the actual persisted records.
+          // letting AppState own the actual persisted records. The epoch key lets
+          // the global error fallback discard a broken subtree on "Try again".
           Positioned.fill(
-            child: IndexedStack(index: tab, children: screens),
+            child: IndexedStack(
+              key: ValueKey<int>(state.interfaceEpoch),
+              index: tab,
+              children: screens,
+            ),
           ),
           Positioned(
             right: 18,
@@ -217,6 +228,33 @@ class _OnboardingOverlay extends StatefulWidget {
 class _OnboardingOverlayState extends State<_OnboardingOverlay> {
   int step = 0;
   bool played = true;
+  bool _finishing = false;
+
+  /// Completes onboarding without letting a second tap race the first, and opens
+  /// the routine picker when the final CTA promised to create one. The overlay is
+  /// only dismissed after [AppState.completeOnboarding] has persisted the flag.
+  Future<void> _finish({required bool createRoutine}) async {
+    if (_finishing) return;
+    setState(() => _finishing = true);
+    final state = context.read<AppState>();
+    final landingTab = state.hasCommitments ? null : 1;
+    await state.completeOnboarding(landingTab: landingTab);
+    if (!mounted) return;
+    setState(() => _finishing = false);
+    if (!state.onboarded) {
+      // The write failed; the banner in the shell names it, but the overlay is
+      // still covering the shell, so say it here too instead of going silent.
+      showTrackToast(context, 'Onboarding could not be saved. Try again.');
+      return;
+    }
+    if (createRoutine && !state.hasCommitments) {
+      // Let the overlay leave the tree before the sheet is pushed, so the sheet
+      // is not built underneath a full-screen container that is about to vanish.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) showTemplatePicker(context);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,7 +273,8 @@ class _OnboardingOverlayState extends State<_OnboardingOverlay> {
       ],
       [
         'See what you kept.',
-        'Momentum shows the days you followed through, plus your focus time. Nothing is invented when there is no data.',
+        'Momentum shows the days you followed through, plus your focus time. '
+            'Nothing is invented when there is no data.',
       ],
     ];
 
@@ -299,23 +338,20 @@ class _OnboardingOverlayState extends State<_OnboardingOverlay> {
                   const SizedBox(height: 18),
                   TrackFilledButton(
                     label: step == 2 ? 'Create my first routine' : 'Continue',
-                    onTap: () {
-                      if (step < 2) {
-                        setState(() => step++);
-                        return;
-                      }
-                      final state = context.read<AppState>();
-                      state.completeOnboarding();
-                      // Land on Routines, not on a dashboard of empty rings: the
-                      // first meaningful action is creating a commitment, and the
-                      // empty state there says so.
-                      if (!state.hasCommitments) state.setTab(1);
-                    },
+                    onTap: _finishing
+                        ? null
+                        : () {
+                            if (step < 2) {
+                              setState(() => step++);
+                              return;
+                            }
+                            unawaited(_finish(createRoutine: true));
+                          },
                   ),
                   const SizedBox(height: 9),
                   TrackTintedButton(
                     label: 'Just show me the app',
-                    onTap: () => context.read<AppState>().completeOnboarding(),
+                    onTap: _finishing ? null : () => unawaited(_finish(createRoutine: false)),
                   ),
                   const SizedBox(height: 26),
                 ],
@@ -494,19 +530,28 @@ class NotificationRouter extends StatefulWidget {
 }
 
 class _NotificationRouterState extends State<NotificationRouter> {
+  StreamSubscription<String>? _tapSub;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _drain());
   }
 
+  @override
+  void dispose() {
+    unawaited(_tapSub?.cancel() ?? Future<void>.value());
+    super.dispose();
+  }
+
   void _drain() {
+    if (!mounted) return;
     final parked = pendingNotificationPayload;
     if (parked != null) {
       pendingNotificationPayload = null;
       _route(parked);
     }
-    context.read<AppState>().notifications?.onTap.listen(_route);
+    _tapSub = context.read<AppState>().notifications?.onTap.listen(_route);
   }
 
   void _route(String? payload) {
