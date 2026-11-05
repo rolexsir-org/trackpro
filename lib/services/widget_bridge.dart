@@ -34,6 +34,7 @@ class WidgetBridge {
 
   /// Debounced so a burst of writes (water +250 ×6) produces one snapshot.
   Future<void> writeSnapshot(AppState state) async {
+    if (_disposed) return;
     if (DateTime.now().difference(_lastWrite) < _minInterval) {
       _debounce?.cancel();
       _debounce = Timer(_minInterval, () => unawaited(writeSnapshot(state)));
@@ -41,14 +42,27 @@ class WidgetBridge {
     }
     _lastWrite = DateTime.now();
 
-    final payload = buildPayload(state);
     try {
+      // Building the payload reads the live projection. It used to sit outside
+      // the try, so a bad state (a missing tracker, an empty series) threw past
+      // this method's own error handling and escaped through the unawaited call
+      // in AppState — including the one fired when onboarding completes.
+      final payload = buildPayload(state);
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(storageKey, jsonEncode(payload));
       await _channel.invokeMethod<void>('refresh');
     } catch (e) {
       debugPrint('$debugLabel: snapshot write failed — $e');
     }
+  }
+
+  bool _disposed = false;
+
+  /// Cancels a pending debounce so a timer cannot fire after the owner is gone.
+  void dispose() {
+    _disposed = true;
+    _debounce?.cancel();
+    _debounce = null;
   }
 
   /// Three rings, a streak and a one-line summary. Deliberately tiny: widgets

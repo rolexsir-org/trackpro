@@ -83,6 +83,16 @@ class AppState extends ChangeNotifier {
   bool isDark = false;
   bool onboarded = false;
   int tabIndex = 0;
+
+  /// The number of destinations [HomeShell] renders. Kept here so a notification
+  /// payload, a deep link or a future screen cannot ask for an index that would
+  /// make `IndexedStack` throw and take the whole shell down.
+  static const int tabCount = 5;
+
+  /// Bumped by [retryInterface] so the shell can rebuild its children after a
+  /// recoverable interface error without restarting the process.
+  int interfaceEpoch = 0;
+
   String _range = 'week';
   bool editing = false;
 
@@ -242,7 +252,17 @@ class AppState extends ChangeNotifier {
 
   /// Days actually held in memory (the repository's cache window). The 90-day Pro
   /// range is drawn from this, so a chart never indexes past its own series.
-  int get loadedDays => history.values.isEmpty ? days : history.values.first.length;
+  ///
+  /// Uses the *longest* loaded series, not the first one: a tracker added later,
+  /// or a projection that carries an empty series for one id, must not shrink the
+  /// window every other chart is drawn against.
+  int get loadedDays {
+    var length = 0;
+    for (final series in history.values) {
+      if (series.length > length) length = series.length;
+    }
+    return length == 0 ? days : length;
+  }
 
   List<Tracker> get visibleTrackers =>
       trackers.where((t) => !t.hidden).toList()..sort((a, b) => a.order.compareTo(b.order));
@@ -354,8 +374,17 @@ class AppState extends ChangeNotifier {
 
   /// Which of the last [n] days have any logged value at all. Drives the streak
   /// dots, so they show the user's real pattern including the gaps.
+  ///
+  /// Returns an empty list when nothing is loaded. Callers must not assume a
+  /// non-empty result: `loggedFlags(7).last` threw on a projection whose first
+  /// series was empty even though another tracker had a streak, which is exactly
+  /// the kind of build-time exception that paints a blank tab in release.
   List<bool> loggedFlags(int n) {
-    final length = history.values.isEmpty ? 0 : history.values.first.length;
+    var length = 0;
+    for (final series in history.values) {
+      if (series.length > length) length = series.length;
+    }
+    if (length == 0 || n <= 0) return const <bool>[];
     final take = n > length ? length : n;
     return [
       for (var i = length - take; i < length; i++) history.values.any((series) => i < series.length && series[i] > 0),
@@ -1642,9 +1671,24 @@ class AppState extends ChangeNotifier {
 
   // ------------------------------------------------------------------ mutators
   void setTab(int i) {
+    if (i < 0 || i >= tabCount) {
+      // An out-of-range destination is a caller bug, not a user action. Record it
+      // and stay where we are rather than letting IndexedStack throw and blank the
+      // shell. The tab bar itself only ever emits valid indices.
+      recordStartupIssue('Navigation', 'Ignored out-of-range tab $i');
+      return;
+    }
     if (i == tabIndex) return;
     tabIndex = i;
     Haptics.selection();
+    notifyListeners();
+  }
+
+  /// Rebuilds the shell's children after a recoverable interface error. The epoch
+  /// is part of the children's keys, so a stale element tree is discarded instead
+  /// of being reused with the same broken state.
+  void retryInterface() {
+    interfaceEpoch++;
     notifyListeners();
   }
 
@@ -1666,10 +1710,35 @@ class AppState extends ChangeNotifier {
 
   void toggleTheme() => unawaited(setTheme(!isDark));
 
-  Future<void> completeOnboarding() async {
+  /// Finishes the first-launch story.
+  ///
+  /// The preference is written **before** the overlay is dismissed. The previous
+  /// order set `onboarded = true`, notified, and only then awaited the write; a
+  /// failed write left the user in the app for this run but replayed onboarding on
+  /// the next launch, and an exception from the snapshot path escaped after the UI
+  /// had already moved on. Persisting first means the overlay only disappears when
+  /// the app can honestly say it will not come back.
+  ///
+  /// [landingTab] is applied in the same notification so the user does not see a
+  /// frame of the old destination followed by a jump.
+  Future<void> completeOnboarding({int? landingTab}) async {
+    try {
+      await repo.dao.setSetting('onboarded', '1');
+    } catch (error) {
+      writeFailure = SaveFailure(
+        action: 'Onboarding',
+        detail: _describeWriteError(error),
+        at: DateTime.now(),
+      );
+      recordStartupIssue('Onboarding', shortErrorText(error));
+      notifyListeners();
+      return;
+    }
     onboarded = true;
+    if (landingTab != null && landingTab >= 0 && landingTab < tabCount) {
+      tabIndex = landingTab;
+    }
     notifyListeners();
-    await repo.dao.setSetting('onboarded', '1');
     unawaited(_writeWidgetSnapshot());
   }
 
@@ -2002,10 +2071,37 @@ class AppState extends ChangeNotifier {
   }
 
   void toggleAdded(String id) {
-    added.contains(id) ? added.remove(id) : added.add(id);
+    final adding = !added.contains(id);
+    if (adding) {
+      final template = DefaultTrackers.addableAsTracker(id);
+      if (template == null) {
+        Haptics.warning();
+        return;
+      }
+      added.add(id);
+      final existing = trackerOrNull(id);
+      if (existing != null) {
+        existing.hidden = false;
+      } else {
+        template.order = trackers.length;
+        trackers.add(template);
+        history[id] = List<double>.filled(EntryRepository.cacheDays, 0);
+      }
+    } else {
+      added.remove(id);
+      // Removing from the dashboard hides the tracker; it does not delete the
+      // history the user already logged against it.
+      trackerOrNull(id)?.hidden = true;
+    }
     Haptics.selection();
     notifyListeners();
-    unawaited(_persist(() => repo.dao.setSetting('added', jsonEncode(added)), label: 'Added list'));
+    unawaited(
+      _persist(() async {
+        await repo.dao.setSetting('added', jsonEncode(added));
+        final t = trackerOrNull(id);
+        if (t != null) await repo.persistTracker(t, t.order);
+      }, label: 'Added list'),
+    );
   }
 
   /// Health Connect pull: steps, sleep, weight. Never overwrites manual entries.
@@ -2308,6 +2404,7 @@ class AppState extends ChangeNotifier {
     _billingUpdates = null;
     if (sub != null) unawaited(sub.cancel());
     billing?.removeListener(_onBillingChanged);
+    widgetBridge?.dispose();
     super.dispose();
   }
 

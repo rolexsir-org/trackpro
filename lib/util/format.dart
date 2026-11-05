@@ -205,7 +205,12 @@ double activityScore(List<Tracker> trackers, Map<String, List<double>> data, int
     final series = data[t.id];
     final v = (series != null && i < series.length) ? series[i] : 0;
     if (t.id == 'expenses' || t.id == 'screen') {
-      hits += v <= t.goal ? 1 : .35;
+      // A gap-filled zero is not a logged "spent nothing" / "no screen time" day.
+      // The series cannot distinguish the two, so scoring `v <= goal` on a blank
+      // day gave a fresh install a non-zero consistency score for days nobody
+      // logged. Only a positive value contributes; over-budget still contributes
+      // partially, which is the intended budget signal.
+      hits += v <= 0 ? 0 : (v <= t.goal ? 1 : .35);
     } else if (t.id == 'period' || t.id == 'weight') {
       // A cycle-day marker and a weigh-in are facts about a day, not a fraction of a
       // target, so the only question is whether anything was recorded. Both used to
@@ -248,7 +253,8 @@ String _group(int v) {
 String weekdayShort(DateTime d) => const ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.weekday % 7];
 
 String shortDate(DateTime d) =>
-    '${d.day} ${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
+    '${d.day} '
+    '${const ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.month - 1]}';
 
 String longDate(DateTime d) {
   const wd = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
