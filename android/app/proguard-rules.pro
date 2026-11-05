@@ -28,7 +28,7 @@
 -keepnames class kotlinx.coroutines.CoroutineExceptionHandler {}
 
 # ---------------------------------------------------------------------------
-# Focus Lock (android_overlay/…/Focus*.kt)
+# Focus Lock (android/app/src/main/kotlin/.../Focus*.kt)
 # ---------------------------------------------------------------------------
 # These three classes are named in AndroidManifest.xml and instantiated by the
 # *system* (the service by ActivityManager, the panel activity by the detector), so

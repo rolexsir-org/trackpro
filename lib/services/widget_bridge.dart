@@ -18,7 +18,7 @@ import '../util/format.dart';
 /// - the snapshot is ~600 bytes, written at most once per second, and is exactly
 ///   the data a widget is allowed to show.
 ///
-/// The Kotlin side (`android_overlay/.../widget/TrackWidget.kt`) reads
+/// The Kotlin side (`android/app/.../TrackWidget.kt`) reads
 /// `FlutterSharedPreferences` → key `flutter.track.widget.snapshot`, draws three
 /// rings from it, and is nudged to redraw through the `track/widget` channel.
 class WidgetBridge {
