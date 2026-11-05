@@ -103,8 +103,8 @@ renewal, and `Entitlement.isLifetime == true` forever after.
 meets the current Play requirement (Billing Library 8+ for new releases). Don't
 pin a lower version "for safety" — a downgrade fails the release review.
 
-No Gradle dependency line is needed; see `android_overlay/app/build.gradle.additions`
-§3 for the note and the optional explicit pin.
+No Gradle dependency line is needed — the transitive Billing 8.x from
+`in_app_purchase_android` is sufficient, and an explicit lower pin is not.
 
 ---
 

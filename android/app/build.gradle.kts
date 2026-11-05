@@ -132,6 +132,5 @@ dependencies {
     // (play-services-wearable, for WearSync) and it was removed: `android/settings.gradle.kts`
     // includes `:app` only, so there is no `:wear` module to receive a snapshot — the code
     // never ran, and the GMS transport it pulled in sent its own telemetry to
-    // firebaselogging.googleapis.com. Re-add it with the `:wear` module, not before;
-    // `android_overlay/wear/HOW_TO_ADD_WEAR.md` §3 has the phone-side source.
+    // firebaselogging.googleapis.com. Re-add it only together with a `:wear` module.
 }

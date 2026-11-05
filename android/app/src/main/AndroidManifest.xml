@@ -2,12 +2,11 @@
 <!--
   Track Pro Android host manifest.
 
-  This is the Flutter launcher host merged with the entries from
-  android_overlay/app/src/main/AndroidManifest.xml (the overlay file documents
-  the reason every permission exists and which ones are deliberately absent —
-  read it before adding or removing anything here).
+  This is the Flutter launcher host. Read the comments below before adding or
+  removing any permission — each entry states its reason, and the deliberately
+  absent ones are listed with their rationale.
 
-  DELIBERATELY ABSENT (see the overlay manifest for the full rationale):
+  DELIBERATELY ABSENT (rationale inline below):
   - SCHEDULE_EXACT_ALARM / USE_EXACT_ALARM (reminders are scheduled inexactly)
   - INTERNET (declared by the Flutter engine's own manifest merge)
   - READ_HEALTH_DATA_IN_BACKGROUND, location, body sensors, contacts, camera,
@@ -32,7 +31,7 @@
         tools:node="replace" />
 
     <!-- Focus Lock seam: usage access + overlay panel + the detector service.
-         Each is explained at length in android_overlay/.../AndroidManifest.xml. -->
+         Each is required for the Focus Lock overlay to detect and block apps. -->
     <uses-permission
         android:name="android.permission.PACKAGE_USAGE_STATS"
         tools:ignore="ProtectedPermissions" />

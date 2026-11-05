@@ -23,8 +23,7 @@ sleep, weight) and a Play Billing paywall.
 |---|---|
 | `lib/` | All Dart code. Entry point `lib/main.dart`. |
 | `lib/data/db/database.dart` | Drift schema (v4). `database.g.dart` is **generated** — never edit by hand. |
-| `android/` | The real Android host (Gradle, manifest, Kotlin seams, widget, Focus Lock service). |
-| `android_overlay/` | **Historical.** The pre-merge overlay; superseded by `android/`. See its README. |
+| `android/` | The one and only Android host (Gradle, manifest, Kotlin seams, widget, Focus Lock service). |
 | `test/` | Unit/widget tests (`flutter test`). |
 | `billing_server/` | Node 20 Play Billing verification + RTDN service (zero runtime deps). |
 | `tools/` | Python text-audit gates that run without a Flutter SDK. |
