@@ -56,11 +56,25 @@ format_check() {
 
 codegen_fresh() {
   dart run build_runner build --delete-conflicting-outputs || return 1
-  if ! git diff --exit-code --stat -- lib/data/db/database.g.dart; then
-    echo "database.g.dart was stale. The regenerated version is now in your"
-    echo "working tree — review and commit it, then re-run this script."
-    return 1
+  if git diff --quiet -- lib/data/db/database.g.dart; then
+    return 0
   fi
+  # Stale is not a verdict, it is a question: did the schema move, or did
+  # `dart format` change style under us (the 3.7 tall-style reflow)? The two
+  # need opposite amounts of scrutiny on a 12k-line generated diff, so classify
+  # it rather than asking a human to eyeball it.
+  echo "database.g.dart was stale. Classifying the change:"
+  echo
+  if python3 tools/codegen_diff_semantic.py; then
+    echo
+    echo "Formatter reflow, not a schema change. Safe to commit mechanically:"
+    echo "  git add lib/data/db/database.g.dart && git commit"
+  else
+    echo
+    echo "Real schema change. Review that diff deliberately before committing."
+  fi
+  echo "Either way this gate stays red until the file is committed; re-run after."
+  return 1
 }
 
 artifact_check() {
