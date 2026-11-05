@@ -55,10 +55,34 @@ association; it is not derived from anything about the person.
 - **The billing service receives no tracker data, ever.** It receives a purchase
   token and an opaque install id. There is no code path that could attach a
   tracker value to a request.
-- **No analytics, ads, crash-reporting or attribution SDK is present.** Nothing in
-  `pubspec.yaml` phones home; `ProAnalytics` is a *local* SQLite table of funnel
+- **No analytics, ads, crash-reporting or attribution SDK is integrated.** Nothing
+  in `pubspec.yaml` phones home; `ProAnalytics` is a *local* SQLite table of funnel
   events (paywall views, plan selections) used to answer questions in this repo,
   not a network SDK.
+
+### Platform SDK telemetry — read this before answering the Data safety form
+
+The sentence above is about SDKs **we chose**. It is not a statement that the
+process never talks to Google, and it must not be filed as one.
+
+Google Play services, the Health Connect client and the Play Billing library are
+platform components. They ship their own transport layer (Clearcut / CCT), which
+sends SDK diagnostics to `firebaselogging.googleapis.com`. That is visible in
+`adb logcat` as `TRuntime.CctTransportBackend`. It carries no tracker data, it is
+not ours, and app code cannot suppress it. The word "Firebase" in that hostname
+is a red herring: **there is no Firebase in this project** — `grep -rIl firebase`
+over the repo returns nothing.
+
+As of 2026-11-05 the app declares **no** `com.google.*` dependency. It previously
+declared one — `play-services-wearable`, for a `WearSync` snapshot push that was
+never called (`MainActivity`'s `track/widget` handler only refreshed the widget)
+and for which no `:wear` module exists. Dead code, bundled GMS telemetry, and a
+store claim it contradicted; it was removed. Do not re-add it without the module.
+
+**Verify before filing:** on a release build, run
+`adb logcat | grep -iE 'cct|firebaselogging'` and confirm what still reports. If
+anything does, describe it as platform-SDK diagnostics in the policy rather than
+claiming the process is silent.
 
 ## 3. Retention
 

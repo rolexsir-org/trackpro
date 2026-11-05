@@ -132,7 +132,7 @@ directory, no `fastlane/` metadata, and no screenshot source.
 
 | # | Gap | Evidence | Severity |
 |---|---|---|---|
-| 6.1 | **The Wear OS tile is advertised but not built.** `ProConfig` and the paywall say "widget with 3 rings + Wear tile". The only Wear code is `android_overlay/wear/TrackTileService.kt`, which is **not** in `android/` and is not included by `android/settings.gradle.kts`. `WearSync.kt` is present, but there is no `:wear` module. | `android_overlay/wear/HOW_TO_ADD_WEAR.md` ("deliberately-disabled"); `android/settings.gradle.kts` `include(":app")` only; `ProConfig` free/Pro table | **P1** (misleading claim) |
+| 6.1 | **The Wear OS tile is advertised but not built.** `ProConfig` and the paywall said "widget with 3 rings + Wear tile". The only Wear code is `android_overlay/wear/TrackTileService.kt`, which is **not** in `android/` and is not included by `android/settings.gradle.kts`. | `android_overlay/wear/HOW_TO_ADD_WEAR.md` ("deliberately-disabled"); `android/settings.gradle.kts` `include(":app")` only; `ProConfig` free/Pro table | **CLOSED 2026-11-05** — the claim was dropped from `ProConfig`/paywall (now "widget with 3 rings"), and `WearSync.kt` + `play-services-wearable` were removed from `android/`: no `:wear` module exists, so the push had nowhere to go and the bundled GMS transport was sending SDK telemetry to `firebaselogging.googleapis.com` for code that never ran. Phone-side source parked at `android_overlay/wear/phone_side/WearSync.kt`; see `HOW_TO_ADD_WEAR.md` §3 to re-add it with the module. |
 | 6.2 | **The home-screen widget is built but never run.** `TrackWidget.kt` + `TrackWidgetReceiver` + Glance are in `android/`, and the keep rules are present. It has never been rendered. | `android/app/src/main/kotlin/.../TrackWidget.kt`; `proguard-rules.pro` | **P0** (device verification) |
 | 6.3 | **`@layout/glance_default_loading_layout` is unverified.** `track_widget_info.xml` references it; it is expected to come from the Glance library, but no build has resolved it. | `android/app/src/main/res/xml/track_widget_info.xml` | **P1** (first build will tell) |
 | 6.4 | **No crash/ANR monitoring.** A production incident would be discovered by reviews. | `docs/PRODUCTION_READINESS.md` §11 item 8 | **P1** |
@@ -223,9 +223,10 @@ the release. Each is a factual contradiction with the current tree.
 - Store listing assets: 512 icon, 1024×500 feature graphic, ≥ 2 (ideally 8)
   phone screenshots, short/full description, category, support email, "What's
   new".
-- Decide the Wear claim: either build and include the `:wear` module, or remove
-  "Wear tile" from `ProConfig`/paywall/store copy. Do not ship a claim the
-  build does not contain.
+- ~~Decide the Wear claim~~ **Decided 2026-11-05: do not ship Wear.** The claim is
+  out of `ProConfig`/paywall/store copy and the unwired `WearSync` +
+  `play-services-wearable` are out of `android/`. If Wear is ever built, re-add all
+  three together from `android_overlay/wear/`.
 - Add `LICENSE`, `CHANGELOG.md`, and a release workflow (tag → build → upload
   to Play via a service account, or at least attach the AAB + mapping to a
   GitHub release).
@@ -244,7 +245,11 @@ the release. Each is a factual contradiction with the current tree.
 - Mark the historical status docs (`PRODUCTION_READINESS`, `TEST_RESULTS`,
   `INTEGRATION_AUDIT`, `INTEGRATION_REPORT`, `PRODUCT_COHERENCE_REPORT`,
   `FOCUS_LOCK`) as snapshots with a "current status" pointer to this file.
-- Remove or archive `android_overlay/` after the Wear decision.
+- Remove or archive `android_overlay/` — the Wear decision is now made, so this is
+  unblocked. Note it still holds the parked Wear source
+  (`wear/phone_side/WearSync.kt`, `wear/src/.../TrackTileService.kt`) and
+  `HOW_TO_ADD_WEAR.md`, which is the only record of how to build the module;
+  archive rather than delete unless that knowledge is captured elsewhere.
 - Add issue/PR templates, `SECURITY.md`, `CONTRIBUTING.md`,
   `CODE_OF_CONDUCT.md`.
 - Add widget/golden tests and a 90-day query benchmark.

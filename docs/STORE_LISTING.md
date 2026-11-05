@@ -41,7 +41,7 @@ Track Pro is one calm place for the things you track every day: water, mood, sle
 • Commitments, not just habits. Define an outcome and a minimum, then record full / minimum / missed / rest. Momentum shows the run you are on, the patterns behind it, and a restart plan when you need one.
 • Focus Lock. Start a timed session, choose the apps to cover, and keep a visible timer with an end action. Free sessions cover three apps; Pro covers the whole list.
 • A home-screen widget with today's rings and your streak.
-• Private by design. No account, no ads, no analytics SDK, no cloud sync. Your data stays in your phone's app-private storage. Export it as JSON or CSV at any time, and delete everything from Settings.
+• Private by design. No account, no ads, no third-party analytics, no cloud sync. Your data stays in your phone's app-private storage. Export it as JSON or CSV at any time, and delete everything from Settings.
 • Pro: every tracker, full history, Health Connect sync, unlimited focus apps, profiles, schedules and patterns. 7 days free on the annual plan.
 
 No ads. No tracking. Your data is yours.
@@ -65,7 +65,7 @@ Track Pro 1.0.0 — the first release.
 • Momentum: streaks, patterns and restart plans.
 • Focus Lock with a visible timer and app covering.
 • Home-screen widget.
-• Private by design: no account, no ads, no analytics. Export or delete your data at any time.
+• Private by design: no account, no ads, no third-party analytics. Export or delete your data at any time.
 • Pro: full history, Health Connect sync, unlimited focus apps, profiles, schedules and patterns. 7 days free on the annual plan.
 ```
 
@@ -121,7 +121,7 @@ question to an answer. Summary:
 | Usage access data | Package names + timestamps processed on-device for Focus Lock; never transmitted; user can revoke. |
 | Purchase data | Purchase token + product id + package name sent to the developer's verification service for app functionality (service-provider processing). Declare under *App functionality* and be consistent with the privacy policy. |
 | Ads | No ads SDK. |
-| Analytics | No analytics SDK. `ProAnalytics` is a local SQLite table, not a network SDK. |
+| Analytics | No third-party analytics SDK is integrated. `ProAnalytics` is a local SQLite table, not a network SDK. Platform components (Play services / Health Connect / Play Billing) may send their own SDK diagnostics to Google — not tracker data, and not suppressible from app code. Read `docs/PRIVACY_DATA_FLOW.md` §2 before filing this row. |
 | Crash reporting | None. |
 | Backup | `allowBackup=false`; tracker data is not copied to Android cloud backup. |
 

@@ -128,7 +128,10 @@ dependencies {
     // TrackWidget state (PreferencesGlanceStateDefinition) uses these directly.
     implementation("androidx.datastore:datastore-preferences-core:1.2.1")
 
-    // Wear OS data layer: pushes the widget snapshot to a paired watch
-    // (android_overlay/wear/ documents the optional watch module).
-    implementation("com.google.android.gms:play-services-wearable:20.0.1")
+    // No Google Play services dependency. There was one
+    // (play-services-wearable, for WearSync) and it was removed: `android/settings.gradle.kts`
+    // includes `:app` only, so there is no `:wear` module to receive a snapshot — the code
+    // never ran, and the GMS transport it pulled in sent its own telemetry to
+    // firebaselogging.googleapis.com. Re-add it with the `:wear` module, not before;
+    // `android_overlay/wear/HOW_TO_ADD_WEAR.md` §3 has the phone-side source.
 }

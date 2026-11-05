@@ -73,9 +73,18 @@ install pair.
 
 ## 3. Phone side: push the snapshot
 
-`android_overlay/app/src/main/kotlin/com/track/app/WearSync.kt` is copied into
-the app module and called from the `track/widget` channel handler, so one Dart
-write updates the home screen **and** the wrist:
+> **Not in the shipping host any more.** This file lived at
+> `android_overlay/app/src/main/kotlin/com/track/app/WearSync.kt` and was copied into
+> `android/` — but it was never called (`MainActivity`'s `track/widget` handler only
+> refreshed the widget), so the app bundled `play-services-wearable` and its GMS
+> telemetry for a watch module that does not exist. It was removed on 2026-11-05 and
+> parked here. Copy it back into `android/app/src/main/kotlin/com/track/app/` **when you
+> build the `:wear` module**, together with the `play-services-wearable` dependency and
+> the `WearSync.kt` entry in `apply_overlay.sh`'s verification loop.
+
+The phone side is `wear/phone_side/WearSync.kt`. It is called from the
+`track/widget` channel handler, so one Dart write updates the home screen **and**
+the wrist:
 
 ```kotlin
 MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "track/widget").setMethodCallHandler { call, result ->

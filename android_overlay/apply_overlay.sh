@@ -50,7 +50,9 @@ cp -v "$OVERLAY/app/proguard-rules.pro" "$ANDROID/app/proguard-rules.pro"
 
 echo "4/5  Verification (what can be checked without a compiler)"
 fail=0
-for f in MainActivity.kt TrackWidget.kt WearSync.kt FocusChannel.kt FocusStore.kt FocusSessionService.kt FocusBlockOverlay.kt; do
+# WearSync.kt is deliberately not in this list: it moved to wear/phone_side/ when the
+# unwired Wear push was dropped from the shipping host. Add it back with the :wear module.
+for f in MainActivity.kt TrackWidget.kt FocusChannel.kt FocusStore.kt FocusSessionService.kt FocusBlockOverlay.kt; do
   if [ -f "$KOTLIN_DIR/$f" ]; then printf '     ok    %s\n' "$f"; else printf '     MISSING %s\n' "$f"; fail=1; fi
 done
 
