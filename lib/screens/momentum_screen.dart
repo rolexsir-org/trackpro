@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../config/design_system.dart';
 import '../data/momentum.dart';
-import '../models/focus_models.dart';
 import '../models/models.dart';
 import '../state/app_state.dart';
 import '../util/day_key.dart';
@@ -286,7 +285,7 @@ class _HeadlineCard extends StatelessWidget {
             style: Editorial.label,
           ),
           const SizedBox(height: Editorial.s3),
-          if (o.rate case final rate)
+          if (o.rate case final rate?)
             Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
@@ -869,7 +868,7 @@ class _WeeklyReviewCard extends StatelessWidget {
           if (review.decidedDays == 0)
             Text('No routine days this week yet.', style: Editorial.body)
           else ...[
-            if (review.rate case final rate) ...[
+            if (review.rate case final rate?) ...[
               Row(
                 crossAxisAlignment: CrossAxisAlignment.baseline,
                 textBaseline: TextBaseline.alphabetic,

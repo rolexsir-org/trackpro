@@ -17,6 +17,9 @@ import 'momentum.dart';
 /// the same rows always produces the same figure, and a screen can never show a
 /// number the database does not support.
 class CommitmentRepository {
+  // `this._idFactory` is not available: Dart forbids a private *named* parameter,
+  // so the public name stays `idFactory` and the assignment stays explicit.
+  // ignore: prefer_initializing_formals
   CommitmentRepository(this.db, {this.now = DateTime.now, String Function()? idFactory}) : _idFactory = idFactory;
 
   final TrackDatabase db;

@@ -1,7 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
-import 'dart:ui' show FontFeature;
 
 import '../config/design_system.dart';
 import '../data/focus_engine.dart';
@@ -444,6 +444,8 @@ class _OutcomeChip extends StatelessWidget {
 }
 
 class _SeeAll extends StatelessWidget {
+  const _SeeAll();
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -629,13 +631,13 @@ Future<void> _quickActions(BuildContext context, Tracker t) async {
   if (result == null || !context.mounted) return;
   switch (result) {
     case 'Log now':
-      openLogSheet(context, t);
+      unawaited(openLogSheet(context, t));
       break;
     case 'View history & insights':
-      openDetail(context, t);
+      unawaited(openDetail(context, t));
       break;
     case 'Change goal':
-      openGoalSheet(context, t);
+      unawaited(openGoalSheet(context, t));
       break;
     case 'Pin to top':
       state.pinToTop(t.id);

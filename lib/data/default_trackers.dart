@@ -171,10 +171,13 @@ class DefaultTrackers {
   /// Habits are user configuration. A new install gets a short starter list with
   /// **no** completion and **no** streak: `streak: 0, done: false` is the only
   /// honest starting state.
+  // Not `const`: `Habit.streak` and `Habit.done` are mutable (the projection
+  // derives them from the user's own rows), so a canonicalised const instance
+  // would be shared across every caller that asked for the starter list.
   static List<Habit> starterHabits() => <Habit>[
-    const Habit('Drink 8 cups of water', '💧', Color(0xFF007AFF)),
-    const Habit('Move 30 minutes', '🏃', Color(0xFFFF9500)),
-    const Habit('No phone in bed', '🌙', Color(0xFFAF52DE)),
+    Habit('Drink 8 cups of water', '💧', const Color(0xFF007AFF)),
+    Habit('Move 30 minutes', '🏃', const Color(0xFFFF9500)),
+    Habit('No phone in bed', '🌙', const Color(0xFFAF52DE)),
   ];
 
   /// The default per-day targets used when a tracker is added later.

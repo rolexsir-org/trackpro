@@ -182,7 +182,10 @@ class FocusProfilesScreen extends StatelessWidget {
 
   Future<void> _startProfile(BuildContext context, FocusProfile profile) async {
     final app = context.read<AppState>();
-    final navigator = Navigator.of(context);
+    // The session opens through the navigator's own context, captured before the
+    // await: this screen can be gone by the time the start resolves, and the
+    // navigator outlives it. (Same pattern as `_FocusLink` in commitment_sheets.)
+    final host = Navigator.of(context).context;
     final started = await app.startFocus(
       mode: profile.mode,
       minutes: profile.minutes,
@@ -194,7 +197,7 @@ class FocusProfilesScreen extends StatelessWidget {
       if (context.mounted) showTrackToast(context, 'A session is already running');
       return;
     }
-    await openFocusSession(navigator.context);
+    await openFocusSession(host);
   }
 }
 
@@ -376,7 +379,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                   await widget.onSave(
                     FocusProfile(
                       id: widget.profile?.id ?? 'draft',
-                      name: _name.text.trim().isEmpty ? '${_mode.shortLabel} $_minutesm' : _name.text.trim(),
+                      name: _name.text.trim().isEmpty ? '${_mode.shortLabel} ${_minutes}m' : _name.text.trim(),
                       mode: _mode,
                       minutes: _minutes,
                       commitmentId: _commitmentId,
@@ -384,7 +387,7 @@ class _ProfileEditorState extends State<_ProfileEditor> {
                       sort: widget.profile?.sort ?? 0,
                     ),
                   );
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   Navigator.of(context).pop();
                 },
         ),
@@ -455,7 +458,7 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
   late int _minute = widget.schedule?.minute ?? 0;
   late FocusMode _mode = widget.schedule?.mode ?? FocusMode.deep;
   late int _minutes = FocusEngine.clampMinutes(widget.schedule?.minutes ?? 45);
-  late Set<int> _weekdays = Set<int>.from(widget.schedule?.weekdays ?? const <int>{});
+  late final Set<int> _weekdays = Set<int>.from(widget.schedule?.weekdays ?? const <int>{});
   late List<String> _packages = List<String>.from(widget.schedule?.packages ?? const <String>[]);
   bool _busy = false;
 
@@ -598,7 +601,7 @@ class _ScheduleEditorState extends State<_ScheduleEditor> {
                     weekdays: _weekdays,
                     packages: _packages,
                   ));
-                  if (!mounted) return;
+                  if (!context.mounted) return;
                   Navigator.of(context).pop();
                 },
         ),

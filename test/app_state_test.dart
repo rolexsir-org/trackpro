@@ -7,7 +7,6 @@ import 'package:track/data/db/database.dart';
 import 'package:track/data/entry_repository.dart';
 import 'package:track/models/models.dart';
 import 'package:track/state/app_state.dart';
-import 'package:track/util/day_key.dart';
 
 /// The read layer, tested through the real `AppState` over a real in-memory
 /// database — no widget tree, no platform channels.

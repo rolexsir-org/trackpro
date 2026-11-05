@@ -111,7 +111,7 @@ void main() {
   test('streak counts consecutive days at 70% of goal', () {
     final water = byId('water');
     final allHit = List<double>.filled(10, 2500);
-    final brokenTail = [2500, 2500, 2500, 500, 2500, 2500];
+    final brokenTail = <double>[2500, 2500, 2500, 500, 2500, 2500];
 
     expect(streakOf(water, allHit), 10);
     expect(streakOf(water, brokenTail), 2);

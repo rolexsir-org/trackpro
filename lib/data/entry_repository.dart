@@ -470,7 +470,7 @@ class EntryRepository {
     final rows = await dao.exportDaily();
     final trackers = await dao.allTrackers();
     final events = await dao.exportEvents();
-    return const JsonEncoder.withIndent('  ').encode({
+    return const JsonEncoder.withIndent('  ').convert({
       'format': AppEnvironment.exportFormat,
       'app': 'Track Pro',
       'exported': DateTime.now().toIso8601String(),

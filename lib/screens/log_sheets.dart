@@ -255,7 +255,7 @@ Future<void> openLogSheet(BuildContext context, Tracker t) async {
           value: value,
           onFood: (kcal, name) {
             // A food item is a genuine *delta* — it is added to today's running total.
-            final ok = state.logAdd('calories', kcal);
+            final ok = state.logAdd('calories', kcal.toDouble());
             Navigator.of(context).pop();
             showTrackToast(context, ok ? 'Added $name · $kcal kcal' : '$name was not added — that amount was refused.');
           },
@@ -1146,7 +1146,13 @@ Future<void> showQuickAdd(BuildContext context) async {
             child: GestureDetector(
               onTap: () {
                 Navigator.of(context).pop();
-                Future<void>.delayed(const Duration(milliseconds: 240), () => openLogSheet(context, t));
+                // The log sheet opens on the screen underneath, so it waits for the
+                // pop to settle — and re-checks the context, which has by then
+                // crossed an async gap.
+                Future<void>.delayed(const Duration(milliseconds: 240), () {
+                  if (!context.mounted) return;
+                  openLogSheet(context, t);
+                });
               },
               child: Container(
                 padding: const EdgeInsets.all(13),
