@@ -244,12 +244,14 @@ class SettingsScreen extends StatelessWidget {
                         if (ok) {
                           await state.refreshReminders();
                         } else if (context.mounted) {
-                          showTrackDialog(
-                            context,
-                            title: 'Turn notifications on',
-                            body:
-                                'Android only offers the prompt once. If nothing appeared, open '
-                                'Settings → Apps → Track Pro → Notifications and allow them, then come back.',
+                          unawaited(
+                            showTrackDialog(
+                              context,
+                              title: 'Turn notifications on',
+                              body:
+                                  'Android only offers the prompt once. If nothing appeared, open '
+                                  'Settings → Apps → Track Pro → Notifications and allow them, then come back.',
+                            ),
                           );
                         }
                       },
@@ -386,7 +388,7 @@ class SettingsScreen extends StatelessWidget {
                             // Pro feature, and said so instead of blaming a permission the
                             // user may well have granted.
                             showTrackToast(context, 'Health sync is part of Pro — nothing was read');
-                            showPaywall(context, trigger: PaywallTrigger.healthSync);
+                            unawaited(showPaywall(context, trigger: PaywallTrigger.healthSync));
                           case -1:
                             showTrackToast(context, 'Health Connect permission was not granted');
                           case 0:
@@ -964,13 +966,15 @@ Future<void> restoreFromSettings(BuildContext context, AppState state) async {
   await Future<void>.delayed(const Duration(seconds: 4));
   if (!context.mounted) return;
   if (state.isPro && !before) {
-    showTrackDialog(context, title: 'Welcome back', body: 'Pro restored. Everything is unlocked.');
+    unawaited(showTrackDialog(context, title: 'Welcome back', body: 'Pro restored. Everything is unlocked.'));
   } else if (!state.isPro) {
-    showTrackDialog(
-      context,
-      title: 'Nothing to restore',
-      body:
-          'No active subscription is linked to this Google account. Subscribed with a different account? Switch in the Play Store and try again.',
+    unawaited(
+      showTrackDialog(
+        context,
+        title: 'Nothing to restore',
+        body:
+            'No active subscription is linked to this Google account. Subscribed with a different account? Switch in the Play Store and try again.',
+      ),
     );
   }
 }
@@ -1024,7 +1028,7 @@ Future<void> launchPlayListing(BuildContext context, String packageName) async {
   final url = Uri.parse('https://play.google.com/store/apps/details?id=$packageName');
   final ok = await launcher.launchUrl(url, mode: launcher.LaunchMode.externalApplication);
   if (!ok && context.mounted) {
-    showTrackDialog(context, title: 'Rate Track Pro', body: 'Could not open the Play Store on this device.');
+    unawaited(showTrackDialog(context, title: 'Rate Track Pro', body: 'Could not open the Play Store on this device.'));
   }
 }
 
@@ -1032,10 +1036,12 @@ Future<void> launchManage(BuildContext context, String? url) async {
   final target = url ?? 'https://play.google.com/store/account/subscriptions';
   final ok = await launcher.launchUrl(Uri.parse(target), mode: launcher.LaunchMode.externalApplication);
   if (!ok && context.mounted) {
-    showTrackDialog(
-      context,
-      title: 'Open Google Play',
-      body: 'Find Track Pro under Play Store → Payments & subscriptions → Subscriptions.',
+    unawaited(
+      showTrackDialog(
+        context,
+        title: 'Open Google Play',
+        body: 'Find Track Pro under Play Store → Payments & subscriptions → Subscriptions.',
+      ),
     );
   }
 }
@@ -1255,6 +1261,8 @@ Future<void> _showExport(BuildContext context, AppState state) async {
   // Export is a SQL query over the entries tables — no reconstruction, no
   // pagination, and it works with 5 years of history as fast as 5 weeks.
   final json = await state.exportJson();
+  // The export is a real query, so this context has crossed an async gap.
+  if (!context.mounted) return;
   await showGlassSheet<void>(
     context,
     title: 'Export data',

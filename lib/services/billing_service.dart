@@ -28,17 +28,20 @@ import 'pro_analytics.dart';
 /// 5. **Lifecycle** — upgrades/downgrades via `ReplacementMode`, and "manage
 ///    subscription" deep-links into the Play subscription centre.
 class BillingService extends ChangeNotifier {
+  // `this._analytics` / `this._verifier` are not available: Dart forbids a private
+  // *named* parameter, so the public names stay `analytics` / `verifier` and the
+  // two assignments below stay explicit (hence the two ignores).
   BillingService({
     ProAnalytics? analytics,
     PurchaseVerifier? verifier,
     this.packageName = 'com.track.app',
     this.environmentLabel = 'production',
-  }) : _analytics = analytics,
+  }) : _analytics = analytics, // ignore: prefer_initializing_formals
        // No default verifier: an unconfigured billing service cannot grant Pro.
        // That is intentional — the previous default (a local stub that trusted
        // product ids) is exactly the bug this replaces. Dev builds inject
        // `LocalOnlyVerifier` explicitly, and it throws in release.
-       _verifier = verifier;
+       _verifier = verifier; // ignore: prefer_initializing_formals
 
   final ProAnalytics? _analytics;
   final PurchaseVerifier? _verifier;
@@ -371,7 +374,10 @@ class BillingService extends ChangeNotifier {
 
         case PurchaseStatus.error:
           final code = purchase.error?.code;
-          lastError = _messageFor(code) ?? purchase.error?.message ?? 'Purchase failed';
+          // The translator takes the whole `IAPError`: Play's response survives only
+          // as text inside `error.message` (see `_messageFor`). `code` is still the
+          // string logged below.
+          lastError = _messageFor(purchase.error) ?? purchase.error?.message ?? 'Purchase failed';
           _analytics?.log('purchase_error', {'product': purchase.productID, 'code': '$code'});
           // Even on error we must finish the transaction, or it blocks retries.
           if (purchase.pendingCompletePurchase) await _iap.completePurchase(purchase);

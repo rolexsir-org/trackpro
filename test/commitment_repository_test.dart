@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:track/data/commitment_repository.dart';
@@ -416,7 +415,9 @@ void main() {
       final days = run['days']! as List<Object?>;
       expect(days.length, 2, reason: 'only the days actually recorded are exported');
       // Oldest first, matching historyFor: a reader can rely on the order.
-      final byDate = {for (final d in days) (d! as Map<String, Object?>)['date'] as String: d};
+      final byDate = <String, Map<String, Object?>>{
+        for (final d in days.cast<Map<String, Object?>>()) d['date'] as String: d,
+      };
       expect(byDate.keys.toList(), [isoDayKey(dayKey(DateTime(2026, 3, 9))), isoDayKey(today)]);
       final latest = byDate[isoDayKey(today)]!;
       expect(latest['outcome'], 'full');

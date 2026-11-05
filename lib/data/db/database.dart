@@ -389,7 +389,7 @@ class FocusSchedules extends Table {
 )
 class TrackDatabase extends _$TrackDatabase {
   TrackDatabase() : super(_open());
-  TrackDatabase.forTesting(QueryExecutor executor) : super(executor);
+  TrackDatabase.forTesting(super.executor);
 
   static QueryExecutor _open() => driftDatabase(name: 'track');
 

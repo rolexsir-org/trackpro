@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -15,10 +17,6 @@ import '../widgets/pro_gate.dart';
 import 'paywall_screen.dart';
 import '../widgets/progress_ring.dart';
 import 'log_sheets.dart';
-// `showTrackDialog` is defined in settings_screen.dart; importing the screen for
-// one shared dialog helper is uglier than a widgets/ home, but it keeps this
-// change small. (A follow-up should move both dialog helpers to widgets/.)
-import 'settings_screen.dart';
 
 Future<void> openDetail(BuildContext context, Tracker t) {
   return Navigator.of(context).push(
@@ -927,10 +925,12 @@ Future<void> _promptHeight(BuildContext context, AppState state) async {
   // the caller reports the outcome instead of silently keeping a bad number.
   final ok = await state.setHeightCm(result);
   if (!ok && context.mounted) {
-    showTrackDialog(
-      context,
-      title: 'That height looks wrong',
-      body: 'Enter a height between 50 and 300 cm. Nothing was saved.',
+    unawaited(
+      showTrackDialog(
+        context,
+        title: 'That height looks wrong',
+        body: 'Enter a height between 50 and 300 cm. Nothing was saved.',
+      ),
     );
   }
 }
@@ -1043,12 +1043,14 @@ class _ScreenTimeOnboardingState extends State<_ScreenTimeOnboarding> {
     final svc = widget.state.screenTime;
     final opened = svc != null && await svc.openUsageAccessSettings();
     if (!opened && context.mounted) {
-      showTrackDialog(
-        context,
-        title: 'Usage access',
-        body:
-            'Open Android Settings → Apps → Special access → Usage access, '
-            'then enable Track Pro. Return here and the chart will fill in automatically.',
+      unawaited(
+        showTrackDialog(
+          context,
+          title: 'Usage access',
+          body:
+              'Open Android Settings → Apps → Special access → Usage access, '
+              'then enable Track Pro. Return here and the chart will fill in automatically.',
+        ),
       );
     }
   }

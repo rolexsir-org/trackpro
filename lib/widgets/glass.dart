@@ -44,14 +44,16 @@ IconData _recordIcon(String label) {
   final value = label.toLowerCase();
   if (value.contains('water')) return Icons.water_drop_outlined;
   if (value.contains('mood')) return Icons.sentiment_satisfied_alt_outlined;
-  if (value.contains('money') || value.contains('expense') || value.contains('spend'))
+  if (value.contains('money') || value.contains('expense') || value.contains('spend')) {
     return Icons.account_balance_wallet_outlined;
+  }
   if (value.contains('sleep')) return Icons.bedtime_outlined;
   if (value.contains('calor') || value.contains('food')) return Icons.restaurant_outlined;
   if (value.contains('step') || value.contains('walk')) return Icons.directions_walk_outlined;
   if (value.contains('run')) return Icons.directions_run_outlined;
-  if (value.contains('workout') || value.contains('train') || value.contains('lift'))
+  if (value.contains('workout') || value.contains('train') || value.contains('lift')) {
     return Icons.fitness_center_outlined;
+  }
   if (value.contains('read') || value.contains('book')) return Icons.menu_book_outlined;
   if (value.contains('meditat') || value.contains('breath')) return Icons.self_improvement_outlined;
   if (value.contains('write') || value.contains('journal')) return Icons.edit_note_outlined;
@@ -80,7 +82,7 @@ Future<T?> showGlassSheet<T>(
     barrierLabel: 'Dismiss',
     barrierColor: Colors.black.withValues(alpha: .62),
     transitionDuration: const Duration(milliseconds: 240),
-    pageBuilder: (_, __, ___) => const SizedBox.shrink(),
+    pageBuilder: (_, _, _) => const SizedBox.shrink(),
     transitionBuilder: (context, anim, secondary, _) {
       final curved = CurvedAnimation(parent: anim, curve: TrackTheme.sheetCurve, reverseCurve: Curves.easeInCubic);
       return SafeArea(
@@ -566,7 +568,7 @@ class GlassRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (trailing != null) trailing!,
+            ?trailing,
             if (showChevron && onTap != null)
               Padding(
                 padding: const EdgeInsets.only(left: 8),
@@ -721,8 +723,8 @@ Future<String?> showTrackContextMenu(
     barrierLabel: 'Menu',
     barrierColor: Colors.black.withValues(alpha: .18),
     transitionDuration: const Duration(milliseconds: 280),
-    pageBuilder: (_, __, ___) => const SizedBox.shrink(),
-    transitionBuilder: (context, anim, _, __) {
+    pageBuilder: (_, _, _) => const SizedBox.shrink(),
+    transitionBuilder: (context, anim, _, _) {
       final curved = CurvedAnimation(parent: anim, curve: TrackTheme.spring, reverseCurve: Curves.easeIn);
       final dark = Theme.of(context).brightness == Brightness.dark;
       final size = MediaQuery.sizeOf(context);

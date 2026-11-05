@@ -37,6 +37,9 @@ import 'focus_engine.dart';
 class FocusRepository {
   FocusRepository({required this.db, this.now = DateTime.now, FocusEnforcer? enforcer, String Function()? idFactory})
     : enforcer = enforcer ?? const NoFocusEnforcer(),
+      // `this._idFactory` is not available: Dart forbids a private *named*
+      // parameter, so the public name stays `idFactory` and this stays explicit.
+      // ignore: prefer_initializing_formals
       _idFactory = idFactory;
 
   final TrackDatabase db;

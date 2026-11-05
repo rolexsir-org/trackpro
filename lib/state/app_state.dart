@@ -1233,8 +1233,11 @@ class AppState extends ChangeNotifier {
     // "connected" would be a lie on screen.
     lastSync = DateTime.tryParse(await repo.dao.getSetting('health.lastSync') ?? '');
     healthSyncedDays = int.tryParse(await repo.dao.getSetting('health.syncedDays') ?? '') ?? 0;
+    // Read the stored name once, outside the predicate: `firstWhere`'s callback is
+    // not async, so an `await` inside it is a compile error rather than a lookup.
+    final healthPermissionName = await repo.dao.getSetting('health.permission') ?? '';
     healthPermission = HealthPermissionState.values.firstWhere(
-      (v) => v.name == (await repo.dao.getSetting('health.permission') ?? ''),
+      (v) => v.name == healthPermissionName,
       orElse: () => HealthPermissionState.unknown,
     );
 
@@ -1242,8 +1245,9 @@ class AppState extends ChangeNotifier {
     // for the first frame only, and `refreshScreenTimePermission()` replaces it
     // with the OS's answer on the first resume.
     screenTimeLastSync = DateTime.tryParse(await repo.dao.getSetting('screenTime.lastSync') ?? '');
+    final screenTimePermissionName = await repo.dao.getSetting('screenTime.permission') ?? '';
     screenTimePermission = ScreenTimePermissionState.values.firstWhere(
-      (v) => v.name == (await repo.dao.getSetting('screenTime.permission') ?? ''),
+      (v) => v.name == screenTimePermissionName,
       orElse: () => ScreenTimePermissionState.unknown,
     );
 
@@ -1324,8 +1328,14 @@ class AppState extends ChangeNotifier {
     try {
       entryCount = await repo.entryCount();
       trackedDays = await repo.trackedDays();
-      categories = await repo.categoryTotals(days: 7);
-      transactions = await repo.recentTransactions();
+      // Both are `final` — the widgets hold the same list instance across rebuilds —
+      // so a refresh replaces the contents, never the reference.
+      categories
+        ..clear()
+        ..addAll(await repo.categoryTotals(days: 7));
+      transactions
+        ..clear()
+        ..addAll(await repo.recentTransactions());
       foodEntries = await repo.recentFoodEntries();
       // Provenance and emptiness are part of the same refresh: the Diagnostics
       // panel and every empty state read them, so they must never lag behind a
@@ -2004,7 +2014,9 @@ class AppState extends ChangeNotifier {
     unawaited(
       _persist(() async {
         await repo.addEvent('expenses', safeAmount, safeTotal, meta: jsonEncode({'category': bucket, 'title': title}));
-        categories = await repo.categoryTotals(days: 7);
+        categories
+          ..clear()
+          ..addAll(await repo.categoryTotals(days: 7));
       }, label: tracker.name),
     ); // `tracker` is already promoted by the early return above
     //

@@ -46,6 +46,9 @@ Future<void> showFocusStartSheet(
 }) async {
   final app = context.read<AppState>();
   await app.refreshFocusPermissions();
+  // `refreshFocusPermissions` talks to the platform, so this context has crossed an
+  // async gap by the time the sheet opens.
+  if (!context.mounted) return;
 
   await showGlassSheet<void>(
     context,

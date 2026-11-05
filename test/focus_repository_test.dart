@@ -25,7 +25,9 @@ class FakeEnforcer implements FocusEnforcer {
     ),
     this.protected_ = const <String>{'com.android.dialer'},
     this.apps = const <FocusAppInfo>[],
-  }) : _permissions = permissions;
+  }) : _permissions = permissions; // ignore: prefer_initializing_formals
+  // The ignore is not laziness: `this._permissions` would make the parameter
+  // private, which Dart forbids for a named parameter.
 
   int monotonic;
   bool available;

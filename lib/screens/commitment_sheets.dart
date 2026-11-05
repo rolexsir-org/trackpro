@@ -7,12 +7,15 @@
 /// returns.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/design_system.dart';
 import '../config/pro_config.dart';
 import '../data/commitment_templates.dart';
+import '../data/focus_engine.dart';
 import '../data/momentum.dart';
 import '../main.dart' show TrackTheme;
 import '../models/models.dart';
@@ -397,7 +400,7 @@ class _TemplateBody extends StatelessWidget {
                   Haptics.selection();
                   if (!state.canAddCommitment()) {
                     state.analytics?.log('pro_gate_tapped', {'gate': 'commitment_limit'});
-                    showPaywall(context, trigger: PaywallTrigger.commitmentLimit);
+                    unawaited(showPaywall(context, trigger: PaywallTrigger.commitmentLimit));
                     return;
                   }
                   await state.addCommitmentFromTemplate(t);
@@ -497,7 +500,7 @@ class _EditorBodyState extends State<_EditorBody> {
   late final TextEditingController _full = TextEditingController(text: widget.existing?.fullAction ?? '');
   late String _emoji = widget.existing?.emoji ?? '🚶';
   late Color _color = widget.existing?.color ?? const Color(0xFF5B7CFA);
-  late Set<int> _days = {
+  late final Set<int> _days = {
     ...(widget.existing?.schedule ?? const {1, 2, 3, 4, 5, 6, 7}),
   };
 

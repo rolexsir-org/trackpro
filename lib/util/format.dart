@@ -203,7 +203,9 @@ double activityScore(List<Tracker> trackers, Map<String, List<double>> data, int
     // A tracker with no cached series, or one shorter than this slot, contributes
     // no hit — rather than throwing out of the middle of a chart build.
     final series = data[t.id];
-    final v = (series != null && i < series.length) ? series[i] : 0;
+    // `0.0`, not `0`: with an int in the branch the ternary's type is `num`, and
+    // `ringPct` takes a double.
+    final v = (series != null && i < series.length) ? series[i] : 0.0;
     if (t.id == 'expenses' || t.id == 'screen') {
       // A gap-filled zero is not a logged "spent nothing" / "no screen time" day.
       // The series cannot distinguish the two, so scoring `v <= goal` on a blank

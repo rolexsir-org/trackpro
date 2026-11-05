@@ -12,12 +12,16 @@ import 'package:track/services/pro_analytics.dart';
 /// so a future refactor cannot quietly hand out Pro or lock away data someone
 /// already logged. Everything here runs without Play Billing, without a
 /// database and without a device: the policy is pure.
-void main() {
+Future<void> main() async {
   // The verifier suite needs a loopback socket. If the environment forbids one it
   // is reported as skipped rather than allowed to pass unnoticed.
+  //
+  // `main` is async because dart:io has no synchronous bind: `HttpServer.bind` is
+  // the only way to ask, and package:test collects the tests this declares once
+  // `main`'s future completes.
   try {
-    final probe = HttpServer.bindSync(InternetAddress.loopbackIPv4, 0);
-    probe.close();
+    final probe = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    await probe.close();
     mainHttpVerifierTests();
   } on Object catch (error) {
     test('HttpPurchaseVerifier suite', () {}, skip: 'no loopback socket in this environment: $error');

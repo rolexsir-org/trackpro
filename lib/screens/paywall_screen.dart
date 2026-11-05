@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart' as launcher;
@@ -76,7 +78,7 @@ class _PaywallScreenState extends State<PaywallScreen> {
     if (!launched) {
       final message = billing.lastError;
       if (message != null) {
-        showTrackDialog(context, title: 'Could not start the purchase', body: message);
+        unawaited(showTrackDialog(context, title: 'Could not start the purchase', body: message));
       }
       return;
     }
@@ -110,11 +112,13 @@ class _PaywallScreenState extends State<PaywallScreen> {
     if (granted) {
       Navigator.of(context).pop(true);
     } else {
-      showTrackDialog(
-        context,
-        title: 'Nothing to restore',
-        body:
-            'No active subscription was found for this Google account. If you subscribed with a different account, switch accounts in the Play Store and try again.',
+      unawaited(
+        showTrackDialog(
+          context,
+          title: 'Nothing to restore',
+          body:
+              'No active subscription was found for this Google account. If you subscribed with a different account, switch accounts in the Play Store and try again.',
+        ),
       );
     }
   }
@@ -127,10 +131,12 @@ class _PaywallScreenState extends State<PaywallScreen> {
         'https://play.google.com/store/account/subscriptions';
     if (!await launcher.launchUrl(Uri.parse(url), mode: launcher.LaunchMode.externalApplication)) {
       if (mounted) {
-        showTrackDialog(
-          context,
-          title: 'Open Google Play',
-          body: 'Manage or cancel your subscription in Google Play → Subscriptions.',
+        unawaited(
+          showTrackDialog(
+            context,
+            title: 'Open Google Play',
+            body: 'Manage or cancel your subscription in Google Play → Subscriptions.',
+          ),
         );
       }
     }
@@ -195,15 +201,17 @@ class _PaywallScreenState extends State<PaywallScreen> {
                 await state.recheckPurchase();
                 Haptics.commit();
                 if (mounted) setState(() => _busy = false);
-                if (mounted && !state.isPro) {
-                  showTrackDialog(
-                    context,
-                    title: 'Still confirming',
-                    body: state.billing?.lastVerifyOutcome == 'unreachable'
-                        ? 'We still cannot reach the verification service. Your purchase is safe in '
-                              'Google Play; Pro unlocks as soon as it can be confirmed.'
-                        : 'Google Play has not settled this purchase yet. Nothing has been lost — '
-                              'tracking stays free in the meantime.',
+                if (context.mounted && !state.isPro) {
+                  unawaited(
+                    showTrackDialog(
+                      context,
+                      title: 'Still confirming',
+                      body: state.billing?.lastVerifyOutcome == 'unreachable'
+                          ? 'We still cannot reach the verification service. Your purchase is safe in '
+                                'Google Play; Pro unlocks as soon as it can be confirmed.'
+                          : 'Google Play has not settled this purchase yet. Nothing has been lost — '
+                                'tracking stays free in the meantime.',
+                    ),
                   );
                 }
               },
@@ -847,7 +855,7 @@ Future<void> showLegalSheet(BuildContext context, {required String kind}) {
                 child: ListView.separated(
                   shrinkWrap: true,
                   itemCount: sections.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
                   itemBuilder: (_, i) {
                     final (heading, body) = sections[i];
                     return Column(

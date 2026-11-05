@@ -30,7 +30,7 @@ Future<void> main() async {
 
   // Draw edge-to-edge while leaving content responsible for SafeArea/insets.
   // Light system icons retain contrast against the dark default canvas.
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  unawaited(SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge));
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
