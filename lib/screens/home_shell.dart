@@ -79,6 +79,13 @@ class _HomeShellState extends State<HomeShell> {
     return Scaffold(
       backgroundColor: TrackTheme.bg(Theme.of(context).brightness == Brightness.dark),
       body: Stack(
+        // Expand, don't size to children. The only non-positioned children are the
+        // onboarding overlay and the notification router, and once the user has
+        // onboarded both build `SizedBox.shrink()`. With the default loose fit the
+        // Stack then sized itself to 0×0, `Positioned.fill` handed every tab a 0×0
+        // box, and the app painted its background and nothing else — the blank
+        // screen on every launch after onboarding.
+        fit: StackFit.expand,
         children: [
           // Keep every destination mounted. This preserves each tab's scroll
           // position and transient UI (such as Routines filters) while still
