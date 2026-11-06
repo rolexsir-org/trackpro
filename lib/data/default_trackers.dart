@@ -163,9 +163,9 @@ class DefaultTrackers {
     AdditionalTracker('vitamins', 'Vitamins', '💊', 0xFF00C7BE, 'Daily supplement stack'),
   ];
 
-  /// Tracker ids that the app ships enabled on a new install. Three, which is
-  /// exactly the free tier — a new user starts inside the free plan, not against
-  /// a wall.
+  /// Tracker ids that the app ships enabled on a new install. Three, inside the
+  /// free tier's `ProConfig.freeTrackerLimit` — a new user starts inside the free
+  /// plan with room to pick more of their own, not against a wall.
   static const List<String> enabledByDefault = <String>['water', 'mood', 'expenses'];
 
   /// Habits are user configuration. A new install gets a short starter list with

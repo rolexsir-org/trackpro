@@ -119,13 +119,15 @@ class TrackersScreen extends StatelessWidget {
                         final app = context.read<AppState>();
                         // The free ceiling: adding beyond it is the single most
                         // honest moment to ask, because the user is mid-action and
-                        // the value is concrete.
-                        if (!app.canAddTracker() && !state.added.contains(e.id)) {
-                          app.analytics?.log('pro_gate_tapped', {'gate': 'tracker_limit', 'target': e.id});
-                          showPaywall(context, trigger: PaywallTrigger.trackerLimit);
+                        // the value is concrete. AppState enforces it; a refusal is
+                        // the cue for the paywall.
+                        if (!app.toggleAdded(e.id)) {
+                          if (!state.added.contains(e.id) && !app.canAddTracker()) {
+                            app.analytics?.log('pro_gate_tapped', {'gate': 'tracker_limit', 'target': e.id});
+                            showPaywall(context, trigger: PaywallTrigger.trackerLimit);
+                          }
                           return;
                         }
-                        app.toggleAdded(e.id);
                         showTrackToast(
                           context,
                           state.added.contains(e.id) ? '${e.name} tracker added' : '${e.name} tracker removed',
@@ -252,7 +254,10 @@ class _TrackerRow extends StatelessWidget {
                   icon: Icons.visibility_off_outlined,
                   color: TrackTheme.red,
                   onTap: () {
-                    state.toggleHidden(tracker.id);
+                    if (!state.toggleHidden(tracker.id)) {
+                      showPaywall(context, trigger: PaywallTrigger.trackerLimit);
+                      return;
+                    }
                     // The button toggles, so the message has to follow what happened
                     // rather than what the icon suggests. "retired — history kept" over a
                     // tracker that had just been *shown again* was one of three words this
@@ -280,11 +285,10 @@ class _TrackerRow extends StatelessWidget {
             _MiniSwitch(
               value: !tracker.hidden,
               onTap: () {
-                if (tracker.hidden && !state.canAddTracker()) {
+                if (!state.toggleHidden(tracker.id)) {
                   showPaywall(context, trigger: PaywallTrigger.trackerLimit);
                   return;
                 }
-                state.toggleHidden(tracker.id);
                 showTrackToast(
                   context,
                   tracker.hidden
