@@ -85,19 +85,26 @@ Future<T?> showGlassSheet<T>(
     pageBuilder: (_, _, _) => const SizedBox.shrink(),
     transitionBuilder: (context, anim, secondary, _) {
       final curved = CurvedAnimation(parent: anim, curve: TrackTheme.sheetCurve, reverseCurve: Curves.easeInCubic);
-      return SafeArea(
-        top: false,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: FractionalTranslation(
-            translation: Offset(0, 1 - curved.value),
-            child: _SheetSurface(
-              accent: accent,
-              title: title,
-              subtitle: subtitle,
-              body: body,
-              actions: actions,
-              scrollable: scrollable,
+      // A dialog route has no Material above it. Without one, every Text in the sheet
+      // inherited WidgetsApp's "missing Material" fallback style — yellow double
+      // underlines — and InkWells had nowhere to paint. Transparency changes nothing
+      // visually; it supplies the theme's text style and an ink surface.
+      return Material(
+        type: MaterialType.transparency,
+        child: SafeArea(
+          top: false,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: FractionalTranslation(
+              translation: Offset(0, 1 - curved.value),
+              child: _SheetSurface(
+                accent: accent,
+                title: title,
+                subtitle: subtitle,
+                body: body,
+                actions: actions,
+                scrollable: scrollable,
+              ),
             ),
           ),
         ),

@@ -112,7 +112,12 @@ class _TabItem extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 2),
                 child: AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 160),
+                  // A full style, not a merge: AnimatedDefaultTextStyle replaces the
+                  // ambient one, so without the family the labels rendered in Roboto
+                  // while the rest of the app is Inter.
                   style: TextStyle(
+                    fontFamily: TrackTheme.fontFamily,
+                    fontFamilyFallback: TrackTheme.fontFamilyFallback,
                     fontSize: 11,
                     height: 1.15,
                     fontWeight: active ? FontWeight.w700 : FontWeight.w500,
