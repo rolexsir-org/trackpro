@@ -354,17 +354,24 @@ Future<void> main() async {
   });
 
   group('free limits — tracker ceiling', () {
-    test('free stops at 3 trackers', () {
-      expect(ProConfig.freeTrackerLimit, 3);
+    test('free stops at 5 trackers', () {
+      expect(ProConfig.freeTrackerLimit, 5);
       expect(ProConfig.canAddTracker(isPro: false, active: 0), isTrue);
-      expect(ProConfig.canAddTracker(isPro: false, active: 2), isTrue);
-      expect(ProConfig.canAddTracker(isPro: false, active: 3), isFalse);
+      expect(ProConfig.canAddTracker(isPro: false, active: 3), isTrue);
+      expect(ProConfig.canAddTracker(isPro: false, active: 4), isTrue);
+      expect(ProConfig.canAddTracker(isPro: false, active: 5), isFalse);
       expect(ProConfig.canAddTracker(isPro: false, active: 9), isFalse);
     });
 
     test('Pro has no ceiling', () {
-      expect(ProConfig.canAddTracker(isPro: true, active: 3), isTrue);
+      expect(ProConfig.canAddTracker(isPro: true, active: 5), isTrue);
       expect(ProConfig.canAddTracker(isPro: true, active: 40), isTrue);
+    });
+
+    test('the paywall copy quotes the live limit, not a stale number', () {
+      final trackerBenefit = ProConfig.benefits.first.body;
+      expect(trackerBenefit, contains('${ProConfig.freeTrackerLimit}'));
+      expect(PaywallTrigger.trackerLimit.body, contains('${ProConfig.freeTrackerLimit}'));
     });
   });
 

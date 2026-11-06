@@ -311,6 +311,14 @@ class TrackApp extends StatelessWidget {
               // Keep scrolling quiet and platform-appropriate without overriding
               // Android's native physics or route transitions.
               scrollBehavior: const TrackScrollBehavior(),
+              // App-wide safety net above the Navigator, so every route and overlay
+              // inherits the theme's text style. Without it, any surface built outside
+              // a Material (dialog routes, overlay entries) fell back to WidgetsApp's
+              // debug style: text with yellow double underlines.
+              builder: (context, child) => DefaultTextStyle(
+                style: Theme.of(context).textTheme.bodyMedium!.copyWith(decoration: TextDecoration.none),
+                child: child!,
+              ),
               home: StartupGate(startup: startup),
             ),
           ),
@@ -385,6 +393,12 @@ class TrackTheme {
   static const _family = 'Inter';
   static const _fallbacks = <String>['Roboto', 'Noto Sans', 'sans-serif'];
 
+  /// The product typeface, for widgets that set a complete [TextStyle] instead of
+  /// inheriting one (e.g. `AnimatedDefaultTextStyle`, which replaces the ambient
+  /// style rather than merging with it, and so silently fell back to Roboto).
+  static const fontFamily = _family;
+  static const fontFamilyFallback = _fallbacks;
+
   static ThemeData _base(Brightness brightness) {
     final dark = brightness == Brightness.dark;
     TextStyle t(double size, FontWeight w, {double ls = 0, Color? color, double? height}) => TextStyle(
@@ -430,8 +444,15 @@ class TrackTheme {
     );
   }
 
-  static ThemeData light() => _base(Brightness.light);
-  static ThemeData dark() => _base(Brightness.dark);
+  // Built once. `TrackApp` rebuilds MaterialApp on every AppState notification, and
+  // building both themes there re-ran `ColorScheme.fromSeed` twice per tap/log. The
+  // themes depend on nothing but brightness, so a cached instance is identical — and
+  // an identical theme also lets MaterialApp skip its theme animation work.
+  static final ThemeData _light = _base(Brightness.light);
+  static final ThemeData _dark = _base(Brightness.dark);
+
+  static ThemeData light() => _light;
+  static ThemeData dark() => _dark;
 
   /// Legacy helper retained for callers while rendering a solid, bordered card.
   /// The `blur` argument is purposely ignored so no backdrop blur leaks back into

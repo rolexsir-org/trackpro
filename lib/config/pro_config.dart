@@ -15,7 +15,7 @@
 ///
 /// | Free forever                          | Pro                                        |
 /// |---------------------------------------|--------------------------------------------|
-/// | 3 trackers                            | all 10+ trackers, unlimited custom ones     |
+/// | any 5 trackers, user's choice         | unlimited trackers, plus custom ones        |
 /// | last 7 days of history                | full history, forever                       |
 /// | today's rings, streaks, badges        | patterns, correlations, heatmaps, 90d range |
 /// | daily check-in reminder               | streak saver, weekly report, smart nudges   |
@@ -33,7 +33,14 @@ class ProConfig {
   const ProConfig._();
 
   /// Free-tier ceilings. Change these in one place; the whole app follows.
-  static const int freeTrackerLimit = 3;
+  ///
+  /// Trackers: a count, not a list. A free user may have any [freeTrackerLimit]
+  /// trackers visible at once, chosen from the whole catalogue (core and "add more"
+  /// alike); Pro removes the ceiling. Hiding is always allowed and never deletes
+  /// history. Lowering the limit never hides anything a user already shows: someone
+  /// over it (e.g. a lapsed Pro subscriber) keeps their dashboard and simply cannot
+  /// show another until they are back under the ceiling.
+  static const int freeTrackerLimit = 5;
   static const int freeHistoryDays = 7;
 
   /// Apps a free session may restrict at once.
@@ -138,7 +145,11 @@ class ProConfig {
   /// Benefit list for the paywall. Order matters: the least controversial first,
   /// the "aha" (patterns) in the middle, the practical (sync/widgets) last.
   static const List<ProBenefit> benefits = <ProBenefit>[
-    ProBenefit('🧩', 'Every tracker, unlimited', 'Free keeps 3. Pro unlocks all 10 — plus custom trackers.'),
+    ProBenefit(
+      '🧩',
+      'Every tracker, unlimited',
+      'Free lets you pick any ${ProConfig.freeTrackerLimit}. Pro shows every tracker at once — plus custom ones.',
+    ),
     ProBenefit('📈', 'Your full history, forever', 'Free shows 7 days. Pro shows every day you have ever logged.'),
     ProBenefit(
       '🔗',

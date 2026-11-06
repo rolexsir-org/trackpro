@@ -16,6 +16,15 @@
 # --- Scheduled notifications (flutter_local_notifications) ---------------------
 -keep class com.dexterous.flutterlocalnotifications.** { *; }
 
+# --- WorkManager / Room ---------------------------------------------------------
+# WorkManager initializes from a manifest ContentProvider at process start and asks
+# Room for `WorkDatabase_Impl` by reflection (Class.forName(name + "_Impl")). R8 saw no
+# reference, stripped it, and every release launch crashed before Flutter loaded:
+# "Failed to create an instance of androidx.work.impl.WorkDatabase".
+-keep class * extends androidx.room.RoomDatabase { <init>(); }
+-keep class androidx.work.impl.WorkDatabase_Impl { *; }
+-keep class androidx.work.impl.** extends androidx.room.RoomDatabase { *; }
+
 # --- JSON: the widget snapshot is parsed by key name --------------------------
 -keep class org.json.** { *; }
 

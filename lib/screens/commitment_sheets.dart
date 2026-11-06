@@ -30,6 +30,22 @@ import 'log_sheets.dart';
 import 'paywall_screen.dart';
 import 'settings_screen.dart';
 
+/// Theme-aware stand-ins for the dark-only `Editorial` tokens these sheets used.
+///
+/// The glass sheet follows the app's brightness, but its contents were painted with
+/// `Editorial.ink` (near-white), `Editorial.well` (near-black) and friends. In light
+/// mode that gave black fields on a white sheet and selected day chips with white
+/// text on a pale tint — unreadable. `TrackTheme` maps dark mode to exactly the same
+/// `Editorial` values, so dark mode is unchanged.
+extension _SheetPalette on BuildContext {
+  bool get _sheetDark => Theme.of(this).brightness == Brightness.dark;
+  Color get sheetWell => TrackTheme.fill(_sheetDark);
+  Color get sheetHairline => TrackTheme.separator(_sheetDark);
+  Color get sheetInk => TrackTheme.label(_sheetDark);
+  Color get sheetInkSecondary => TrackTheme.label2(_sheetDark);
+  Color get sheetInkTertiary => TrackTheme.label3(_sheetDark);
+}
+
 // ---------------------------------------------------------------- record a day
 /// "What actually happened today?" — the tap that makes the whole system work.
 ///
@@ -136,7 +152,7 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
         _DefinitionRow(label: 'MINIMUM', text: c.minimumAction, color: Editorial.minimum),
         if (c.outcome.trim().isNotEmpty) ...[
           const SizedBox(height: Editorial.s3),
-          Text(c.outcome, style: Editorial.caption.copyWith(color: Editorial.inkSecondary)),
+          Text(c.outcome, style: Editorial.caption.copyWith(color: context.sheetInkSecondary)),
         ],
         const SizedBox(height: Editorial.s5),
         for (final o in const [
@@ -167,12 +183,12 @@ class _OutcomeBodyState extends State<_OutcomeBody> {
         Text('NOTE (OPTIONAL)', style: Editorial.label),
         const SizedBox(height: Editorial.s2),
         Container(
-          decoration: Editorial.card(fill: Editorial.well),
+          decoration: Editorial.card(fill: context.sheetWell, border: context.sheetHairline),
           padding: const EdgeInsets.symmetric(horizontal: Editorial.s3, vertical: Editorial.s2),
           child: TextField(
             controller: _note,
             maxLines: 2,
-            style: Editorial.body.copyWith(color: Editorial.ink),
+            style: Editorial.body.copyWith(color: context.sheetInk),
             decoration: const InputDecoration(
               border: InputBorder.none,
               isDense: true,
@@ -215,7 +231,7 @@ class _DefinitionRow extends StatelessWidget {
         Expanded(
           child: Text(
             text,
-            style: Editorial.body.copyWith(color: Editorial.ink, fontWeight: FontWeight.w600),
+            style: Editorial.body.copyWith(color: context.sheetInk, fontWeight: FontWeight.w600),
           ),
         ),
       ],
@@ -256,8 +272,8 @@ class _OutcomeTile extends StatelessWidget {
           duration: Editorial.medium,
           curve: Editorial.ease,
           decoration: Editorial.card(
-            fill: selected ? _tint.withValues(alpha: .14) : Editorial.well,
-            border: selected ? _tint : Editorial.hairline,
+            fill: selected ? _tint.withValues(alpha: .14) : context.sheetWell,
+            border: selected ? _tint : context.sheetHairline,
           ),
           padding: const EdgeInsets.symmetric(horizontal: Editorial.s4, vertical: Editorial.s3),
           child: Row(
@@ -316,7 +332,7 @@ class _AmountFieldState extends State<_AmountField> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: Editorial.card(fill: Editorial.well),
+      decoration: Editorial.card(fill: context.sheetWell, border: context.sheetHairline),
       padding: const EdgeInsets.symmetric(horizontal: Editorial.s3, vertical: Editorial.s2),
       child: Row(
         children: [
@@ -421,13 +437,13 @@ class _TemplateBody extends StatelessWidget {
                             const SizedBox(height: 2),
                             Text(
                               'Full: ${t.fullAction}',
-                              style: Editorial.caption.copyWith(color: Editorial.inkSecondary),
+                              style: Editorial.caption.copyWith(color: context.sheetInkSecondary),
                             ),
                             Text('Minimum: ${t.minimumAction}', style: Editorial.caption),
                           ],
                         ),
                       ),
-                      Icon(Icons.add_rounded, size: 20, color: Editorial.inkTertiary),
+                      Icon(Icons.add_rounded, size: 20, color: context.sheetInkTertiary),
                     ],
                   ),
                 ),
@@ -601,13 +617,15 @@ class _EditorBodyState extends State<_EditorBody> {
                   duration: Editorial.fast,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                   decoration: BoxDecoration(
-                    color: _days.contains(d) ? _color.withValues(alpha: .2) : Editorial.well,
+                    color: _days.contains(d) ? _color.withValues(alpha: .2) : context.sheetWell,
                     borderRadius: BorderRadius.circular(Editorial.rPill),
-                    border: Border.all(color: _days.contains(d) ? _color : Editorial.hairline, width: .5),
+                    border: Border.all(color: _days.contains(d) ? _color : context.sheetHairline, width: .5),
                   ),
                   child: Text(
                     weekdayName(d, short: true),
-                    style: Editorial.caption.copyWith(color: _days.contains(d) ? Editorial.ink : Editorial.inkTertiary),
+                    style: Editorial.caption.copyWith(
+                      color: _days.contains(d) ? context.sheetInk : context.sheetInkTertiary,
+                    ),
                   ),
                 ),
               ),
@@ -628,11 +646,11 @@ class _EditorBodyState extends State<_EditorBody> {
                   height: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: _emoji == choice.key ? _color.withValues(alpha: .18) : Editorial.well,
+                    color: _emoji == choice.key ? _color.withValues(alpha: .18) : context.sheetWell,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _emoji == choice.key ? _color : Editorial.hairline, width: .5),
+                    border: Border.all(color: _emoji == choice.key ? _color : context.sheetHairline, width: .5),
                   ),
-                  child: Icon(choice.value, size: 20, color: _emoji == choice.key ? _color : Editorial.inkSecondary),
+                  child: Icon(choice.value, size: 20, color: _emoji == choice.key ? _color : context.sheetInkSecondary),
                 ),
               ),
           ],
@@ -652,7 +670,7 @@ class _EditorBodyState extends State<_EditorBody> {
                   decoration: BoxDecoration(
                     color: c,
                     shape: BoxShape.circle,
-                    border: Border.all(color: _color == c ? Editorial.ink : Colors.transparent, width: 2),
+                    border: Border.all(color: _color == c ? context.sheetInk : Colors.transparent, width: 2),
                   ),
                 ),
               ),
@@ -747,12 +765,12 @@ class _Field extends StatelessWidget {
         Text(label, style: Editorial.label),
         const SizedBox(height: Editorial.s2),
         Container(
-          decoration: Editorial.card(fill: Editorial.well),
+          decoration: Editorial.card(fill: context.sheetWell, border: context.sheetHairline),
           padding: const EdgeInsets.symmetric(horizontal: Editorial.s3, vertical: Editorial.s2),
           child: TextField(
             controller: controller,
             maxLines: null,
-            style: Editorial.body.copyWith(color: Editorial.ink, fontWeight: FontWeight.w600),
+            style: Editorial.body.copyWith(color: context.sheetInk, fontWeight: FontWeight.w600),
             decoration: InputDecoration(border: InputBorder.none, isDense: true, hintText: hint),
           ),
         ),
@@ -808,7 +826,7 @@ Future<void> showMomentumExplainer(BuildContext context) async {
         Text(
           'None of this measures willpower or worth. It is the days you did the thing, against '
           'the days you said you would.',
-          style: Editorial.caption.copyWith(color: Editorial.inkSecondary),
+          style: Editorial.caption.copyWith(color: context.sheetInkSecondary),
         ),
       ],
     ),
@@ -831,7 +849,7 @@ class _Rule extends StatelessWidget {
         children: [
           Text(title, style: Editorial.figure),
           const SizedBox(height: Editorial.s1),
-          Text(body, style: Editorial.body.copyWith(color: Editorial.inkSecondary, fontSize: 14)),
+          Text(body, style: Editorial.body.copyWith(color: context.sheetInkSecondary, fontSize: 14)),
         ],
       ),
     );

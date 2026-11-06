@@ -2036,12 +2036,25 @@ class AppState extends ChangeNotifier {
     return _persist(() => repo.persistGoal(id, goal), label: '${t.name} goal');
   }
 
-  void toggleHidden(String id) {
+  /// Shows or hides [id] on Today. Returns whether anything changed.
+  ///
+  /// The free tracker ceiling is enforced **here**, not in the screens: showing a
+  /// hidden tracker when [canAddTracker] is false is refused (returns false, changes
+  /// nothing) so the caller can offer the upgrade. Previously only one of the four
+  /// call sites checked, and the Trackers edit button and Today's long-press menu
+  /// could show trackers past the limit. Hiding is always allowed, and a user who is
+  /// already over the limit keeps every tracker they show.
+  bool toggleHidden(String id) {
     final t = byId(id);
+    if (t.hidden && !canAddTracker()) {
+      Haptics.warning();
+      return false;
+    }
     t.hidden = !t.hidden;
     Haptics.selection();
     notifyListeners();
     unawaited(_persist(() => repo.persistHidden(id, t.hidden), label: '${t.name} visibility'));
+    return true;
   }
 
   /// Pin to the front — the long-press quick action.
@@ -2082,16 +2095,24 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  void toggleAdded(String id) {
+  /// Adds or removes an "add more" catalogue tracker. Returns whether anything
+  /// changed: false for an unknown id, or when adding would put one more tracker on
+  /// Today past the free ceiling (see [toggleHidden] — same rule, same reason).
+  bool toggleAdded(String id) {
     final adding = !added.contains(id);
     if (adding) {
       final template = DefaultTrackers.addableAsTracker(id);
       if (template == null) {
         Haptics.warning();
-        return;
+        return false;
+      }
+      final existing = trackerOrNull(id);
+      final takesASlot = existing == null || existing.hidden;
+      if (takesASlot && !canAddTracker()) {
+        Haptics.warning();
+        return false;
       }
       added.add(id);
-      final existing = trackerOrNull(id);
       if (existing != null) {
         existing.hidden = false;
       } else {
@@ -2114,6 +2135,7 @@ class AppState extends ChangeNotifier {
         if (t != null) await repo.persistTracker(t, t.order);
       }, label: 'Added list'),
     );
+    return true;
   }
 
   /// Health Connect pull: steps, sleep, weight. Never overwrites manual entries.

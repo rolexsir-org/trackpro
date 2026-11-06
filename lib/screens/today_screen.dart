@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../config/design_system.dart';
+import '../config/pro_config.dart';
 import '../data/focus_engine.dart';
 import '../main.dart' show Pressable, TrackTheme;
 import '../models/models.dart';
@@ -20,6 +21,7 @@ import 'focus_screen.dart';
 import 'focus_setup_sheets.dart';
 import 'log_sheets.dart';
 import 'measurements_page.dart';
+import 'paywall_screen.dart';
 
 /// The dashboard. One scroll surface: greeting → hero tracker → 2-up grid of
 /// every other tracker → the patterns only a unified app can surface.
@@ -645,7 +647,11 @@ Future<void> _quickActions(BuildContext context, Tracker t) async {
       break;
     case 'Hide from dashboard':
     case 'Show on dashboard':
-      state.toggleHidden(t.id);
+      // Showing past the free tracker ceiling is refused by AppState; offer Pro.
+      if (!state.toggleHidden(t.id)) {
+        unawaited(showPaywall(context, trigger: PaywallTrigger.trackerLimit));
+        break;
+      }
       showTrackToast(
         context,
         t.hidden ? '${t.name} hidden from Today — history kept' : '${t.name} shown on Today again',

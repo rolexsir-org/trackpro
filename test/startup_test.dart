@@ -305,5 +305,41 @@ void main() {
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.runAsync(db.close);
     });
+
+    testWidgets('after onboarding, the tabs fill the screen instead of collapsing to 0×0', (tester) async {
+      // Regression: once onboarded, every non-positioned child of HomeShell's body
+      // Stack built `SizedBox.shrink()`, the loose Stack sized itself to 0×0 and the
+      // tabs got no space — a blank page on every launch after the first.
+      tester.view.physicalSize = const Size(1080, 2340);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+
+      final db = openDatabase();
+      final state = build(db);
+      final startup = AppStartup(state: state, essential: () async => state.load());
+
+      await tester.runAsync(startup.start);
+      await tester.runAsync(state.completeOnboarding);
+      await tester.pumpWidget(harness(state, startup));
+      await tester.pump();
+
+      expect(state.onboarded, isTrue);
+      final shellSize = tester.getSize(find.byType(HomeShell));
+      final tabs = tester.getSize(find.byType(IndexedStack).first);
+      expect(tabs.width, shellSize.width, reason: 'the tabs must span the shell, not 0px');
+      expect(tabs.height, greaterThan(0));
+
+      // The same 0×0 Stack also made the tab bar unreachable: a box of size zero
+      // fails every hit test, so Routines/Momentum/Insights/Profile ignored taps.
+      for (final (label, index) in [('Routines', 1), ('Momentum', 2), ('Insights', 3), ('Profile', 4)]) {
+        await tester.tap(find.text(label).last);
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(state.tabIndex, index, reason: 'tapping $label must switch to it');
+        expect(tester.takeException(), isNull, reason: '$label must build without throwing');
+      }
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.runAsync(db.close);
+    });
   });
 }

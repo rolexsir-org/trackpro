@@ -185,7 +185,7 @@ Subtype: `focus_session_detector` (already in `AndroidManifest.xml`).
 - The app has **no login**. Select "All functionality is available without
   special access."
 - Pro features require a subscription. Add a note for reviewers: "Pro can be
-  tested with a Play licence tester; the free tier includes 3 trackers, 7 days
+  tested with a Play licence tester; the free tier includes any 5 trackers, 7 days
   of history, the daily check-in reminder, the home-screen widget (1 ring) and
   Focus Lock up to 3 apps."
 - If a reviewer asks for a test account, explain that there are no accounts and
