@@ -1,0 +1,35 @@
+# Track Pro — billing verification service (Railway Config as Code)
+#
+# This service lives in the `billing_server/` subdirectory, NOT the repository
+# root. Before the first deploy, set the service **Root Directory** to
+# `billing_server` in the Railway dashboard (Service → Settings → Source).
+# With that set, Railway builds `billing_server/Dockerfile` using
+# `billing_server/` as the build context, and every path below resolves
+# relative to that directory.
+#
+# Railway injects PORT, RAILWAY_ENVIRONMENT, RAILWAY_SERVICE_ID, etc. at runtime.
+
+"$schema" = "https://railway.com/railway.schema.json"
+
+[build]
+# Use the existing, security-hardened Dockerfile (runs as the unprivileged
+# `node` user, no runtime npm install — zero runtime dependencies).
+builder = "dockerfile"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Liveness probe. /healthz returns 200 with no internal state and does NOT
+# require Google Play credentials, so a transient Play API outage will not
+# cause Railway to kill a healthy service.
+healthcheckPath = "/healthz"
+healthcheckTimeout = 60
+
+# Restart on crash (not on intentional SIGTERM during deploys).
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+# Enforce a persistent volume at /data. The Dockerfile stores the purchase
+# ledger at TRACK_STORE_PATH=/data/purchases.json, so the volume MUST be
+# mounted at /data for records to survive redeploys/restarts. Railway will
+# prompt you to attach a volume; it is NOT created automatically.
+requiredMountPath = "/data"

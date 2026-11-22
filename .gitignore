@@ -46,3 +46,46 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# ---------------------------------------------------------------------------
+# TrackPro billing server — secrets, credentials, signing keys & local data
+# (never commit any of these)
+# ---------------------------------------------------------------------------
+
+# Local environment files (real secrets). Keep the example tracked.
+.env
+.env.*
+!.env.example
+billing_server/.env
+billing_server/.env.*
+!billing_server/.env.example
+
+# Google Cloud / Google Play service-account keys and credentials
+*service-account*.json
+*service_account*.json
+play-service-account*.json
+google-credentials*.json
+gcp-credentials*.json
+credentials.json
+sa-*.json
+*.gcp.json
+
+# Private keys / signing material (incl. Android app signing)
+*.pem
+*.key
+*.p12
+*.pfx
+*.keystore
+*.jks
+key.properties
+**/android/key.properties
+
+# Local runtime data — the purchase store lives on a Railway Volume (/data),
+# it must never be committed.
+billing_server/data/
+billing_server/*.purchases.json
+billing_server/purchases.json
+billing_server/.tmp.*
+
+# Node (kept out even though the billing server has zero runtime deps)
+node_modules/

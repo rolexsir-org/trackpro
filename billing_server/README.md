@@ -32,6 +32,13 @@ cancellations, refunds, revocations, expirations).
 
 Responses are documented in `OPERATIONS.md` §3.
 
+## Deployment
+
+Production deployment to Railway is documented in
+[`RAILWAY_DEPLOYMENT.md`](./RAILWAY_DEPLOYMENT.md) (GitHub connection, service
+root directory, environment variables, Google Cloud service-account setup, RTDN /
+Pub/Sub, persistent volume, health checks, and rollback).
+
 ## Required configuration
 
 | Variable | Required | Purpose |

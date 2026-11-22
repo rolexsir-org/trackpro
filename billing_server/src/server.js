@@ -147,17 +147,27 @@ function createBillingServer({
       }
 
       if (verdict.valid) {
-        store.upsertPurchase({
-          purchaseToken,
-          productId,
-          packageName,
-          status: 'active',
-          expiresAt: verdict.expiresAt,
-          trialEndsAt: verdict.trialEndsAt,
-          autoRenew: verdict.autoRenew,
-          inGracePeriod: verdict.inGracePeriod,
-          installId,
-        });
+        try {
+          store.upsertPurchase({
+            purchaseToken,
+            productId,
+            packageName,
+            status: 'active',
+            expiresAt: verdict.expiresAt,
+            trialEndsAt: verdict.trialEndsAt,
+            autoRenew: verdict.autoRenew,
+            inGracePeriod: verdict.inGracePeriod,
+            installId,
+          });
+        } catch (storeErr) {
+          // Fail safe: a storage write failure must never be reported as a
+          // successful verification, and must be retryable (503) rather than a
+          // silent hang. Log only the safe error code, never the path or token.
+          const code = storeErr && typeof storeErr.code === 'string' ? storeErr.code : 'unknown';
+          logger.log('store_error', { phase: 'verify', code });
+          sendJson(res, 503, { valid: false, retryable: true, reason: 'store_unavailable' });
+          return;
+        }
         logger.log('verify_ok', { productId, tokenRef: ref });
         sendJson(res, 200, {
           valid: true,
@@ -200,9 +210,21 @@ function createBillingServer({
         logger.log('rtdn_processed', { action: outcome.action, type: outcome.type });
         sendJson(res, 200, { ok: true, ...outcome });
       } catch (err) {
-        const code = err.statusCode || 400;
-        logger.log('rtdn_bad_request', { code });
-        sendJson(res, code, { ok: false, reason: 'invalid_rtdn' });
+        // Distinguish a malformed/unauthorized RTDN (400, permanent — Pub/Sub
+        // should not retry) from a storage or transient failure (503, retryable
+        // so Pub/Sub redelivers instead of silently dropping a revocation).
+        const storageCodes = new Set([
+          'ENOENT', 'ENOSPC', 'EROFS', 'EACCES', 'EPERM', 'EMFILE', 'ENOTDIR', 'EBADF',
+        ]);
+        const isStorage = Boolean(err && storageCodes.has(err.code));
+        const status = isStorage
+          ? 503
+          : typeof err.statusCode === 'number'
+            ? err.statusCode
+            : 400;
+        const code = err && typeof err.code === 'string' ? err.code : 'unknown';
+        logger.log('rtdn_error', { status, code, storage: isStorage });
+        sendJson(res, status, { ok: false, reason: isStorage ? 'store_unavailable' : 'invalid_rtdn' });
       }
       return;
     }

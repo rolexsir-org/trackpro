@@ -81,6 +81,16 @@ async function main() {
   const { server } = createService({ logger });
   const port = Number(process.env.PORT || 8080);
 
+  // Bound per-connection time so a slow or malicious client cannot hold a socket
+  // open forever (slowloris-style exhaustion). headersTimeout is kept strictly
+  // above requestTimeout so a valid-but-slow upload is not torn down mid-flight,
+  // and keepAliveTimeout sits just above Railway's 60s LB keep-alive to avoid
+  // spurious connection resets on idle keep-alive sockets.
+  const requestTimeoutMs = Number(process.env.TRACK_REQUEST_TIMEOUT_MS || 30000);
+  server.requestTimeout = requestTimeoutMs;
+  server.headersTimeout = requestTimeoutMs + 1000;
+  server.keepAliveTimeout = 61000;
+
   await new Promise((resolve, reject) => {
     server.once('error', reject);
     server.listen(port, '0.0.0.0', resolve);
