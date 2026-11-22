@@ -97,17 +97,24 @@ Set these in **Railway → Service → Variables**. Never commit them; the
 |---|---|---|---|
 | `PORT` | no | Railway injects it | Listening port. Server defaults to `8080` if unset. |
 | `TRACK_BILLING_API_KEYS` | **yes** | Generate a long random value, e.g. `openssl rand -hex 32` | Comma-separated bearer keys accepted on `POST /billing/verify`. Two values are supported for zero-downtime rotation. |
-| `TRACK_RTDN_SECRET` | **yes** | `openssl rand -hex 32` | Bearer token Google Pub/Sub must present on `POST /rtdn`. |
+| `TRACK_RTDN_AUDIENCE` | recommended | `https://<your-domain>/rtdn` | Enables **Google OIDC** verification of Pub/Sub push JWTs (see §7). Must equal the `audience` you configure on the push subscription. |
+| `TRACK_RTDN_EXPECTED_EMAIL` | optional | `service-<PROJECT_NUMBER>@gcp-sa-pubsub.iam.gserviceaccount.com` | When set, the JWT's service-account email must match (defense-in-depth on top of signature/audience). |
+| `TRACK_RTDN_SECRET` | optional\* | `openssl rand -hex 32` | Static bearer-token fallback for `POST /rtdn`. Required only when `TRACK_RTDN_AUDIENCE` is **not** set. Ignored for any request whose bearer is a JWT. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | one of the two | Path to a mounted service-account JSON (see §5) | File path variant. |
 | `GOOGLE_APPLICATION_CREDENTIALS_JSON` | one of the two | Paste the entire service-account JSON as a string | Inline variant — easiest for Railway variable injection. Takes precedence over the path variant. |
 | `TRACK_STORE_PATH` | **yes** | Default in image: `/data/purchases.json` | Path to the persistent JSON purchase ledger. Keep it **inside the volume** (`/data`). |
 | `TRACK_REQUEST_TIMEOUT_MS` | no | Default `30000` | Per-connection socket timeout (slowloris defense). Applied to `requestTimeout`/`headersTimeout`; `keepAliveTimeout` is fixed at 61s. |
 
+\* **RTDN auth is mandatory**, but you may satisfy it with **either** `TRACK_RTDN_AUDIENCE`
+(OIDC, recommended) **or** `TRACK_RTDN_SECRET` (static). Google OIDC is the
+preferred sole mechanism; the static secret is a migration-friendly fallback.
+
 **Startup contract (enforced by the service):** the process **refuses to start**
-if `TRACK_BILLING_API_KEYS`, `TRACK_RTDN_SECRET`, `TRACK_STORE_PATH`, **or** a
-valid Google credential (`GOOGLE_APPLICATION_CREDENTIALS` path or
-`GOOGLE_APPLICATION_CREDENTIALS_JSON`) is missing/invalid. This is intentional —
-a billing service that starts without authentication would accept forged tokens.
+if `TRACK_BILLING_API_KEYS`, `TRACK_STORE_PATH`, a valid Google credential
+(`GOOGLE_APPLICATION_CREDENTIALS` path or `GOOGLE_APPLICATION_CREDENTIALS_JSON`),
+**or** RTDN authentication (`TRACK_RTDN_AUDIENCE` or `TRACK_RTDN_SECRET`) is
+missing/invalid. This is intentional — a billing service that starts without
+authentication would accept forged tokens.
 
 ---
 
@@ -127,9 +134,10 @@ machine and never logs it.
    `credentials.json`, etc.).
 4. Enable the **Google Play Android Developer API** for that GCP project
    (*APIs & Services → Library*).
-5. In **Play Console → Users & permissions**, grant the service-account email
-   at least **View financial data** (read-only monetization access), scoped to
-   the `com.track.app` app.
+5. In **Play Console → Users & permissions**, grant the service-account email the
+   permissions listed in §6 (at minimum **View financial data, orders, and
+   cancellation survey responses**, scoped to the `com.track.app` app — that is
+   all the verifier needs).
 
 Provide the credentials to Railway via **one** of:
 
@@ -148,11 +156,26 @@ The client calls exactly:
 
 ## 6. Google Play API permissions
 
+Grant the service account the **minimum** set it needs. The verifier only *reads*
+purchase state, so it does **not** need any write/management permission.
+
+### Required for verification (this service)
 | Permission | Where | Why |
 |---|---|---|
-| **View financial data** | Play Console → Users & permissions | Minimum read access needed to verify purchases. Do **not** grant admin. |
+| **View financial data, orders, and cancellation survey responses** | Play Console → Users & permissions | Read-only access to purchases, orders and survey responses — exactly what `purchases.subscriptionsv2.get` / `purchases.products.get` require. |
 | **Google Play Android Developer API** | GCP → APIs & Services | The API the verifier calls. |
 | App scope = `com.track.app` | Play Console | The verifier rejects any other `packageName` (`EXPECTED_PACKAGE`). |
+
+### Only if you later add management operations (NOT used by this deployment)
+| Permission | Where | Why |
+|---|---|---|
+| **Manage orders and subscriptions** | Play Console → Users & permissions | Write access to issue refunds, revoke, pause, etc. The current verification + RTDN service performs **no** such calls, so do **not** grant this unless you add management endpoints. Granting it would be unnecessary privilege. |
+
+> Keep the service account **read-only**. Issuing refunds/revocations is normally
+> handled by Play Console or RTDN; this backend only consumes RTDN and verifies
+> tokens. If you ever add a management call, isolate it behind its own auth and
+> then grant **Manage orders and subscriptions** to a *separate*, narrower
+> service account.
 
 Catalogue allowlist (hard-coded in `src/verifier.js`, do not change without a
 reason): `track_pro_monthly`, `track_pro_annual` (subscriptions) and
@@ -165,17 +188,24 @@ reason): `track_pro_monthly`, `track_pro_annual` (subscriptions) and
 Real-time Developer Notifications keep the stored entitlement in sync (renewals,
 cancellations, refunds, revocations, expirations).
 
+**Authentication: use Google OIDC (recommended).** Configure the push subscription
+for Google-managed OIDC; Pub/Sub then sends `Authorization: Bearer <Google-signed
+JWT>`. The server verifies that JWT cryptographically — signature against Google's
+rotated public certs, issuer, expiry, the `audience` claim, and (optionally) the
+Pub/Sub service-account email. A static bearer secret is still supported as a
+fallback but is no longer the sole mechanism.
+
 1. **GCP → Pub/Sub → Topics → Create** (e.g. `trackpro-rtdn`).
 2. **Create a push subscription** to `https://<your-domain>/rtdn`.
-   - The server requires `Authorization: Bearer <TRACK_RTDN_SECRET>` on this
-     endpoint. Configure the subscription's **push `headers`** to attach that
-     `Authorization` header (Google Pub/Sub push config supports custom headers;
-     verify the exact field name against current Google docs / `gcloud
-     pubsub subscriptions create … --push-header`). The bearer secret must equal
-     the `TRACK_RTDN_SECRET` variable.
-   - Optional hardening: also enable **OIDC token** on the subscription and
-     restrict the endpoint at your proxy. The current server authenticates via
-     the shared secret only — see *Known limitations* below.
+   - Enable **OIDC token** on the subscription and set the **audience** to exactly
+     the value of `TRACK_RTDN_AUDIENCE` (e.g. `https://<your-domain>/rtdn`).
+   - Note the **service-account email** shown for the subscription
+     (`service-<PROJECT_NUMBER>@gcp-sa-pubsub.iam.gserviceaccount.com`); set it as
+     `TRACK_RTDN_EXPECTED_EMAIL` for an extra identity check.
+   - If you prefer not to use OIDC, leave OIDC off and instead set the
+     subscription's push `Authorization` header to `Bearer <TRACK_RTDN_SECRET>`
+     (the server then authenticates with the shared secret). This is the legacy
+     path and is less secure than OIDC.
 3. **Play Console → Monetization → Real-time developer notifications** → point
    the topic at the one you created. Send a **test notification** (Play Console
    provides a button) and confirm `POST /rtdn` returns `200
@@ -183,7 +213,8 @@ cancellations, refunds, revocations, expirations).
 4. The handler is **fail-closed**: RTDN can only *revoke/update*; it can never
    *grant* Pro. An unknown token or a malformed envelope is a safe no-op (or a
    400 that stops redelivery); a **storage failure returns 503** so Pub/Sub
-   redelivers instead of dropping a revocation.
+   redelivers instead of dropping a revocation. An unauthenticated, expired, or
+   wrongly-signed push is rejected with `401`.
 
 ---
 
@@ -321,19 +352,20 @@ After deploy, verify in order:
   reference (`tokenRef`); the logger redacts tokens, emails, bearer headers and
   sensitive keys; storage failures log only a safe error code.
 - **Auth.** `POST /billing/verify` requires `TRACK_BILLING_API_KEYS`;
-  `POST /rtdn` requires `TRACK_RTDN_SECRET`; credentials come from env/secret,
-  never the image.
+  `POST /rtdn` requires either a Google-signed OIDC JWT (`TRACK_RTDN_AUDIENCE` set)
+  or the static `TRACK_RTDN_SECRET` bearer; credentials come from env/secret, never
+  the image.
 - **Hardening added for this deploy:** bounded request/socket timeouts, explicit
   `0.0.0.0` + `PORT` binding, safe storage-failure responses (503 retryable
-  instead of a hang or a false 200), and a non-root container that can still
-  write to the mounted volume.
+  instead of a hang or a false 200), Google OIDC verification of Pub/Sub pushes,
+  and a non-root container that can still write to the mounted volume.
 
 ## Known limitations (not fixed here — out of scope)
 
-- RTDN auth relies on the shared `TRACK_RTDN_SECRET` bearer (documented,
-  fail-closed). Google Pub/Sub **OIDC** token verification is not implemented;
-  add it at a proxy or inside `handleRtdn` if you want defense-in-depth against
-  secret leakage.
+- **Static secret is still accepted as a fallback.** Once a subscription is
+  configured for OIDC, you can (and should) drop `TRACK_RTDN_SECRET`; until then
+  the shared secret remains a valid credential. A bearer that *is* a JWT is never
+  downgraded to the shared secret — it must pass OIDC.
 - Rate limiting is per client IP (from `X-Forwarded-For`). Behind Railway's
   proxy this is reasonable, but a client spoofing that header can split its
   bucket; the API key remains the primary control.
