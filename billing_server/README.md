@@ -32,19 +32,30 @@ cancellations, refunds, revocations, expirations).
 
 Responses are documented in `OPERATIONS.md` §3.
 
+## Deployment
+
+Production deployment to Railway is documented in
+[`RAILWAY_DEPLOYMENT.md`](./RAILWAY_DEPLOYMENT.md) (GitHub connection, service
+root directory, environment variables, Google Cloud service-account setup, RTDN /
+Pub/Sub, persistent volume, health checks, and rollback).
+
 ## Required configuration
 
 | Variable | Required | Purpose |
 |---|---|---|
 | `TRACK_BILLING_API_KEYS` | yes | Comma-separated bearer keys for `/billing/verify`. Two values are supported during rotation. |
-| `TRACK_RTDN_SECRET` | yes | Bearer token that Pub/Sub must present on `/rtdn`. |
+| `TRACK_RTDN_AUDIENCE` | recommended | Enables Google OIDC verification of Pub/Sub push JWTs on `/rtdn`; must equal the subscription's `audience`. |
+| `TRACK_RTDN_EXPECTED_EMAIL` | optional | Require the Pub/Sub service-account email in the JWT (defense-in-depth). |
+| `TRACK_RTDN_SECRET` | optional\* | Static bearer token fallback for `/rtdn`. Required only when `TRACK_RTDN_AUDIENCE` is not set. |
 | `TRACK_STORE_PATH` | yes | Path to the persistent JSON purchase store. |
-| `GOOGLE_APPLICATION_CREDENTIALS` | yes | Path to the Play service-account JSON key. |
+| `GOOGLE_APPLICATION_CREDENTIALS` | yes | Path to the Play service-account JSON key (or use `GOOGLE_APPLICATION_CREDENTIALS_JSON`). |
 | `PORT` | no | Listening port (default `8080`). |
 
-The service **refuses to start** if any of the four required values is missing.
-A billing service that starts without authentication would accept forged
-purchase tokens.
+\* RTDN auth is mandatory, but satisfied by **either** `TRACK_RTDN_AUDIENCE`
+(OIDC, recommended) **or** `TRACK_RTDN_SECRET` (static). The service **refuses to
+start** if any core value (API keys, store path, Play credentials, or RTDN auth)
+is missing. A billing service that starts without authentication would accept
+forged purchase tokens.
 
 ### Play service account
 

@@ -12,8 +12,10 @@
 #     -v trackpro-billing-data:/data \
 #     trackpro-billing
 #
-# The image runs as the unprivileged `node` user. /data is the persistent store
-# volume; TRACK_STORE_PATH defaults to /data/purchases.json below.
+# The image stores purchases in /data/purchases.json. The entrypoint (as root)
+# makes /data writable by the unprivileged `node` user, then runs the service as
+# `node`. This is what lets a Railway Volume mounted at /data be written to by a
+# non-root process.
 
 FROM node:20-alpine
 
@@ -23,16 +25,16 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-COPY package.json ./
+COPY package.json package-lock.json ./
 COPY src ./src
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-RUN mkdir -p /data && chown -R node:node /data /app
-
-USER node
+RUN mkdir -p /data \
+    && chmod +x /usr/local/bin/docker-entrypoint.sh
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD node -e "require('http').get('http://127.0.0.1:8080/healthz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-CMD ["node", "src/index.js"]
+ENTRYPOINT ["docker-entrypoint.sh"]

@@ -8,6 +8,7 @@ const {
   RateLimiter,
 } = require('./security');
 const { handleRtdn } = require('./rtdn');
+const { isJwt } = require('./oidc');
 
 const DEFAULT_MAX_BODY_BYTES = 16 * 1024;
 
@@ -72,6 +73,7 @@ function createBillingServer({
   store,
   apiKeys = [],
   rtdnSecret = null,
+  oidcVerifier = null,
   integrityVerifier = null,
   rateLimiter = new RateLimiter(),
   logger = createLogger(),
@@ -79,6 +81,33 @@ function createBillingServer({
 }) {
   if (!verifier) throw new Error('verifier is required');
   if (!store) throw new Error('store is required');
+
+  /**
+   * Authenticate a Pub/Sub push request.
+   *
+   * If the bearer is a JWT and a Google OIDC verifier is configured, the token is
+   * verified cryptographically (signature, issuer, audience, expiry, email). A JWT
+   * that fails OIDC is rejected — it is never downgraded to the shared secret.
+   * A non-JWT bearer (or when OIDC is disabled) falls back to the static
+   * `TRACK_RTDN_SECRET`. Fails closed when neither mechanism is configured.
+   */
+  async function authenticateRtdn(authHeader, { secret, oidc }) {
+    if (!secret && !oidc) return false;
+    const match = /^Bearer\s+(\S+)$/i.exec(typeof authHeader === 'string' ? authHeader : '');
+    if (!match) return false;
+    const raw = match[1];
+    if (oidc && isJwt(raw)) {
+      try {
+        return await oidc.verify(raw);
+      } catch (_) {
+        return false;
+      }
+    }
+    if (secret) {
+      return verifyBearerHeader(authHeader, [secret]);
+    }
+    return false;
+  }
 
   return http.createServer(async (req, res) => {
     const url = new URL(req.url || '/', 'http://localhost');
@@ -147,17 +176,27 @@ function createBillingServer({
       }
 
       if (verdict.valid) {
-        store.upsertPurchase({
-          purchaseToken,
-          productId,
-          packageName,
-          status: 'active',
-          expiresAt: verdict.expiresAt,
-          trialEndsAt: verdict.trialEndsAt,
-          autoRenew: verdict.autoRenew,
-          inGracePeriod: verdict.inGracePeriod,
-          installId,
-        });
+        try {
+          store.upsertPurchase({
+            purchaseToken,
+            productId,
+            packageName,
+            status: 'active',
+            expiresAt: verdict.expiresAt,
+            trialEndsAt: verdict.trialEndsAt,
+            autoRenew: verdict.autoRenew,
+            inGracePeriod: verdict.inGracePeriod,
+            installId,
+          });
+        } catch (storeErr) {
+          // Fail safe: a storage write failure must never be reported as a
+          // successful verification, and must be retryable (503) rather than a
+          // silent hang. Log only the safe error code, never the path or token.
+          const code = storeErr && typeof storeErr.code === 'string' ? storeErr.code : 'unknown';
+          logger.log('store_error', { phase: 'verify', code });
+          sendJson(res, 503, { valid: false, retryable: true, reason: 'store_unavailable' });
+          return;
+        }
         logger.log('verify_ok', { productId, tokenRef: ref });
         sendJson(res, 200, {
           valid: true,
@@ -189,7 +228,21 @@ function createBillingServer({
     }
 
     if (req.method === 'POST' && url.pathname === '/rtdn') {
-      if (rtdnSecret && !verifyBearerHeader(req.headers.authorization, [rtdnSecret])) {
+      let authed = false;
+      try {
+        authed = await authenticateRtdn(req.headers.authorization, {
+          secret: rtdnSecret,
+          oidc: oidcVerifier,
+        });
+      } catch (authErr) {
+        // OIDC cert fetch / crypto error: we cannot authenticate, so reject.
+        // Pub/Sub will redeliver; we must not grant access on an unknown identity.
+        logger.log('rtdn_auth_error', { reason: 'oidc_unavailable' });
+        sendJson(res, 401, { ok: false, reason: 'unauthorized' });
+        return;
+      }
+      if (!authed) {
+        logger.log('rtdn_auth_failed', { mode: oidcVerifier ? 'oidc' : 'secret' });
         sendJson(res, 401, { ok: false, reason: 'unauthorized' });
         return;
       }
@@ -200,9 +253,21 @@ function createBillingServer({
         logger.log('rtdn_processed', { action: outcome.action, type: outcome.type });
         sendJson(res, 200, { ok: true, ...outcome });
       } catch (err) {
-        const code = err.statusCode || 400;
-        logger.log('rtdn_bad_request', { code });
-        sendJson(res, code, { ok: false, reason: 'invalid_rtdn' });
+        // Distinguish a malformed/unauthorized RTDN (400, permanent — Pub/Sub
+        // should not retry) from a storage or transient failure (503, retryable
+        // so Pub/Sub redelivers instead of silently dropping a revocation).
+        const storageCodes = new Set([
+          'ENOENT', 'ENOSPC', 'EROFS', 'EACCES', 'EPERM', 'EMFILE', 'ENOTDIR', 'EBADF',
+        ]);
+        const isStorage = Boolean(err && storageCodes.has(err.code));
+        const status = isStorage
+          ? 503
+          : typeof err.statusCode === 'number'
+            ? err.statusCode
+            : 400;
+        const code = err && typeof err.code === 'string' ? err.code : 'unknown';
+        logger.log('rtdn_error', { status, code, storage: isStorage });
+        sendJson(res, status, { ok: false, reason: isStorage ? 'store_unavailable' : 'invalid_rtdn' });
       }
       return;
     }

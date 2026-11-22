@@ -10,14 +10,20 @@
  *
  * Required environment:
  *   TRACK_BILLING_API_KEYS        comma-separated bearer keys for /billing/verify
- *   TRACK_RTDN_SECRET             bearer token for /rtdn (Pub/Sub push)
  *   TRACK_STORE_PATH              path to the persistent JSON purchase store
  *   GOOGLE_APPLICATION_CREDENTIALS  path to the Play service-account JSON key
  *   PORT                          listening port (default 8080)
  *
- * The service refuses to start if any of the first four is missing. A billing
- * service that silently starts without authentication is worse than one that
- * does not start: it would accept forged purchase tokens.
+ * RTDN (Pub/Sub push) authentication — at least one of:
+ *   TRACK_RTDN_AUDIENCE           Google OIDC audience; enables Google-signed
+ *                                 JWT verification (recommended, sole mechanism)
+ *   TRACK_RTDN_SECRET             static bearer token fallback (optional once
+ *                                 OIDC is enabled)
+ *
+ * The service refuses to start if any of the core four is missing, or if RTDN
+ * auth has neither an OIDC audience nor a shared secret. A billing service that
+ * silently starts without authentication is worse than one that does not start:
+ * it would accept forged purchase tokens.
  */
 
 const { createBillingServer } = require('./server');
@@ -25,6 +31,7 @@ const { BillingStore } = require('./store');
 const { PlayPurchaseVerifier } = require('./verifier');
 const { RateLimiter, createLogger } = require('./security');
 const { createPlayClientFromEnv } = require('./play_client');
+const { createOidcVerifier } = require('./oidc');
 
 function parseApiKeys(value) {
   return String(value || '')
@@ -51,8 +58,12 @@ function createService({
   }
 
   const rtdnSecret = env.TRACK_RTDN_SECRET;
-  if (!rtdnSecret || String(rtdnSecret).trim().length === 0) {
-    throw new Error('TRACK_RTDN_SECRET is required');
+  const rtdnAudience = env.TRACK_RTDN_AUDIENCE;
+  // RTDN must be authenticated by EITHER Google OIDC (preferred) OR the static
+  // shared secret. Requiring both would be ideal but would break existing
+  // subscribers mid-migration; accepting either keeps the door closed.
+  if ((!rtdnSecret || String(rtdnSecret).trim().length === 0) && !rtdnAudience) {
+    throw new Error('TRACK_RTDN_SECRET (or TRACK_RTDN_AUDIENCE for Google OIDC) is required');
   }
 
   const storePath = env.TRACK_STORE_PATH;
@@ -63,23 +74,35 @@ function createService({
   const billingStore = store || new BillingStore(storePath);
   const billingVerifier =
     verifier || new PlayPurchaseVerifier({ playClient: playClient || createPlayClientFromEnv(env) });
+  const oidcVerifier = createOidcVerifier(env);
 
   const server = createBillingServer({
     verifier: billingVerifier,
     store: billingStore,
     apiKeys,
     rtdnSecret,
+    oidcVerifier,
     rateLimiter,
     logger,
   });
 
-  return { server, store: billingStore, verifier: billingVerifier, apiKeys, rtdnSecret };
+  return { server, store: billingStore, verifier: billingVerifier, apiKeys, rtdnSecret, oidcVerifier };
 }
 
 async function main() {
   const logger = createLogger();
   const { server } = createService({ logger });
   const port = Number(process.env.PORT || 8080);
+
+  // Bound per-connection time so a slow or malicious client cannot hold a socket
+  // open forever (slowloris-style exhaustion). headersTimeout is kept strictly
+  // above requestTimeout so a valid-but-slow upload is not torn down mid-flight,
+  // and keepAliveTimeout sits just above Railway's 60s LB keep-alive to avoid
+  // spurious connection resets on idle keep-alive sockets.
+  const requestTimeoutMs = Number(process.env.TRACK_REQUEST_TIMEOUT_MS || 30000);
+  server.requestTimeout = requestTimeoutMs;
+  server.headersTimeout = requestTimeoutMs + 1000;
+  server.keepAliveTimeout = 61000;
 
   await new Promise((resolve, reject) => {
     server.once('error', reject);
