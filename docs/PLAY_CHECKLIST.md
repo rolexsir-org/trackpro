@@ -6,8 +6,7 @@ Technical readiness ≠ account eligibility, policy approval or publication.
 
 > **Repository status (2026-11-01): NOT READY.** No Flutter artifact has ever
 > been built, CI is not active, no upload keystore exists, the billing service
-> is not deployed, and no store assets exist. The full, evidence-backed gap
-> register is [`PUBLISHING_GAPS.md`](PUBLISHING_GAPS.md). This checklist is the
+> is not deployed, and no store assets exist. This checklist is the
 > Play Console side only.
 
 ## Repository & CI (prerequisites)
@@ -32,7 +31,7 @@ Technical readiness ≠ account eligibility, policy approval or publication.
 - [ ] **Privacy policy URL** — must be live, public, HTTPS (⚠ must be hosted before submission; the same URL goes in `TRACK_PRIVACY_URL`).
 - [ ] **Data safety form** — truthful baseline for this app: all tracker data stored locally (SQLite, no cloud sync, backups disabled); purchase verification sends purchase token + package name to your backend over HTTPS; Health Connect data (steps/sleep/weight) read-only, never leaves the device; no ads SDK, no third-party analytics SDK, no third-party data sharing. "No analytics SDK" means **none that we integrated** — it is not a claim that the process never contacts Google: Play services, the Health Connect client and Play Billing ship their own Clearcut/CCT transport, which logs SDK diagnostics to `firebaselogging.googleapis.com`. Verify with `adb logcat | grep -iE 'cct|firebaselogging'` on a release build and word the policy accordingly. Cross-check `docs/PRIVACY_DATA_FLOW.md` §2.
 - [ ] **Health apps / Health Connect declaration** — required because the app requests `android.permission.health.READ_*`. Complete the Health Connect data-use declaration; expect extra review.
-- [ ] **Foreground service (`specialUse`)** — written justification for the Focus Lock session detector (user-started, user-visible session; subtype `focus_session_detector`). See `docs/FOCUS_LOCK.md` §6. ⚠ Rejection here is a release blocker.
+- [ ] **Foreground service (`specialUse`)** — written justification for the Focus Lock session detector (user-started, user-visible session; subtype `focus_session_detector`). ⚠ Rejection here is a release blocker.
 - [ ] **ACTIVITY_RECOGNITION / Physical activity** permission declaration (step counting).
 - [ ] **PACKAGE_USAGE_STATS** — App needs the Usage Access sensitive-permission declaration (Focus Lock: detect foreground app chosen by the user). ⚠ High-scrutiny permission; justification text should mirror the manifest rationale.
 - [ ] **SYSTEM_ALERT_WINDOW** — declared use: user-started focus covering panel.

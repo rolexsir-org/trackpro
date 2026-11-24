@@ -132,4 +132,4 @@ The image runs as the unprivileged `node` user and stores purchases in
 The 60+ tests use a fake Play client, so they prove the contract and the
 entitlement rules, not Google's live responses. A real service-account test
 purchase on a closed-testing track is still required before launch. See
-`docs/PLAY_CHECKLIST.md` and `docs/PUBLISHING_GAPS.md`.
+`docs/PLAY_CHECKLIST.md`.

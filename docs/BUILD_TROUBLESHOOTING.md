@@ -90,7 +90,7 @@ built-in-Kotlin release and the build runs on a Flutter that contains #192206.
 `tools/release_gate.py` check **P-52** fails if the four coupled facts (the two
 opt-out flags, the KGP version pin, and this suppression) stop agreeing, so the
 combination cannot be half-edited into a build that fails at configuration.
-`docs/UPGRADE_2026-10-20.md` §8 records the evidence and the exact edit.
+The 2026-10-20 toolchain upgrade record recorded the evidence and the exact edit.
 
 One more observation from your screenshot: the plugin list includes
 **`device_info_plus`** and **`jni`**, and the editor tab is
@@ -122,7 +122,7 @@ Ordered by how often each one produces *exactly* this shape of output
    `environment: flutter: ">=3.47.0"`, `sdk: ">=3.13.0 <4.0.0"`. The
    `flutter_tools` Gradle plugin from an older SDK also predates AGP 9.1.
    Fix: upgrade the SDK the build uses, and re-check
-   `flutter --version` (`docs/UPGRADE_2026-10-20.md` §2 has the pinned pair).
+   `flutter --version` (the 2026-10-20 upgrade pinned Flutter 3.47.7 / Dart 3.13.5).
    The diagnostic prints this comparison at the top of the run.
 2. **`flutter pub get` never ran (or ran against a different tree).**
    No `.dart_tool/package_config.json` → the frontend cannot resolve
@@ -156,7 +156,7 @@ Ordered by how often each one produces *exactly* this shape of output
 The sandbox this was reviewed in has no Flutter/Dart SDK and no Android SDK, and
 `pub.dev`, `storage.googleapis.com` and `services.gradle.org` are unreachable, so
 **`flutter analyze` / `flutter test` / `flutter build` could not be executed
-here** (same environment limits as `docs/UPGRADE_2026-10-20.md` §1). What *was*
+here** (same environment limits as the 2026-10-20 upgrade review). What *was*
 executed:
 
 | Check | Result | What it rules out |
@@ -255,7 +255,7 @@ so both blockers in §3 stand exactly as written. Deleting
 the warnings — it would fail configuration at `:health`, trading three
 warnings for a second, harder build failure. The "New Minor Gradle Version
 Available" line is informational: 9.3.1 is Flutter 3.47's verified maximum
-and only ever moves with the matrix (`docs/UPGRADE_2026-10-20.md` §2).
+and only ever moves with the matrix (Flutter 3.47.7 / Dart 3.13.5, pinned in the 2026-10-20 upgrade).
 
 **Remaining honesty.** The fix removes the one *confirmed* compile error. It
 was verified by reading the pinned sources, not by running a compiler —
@@ -263,5 +263,5 @@ there is still no Dart toolchain in the review environment (§5 of the upgrade
 record). If the next build still fails, it is a *different* error: run
 `bash tools/diagnose_build.sh` and send the `file:line:col` line. The
 complete proof remains CI (`pub get → analyze → test → build`) on
-Flutter 3.47.7 — `docs/UPGRADE_2026-10-20.md` §6, item 1 — which is also now
+Flutter 3.47.7 (pinned in the 2026-10-20 upgrade) — which is also now
 the first place this file will be compiled by an actual compiler.

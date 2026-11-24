@@ -2,9 +2,7 @@
 
 > **Publishing status: NOT READY.** No Flutter artifact has ever been built,
 > CI has never run, no upload keystore exists, the billing backend is not
-> deployed, and the Play Console listing has no assets. The complete,
-> evidence-backed gap register is
-> [`docs/PUBLISHING_GAPS.md`](docs/PUBLISHING_GAPS.md); the console-side
+> deployed, and the Play Console listing has no assets. The console-side
 > checklist is [`docs/PLAY_CHECKLIST.md`](docs/PLAY_CHECKLIST.md).
 
 One app for everything you track daily — commitments (habits), water, mood,

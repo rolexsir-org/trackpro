@@ -116,7 +116,7 @@ zero-loss assumption.
 | S-09 | **Low** | Install ids and e-mail could be logged if they ever reached the logger | Added to the redaction key list | **Fixed** |
 | S-10 | **Low** | `READ_HEALTH_DATA_IN_BACKGROUND` was requested with nothing needing it | Removed from the manifest | **Fixed** |
 | S-11 | **Low** | No integrity hook on `/billing/verify` | Pluggable `integrityCheck` (Play Integrity) documented and wired, inert until configured | **Accepted** |
-| S-12 | Medium | Health permission revocation is not detected on resume | Open — `PRODUCTION_READINESS.md` §11 item 5 | **Open** |
+| S-12 | Medium | Health permission revocation is not detected on resume | Open — detect permission revocation on resume | **Open** |
 
 ---
 

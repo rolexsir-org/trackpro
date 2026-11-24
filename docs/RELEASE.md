@@ -8,7 +8,7 @@ Studio is never required.
 
 | Tool | Version | Check |
 |---|---|---|
-| Flutter (stable) | 3.47.7 (Dart 3.13.5) — pinned in CI; see `docs/UPGRADE_2026-10-20.md` | `flutter --version` |
+| Flutter (stable) | 3.47.7 (Dart 3.13.5) — pinned in CI | `flutter --version` |
 | JDK | 17 | `java -version` |
 | Gradle / AGP / Kotlin | 9.3.1 / 9.1.0 / 2.4.0 (Flutter 3.47's verified matrix, in `android/settings.gradle.kts`) | `./gradlew --version` |
 | Android SDK | Platform 36 + build-tools 36 | `flutter doctor -v` |
