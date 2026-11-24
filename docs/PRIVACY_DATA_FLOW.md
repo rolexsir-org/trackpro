@@ -101,8 +101,7 @@ statement. What it reads: the **package name** of the app that came to the front
 own list. What it never reads: screen content, other apps' data, messages, notifications,
 credentials, location, contacts. What it writes: three integers (opens detected, panels
 shown, foreground events observed) plus the session's own numbers. What it sends:
-nothing. There is no upload path for this data, and `docs/FOCUS_LOCK.md` §5 is the
-long form.
+nothing. There is no upload path for this data.
 
 ## 4. User controls (all implemented)
 

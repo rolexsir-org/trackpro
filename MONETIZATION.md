@@ -12,8 +12,7 @@ If you read only one section, read §1 and §4.
 > **Status (2026-11-01):** the verification service is implemented and
 > runnable (`billing_server/src/index.js`, 78/78 tests) but **not deployed**.
 > No Play Console products, service account, API keys, RTDN secret or legal
-> pages exist yet. The complete gap register is
-> [`docs/PUBLISHING_GAPS.md`](docs/PUBLISHING_GAPS.md).
+> pages exist yet.
 
 ---
 
